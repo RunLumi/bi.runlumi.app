@@ -1,13 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "__CUSTOMER_ID__-lumi",
-  "main": "../apps/worker/src/index.ts",
+  "main": "src/index.ts",
   "compatibility_date": "2026-09-20",
   "workers_dev": false,
   "preview_urls": false,
   "routes": [{"pattern": "__HOSTNAME__", "custom_domain": true}],
   "assets": {
-    "directory": "../apps/web/dist",
+    "directory": "../web/dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/healthz"]

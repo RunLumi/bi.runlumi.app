@@ -23,8 +23,8 @@ const npm=process.env.LUMI_NPM_BIN??'/opt/homebrew/bin/npm';
 const work=await mkdtemp(path.join(tmpdir(),'lumi-acceptance-'));
 const results=[];
 const step=async(name,fn)=>{try{const value=await fn();results.push(`PASS ${name}`);return value;}catch(error){results.push(`FAIL ${name}: ${error.message}`);throw error;}};
-const run=(command,args,cwd,{expectFail=false}={})=>{
- const r=spawnSync(command,args,{cwd,encoding:'utf8',env:{...process.env,LUMI_NPM_BIN:npm}});
+const run=(command,args,cwd,{expectFail=false,env={}}={})=>{
+ const r=spawnSync(command,args,{cwd,encoding:'utf8',env:{...process.env,LUMI_NPM_BIN:npm,...env}});
  if(r.status!==0&&!expectFail)throw new Error(`${command} ${args.join(' ')} failed: ${(r.stdout??'')+(r.stderr??'')}`);
  return {...r,ok:r.status===0};
 };
@@ -106,7 +106,10 @@ try{
   run(npm,['install','--ignore-scripts','--save-exact'],bump);
   run(npm,['run','build:packages'],bump);
   const artifacts=path.join(bump,'artifacts/core');
-  run(process.execPath,['scripts/core-pack.mjs'],bump);
+  // The synthetic N+1 tree is a copy without git history; supply an explicit synthetic
+  // source commit so packaging provenance is recorded rather than guessed.
+  const syntheticCommit='1'.repeat(40).replace(/.$/,'2');
+  run(process.execPath,['scripts/core-pack.mjs'],bump,{env:{LUMI_SOURCE_COMMIT:syntheticCommit}});
   for(const dir of [alpha,beta]){
    const out=run(npm,['run','upgrade','--','--from',artifacts],dir,{expectFail:false});
    assert(/0\.1\.0 -> 0\.1\.1/.test(out.stdout),`upgrade plan must report N -> N+1 for ${dir}`);
