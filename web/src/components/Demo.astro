@@ -4,22 +4,22 @@ import Glyph from './Glyph.astro';
 import { scenarios, chartPoints } from '../data/demo';
 ---
 <section class="demo-section container" id="minh-hoa" aria-labelledby="demo-label">
-  <div class="demo-caption"><h2 id="demo-label">Một góc nhìn. Ba nhóm quyết định.</h2><span><span class="annotation-dot"></span> Khám phá bản minh họa</span></div>
+  <div class="demo-caption"><h2 id="demo-label">Thử một góc nhìn rõ hơn.</h2><span><span class="annotation-dot"></span> Chọn tình huống bên dưới</span></div>
   <div class="demo-frame" data-demo>
     <aside class="demo-sidebar">
       <Brand compact />
-      <p class="eyebrow">TÌNH HUỐNG</p>
+      <p class="eyebrow">BẠN MUỐN XEM GÌ?</p>
       <nav class="demo-tabs" aria-label="Chọn tình huống minh họa" data-demo-tabs>
         {scenarios.map(item => <a id={`tab-${item.id}`} href={`#demo-${item.id}`} data-demo-tab={item.id}><span class="tab-number">{item.number}</span><span>{item.tab}</span><Glyph name="arrow" /></a>)}
       </nav>
-      <div class="sidebar-note"><Glyph name="evidence" /><p>Hiểu cơ sở.<br />Rồi mới quyết định.</p></div>
-      <span class="sidebar-edition">COMMERCE INTELLIGENCE<br />PRODUCT PREVIEW / 01</span>
+      <div class="sidebar-note"><Glyph name="evidence" /><p>Rõ con số.<br />Hiểu việc cần làm.</p></div>
+      <span class="sidebar-edition">PHÂN TÍCH KINH DOANH<br />BẢN MINH HỌA / 01</span>
     </aside>
     <div class="demo-workspace">
-      <div class="demo-notice" id="demo-disclaimer"><strong>Dữ liệu giả lập</strong><span>Minh họa hướng sản phẩm, không phải tính năng thương mại đã phát hành.</span></div>
+      <div class="demo-notice" id="demo-disclaimer"><strong>Dữ liệu giả lập</strong><span>Các tình huống dưới đây minh họa sản phẩm đang phát triển.</span></div>
       {scenarios.map(item => (
         <section class="demo-panel" id={`demo-${item.id}`} data-demo-panel={item.id} aria-label={item.tab} aria-describedby="demo-disclaimer">
-          <div class="demo-title-row"><div><span class="eyebrow">GÓC NHÌN ĐIỀU HÀNH / {item.number}</span><h3>{item.title}</h3></div><span class="date-chip">01–07.09.2026<br /><span>GMT+7 · kỳ mẫu</span></span></div>
+          <div class="demo-title-row"><div><span class="eyebrow">GÓC NHÌN ĐIỀU HÀNH / {item.number}</span><h3>{item.title}</h3></div><span class="date-chip">01–07.09.2026<br /><span>GMT+7 · kỳ minh họa</span></span></div>
           <p class="demo-subtitle">{item.subtitle}</p>
           <div class="metric-grid">{item.metrics.map(metric => <div class:list={['metric', { 'metric-unknown': metric.unknown }]}><span class="metric-label">{metric.label}</span><p class:list={['metric-value', { 'metric-text': metric.unknown }]}>{metric.value}{metric.unit && <span>{metric.unit}</span>}</p><span class="metric-note">{metric.unknown && <span class="attention-dot"></span>}{metric.note}</span></div>)}</div>
           <div class="demo-analysis">
@@ -35,16 +35,16 @@ import { scenarios, chartPoints } from '../data/demo';
               <details class="chart-data"><summary>Xem bảng số liệu <Glyph name="chevron" /></summary><div class="table-scroll" tabindex="0" role="region" aria-label={`Bảng ${item.chartTitle.toLowerCase()}`}><table><caption>{item.chartTitle} ({item.chartUnit})</caption><thead><tr><th scope="col">Ngày</th><th scope="col">Giá trị mẫu</th></tr></thead><tbody>{item.series.map((value, index) => <tr><th scope="row">0{index + 1}.09.2026</th><td>{value}</td></tr>)}</tbody></table></div></details>
             </figure>
             <aside class="insight-sheet" aria-label="Nhận định minh họa">
-              <span class="insight-label"><Glyph name="evidence" /> GÓC NHÌN LUMI <span>Mô phỏng</span></span>
+              <span class="insight-label"><Glyph name="evidence" /> GÓC NHÌN LUMI <span>Minh họa</span></span>
               <h4>{item.insightTitle}</h4><p>{item.insight}</p>
-              <div class="insight-next"><span>BƯỚC KIỂM TRA TIẾP</span><p>{item.next}</p></div>
+              <div class="insight-next"><span>VIỆC NÊN LÀM TIẾP</span><p>{item.next}</p></div>
               <small>{item.caveat}</small>
             </aside>
           </div>
-          <details class="evidence-disclosure"><summary><span><Glyph name="evidence" /> Xem nguồn & cơ sở tính</span><Glyph name="chevron" /></summary><dl><dt>Nguồn</dt><dd>{item.source}</dd><dt>Định nghĩa</dt><dd>{item.definition}</dd><dt>Giới hạn</dt><dd>{item.limit}</dd><dt>Thời điểm mẫu</dt><dd>Chốt 07.09.2026, 23:59 (Asia/Ho_Chi_Minh). Không đồng bộ trực tiếp.</dd></dl></details>
+          <details class="evidence-disclosure"><summary><span><Glyph name="evidence" /> Xem nguồn và cách tính</span><Glyph name="chevron" /></summary><dl><dt>Nguồn</dt><dd>{item.source}</dd><dt>Cách tính</dt><dd>{item.definition}</dd><dt>Điều cần lưu ý</dt><dd>{item.limit}</dd><dt>Thời điểm mẫu</dt><dd>Chốt 07.09.2026, 23:59 (Asia/Ho_Chi_Minh). Không đồng bộ trực tiếp.</dd></dl></details>
         </section>
       ))}
     </div>
   </div>
-  <p class="demo-footnote">Chọn một tình huống để khám phá. Mọi con số đều là ví dụ; phần còn thiếu được giữ nguyên là “chưa biết”.</p>
+  <p class="demo-footnote">Chọn một tình huống, xem nhận định rồi mở nguồn để kiểm tra. Bạn luôn có thể nhìn lại cách con số được tính.</p>
 </section>
