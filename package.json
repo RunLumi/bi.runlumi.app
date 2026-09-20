@@ -1,0 +1,22 @@
+{
+  "name": "@runlumi/bi",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "scripts": {
+    "dev": "node --experimental-strip-types scripts/dev.mjs",
+    "test": "node --experimental-strip-types --test tests/core.test.mjs tests/api.test.mjs tests/auth.test.mjs tests/ops.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test && node --experimental-strip-types scripts/check-repo.mjs",
+    "init:github": "node --experimental-strip-types scripts/init-github.mjs",
+    "cf:config": "node scripts/cloudflare-config.mjs"
+  },
+  "description": "Cloudflare-first multi-tenant metrics and dashboard kernel. No runtime npm dependencies.",
+  "devDependencies": {
+    "typescript": "5.8.3"
+  }
+}

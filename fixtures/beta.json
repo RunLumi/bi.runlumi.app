@@ -1,0 +1,150 @@
+{
+  "sourceId": "ops-demo",
+  "observedThrough": "2026-09-18",
+  "records": [
+    {
+      "recordId": "quote-preparation-0",
+      "day": "2026-09-02",
+      "workflow": "quote-preparation",
+      "cases": 90,
+      "baselineMinutes": 1440,
+      "humanMinutes": 420,
+      "runtimeCostVnd": 54000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "quote-preparation-1",
+      "day": "2026-09-07",
+      "workflow": "quote-preparation",
+      "cases": 105,
+      "baselineMinutes": 1440,
+      "humanMinutes": 420,
+      "runtimeCostVnd": 54000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "quote-preparation-2",
+      "day": "2026-09-12",
+      "workflow": "quote-preparation",
+      "cases": 120,
+      "baselineMinutes": 1440,
+      "humanMinutes": 420,
+      "runtimeCostVnd": 54000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "quote-preparation-3",
+      "day": "2026-09-17",
+      "workflow": "quote-preparation",
+      "cases": 135,
+      "baselineMinutes": 1440,
+      "humanMinutes": 420,
+      "runtimeCostVnd": 54000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "data-reconciliation-0",
+      "day": "2026-09-02",
+      "workflow": "data-reconciliation",
+      "cases": 90,
+      "baselineMinutes": 1860,
+      "humanMinutes": 360,
+      "runtimeCostVnd": 72000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "data-reconciliation-1",
+      "day": "2026-09-07",
+      "workflow": "data-reconciliation",
+      "cases": 105,
+      "baselineMinutes": 1860,
+      "humanMinutes": 360,
+      "runtimeCostVnd": 72000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "data-reconciliation-2",
+      "day": "2026-09-12",
+      "workflow": "data-reconciliation",
+      "cases": 120,
+      "baselineMinutes": 1860,
+      "humanMinutes": 360,
+      "runtimeCostVnd": 72000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "data-reconciliation-3",
+      "day": "2026-09-17",
+      "workflow": "data-reconciliation",
+      "cases": 135,
+      "baselineMinutes": 1860,
+      "humanMinutes": 360,
+      "runtimeCostVnd": 72000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "weekly-report-0",
+      "day": "2026-09-02",
+      "workflow": "weekly-report",
+      "cases": 90,
+      "baselineMinutes": 1080,
+      "humanMinutes": 270,
+      "runtimeCostVnd": 36000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "weekly-report-1",
+      "day": "2026-09-07",
+      "workflow": "weekly-report",
+      "cases": 105,
+      "baselineMinutes": 1080,
+      "humanMinutes": 270,
+      "runtimeCostVnd": 36000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "weekly-report-2",
+      "day": "2026-09-12",
+      "workflow": "weekly-report",
+      "cases": 120,
+      "baselineMinutes": 1080,
+      "humanMinutes": 270,
+      "runtimeCostVnd": 36000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    },
+    {
+      "recordId": "weekly-report-3",
+      "day": "2026-09-17",
+      "workflow": "weekly-report",
+      "cases": 135,
+      "baselineMinutes": 1080,
+      "humanMinutes": 270,
+      "runtimeCostVnd": 36000,
+      "supportCostVnd": 30000,
+      "cashSavingsVnd": 0,
+      "cashEvidenceRef": null
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "title": "Hiệu quả tự động hóa",
+  "widgets": [
+    {
+      "id": "cases",
+      "kind": "kpi",
+      "title": "Lượt xử lý",
+      "metrics": [
+        "cases"
+      ],
+      "groupBy": "none"
+    },
+    {
+      "id": "hours",
+      "kind": "kpi",
+      "title": "Giờ công được giải phóng",
+      "metrics": [
+        "released_hours"
+      ],
+      "groupBy": "none"
+    },
+    {
+      "id": "cost",
+      "kind": "kpi",
+      "title": "Chi phí chạy AI",
+      "metrics": [
+        "runtime_cost_vnd"
+      ],
+      "groupBy": "none"
+    },
+    {
+      "id": "cash",
+      "kind": "kpi",
+      "title": "Tiền mặt tiết kiệm được ghi nhận",
+      "metrics": [
+        "cash_savings_vnd"
+      ],
+      "groupBy": "none"
+    },
+    {
+      "id": "workflows",
+      "kind": "bar",
+      "title": "Giờ được giải phóng theo quy trình",
+      "metrics": [
+        "released_hours"
+      ],
+      "groupBy": "workflow"
+    },
+    {
+      "id": "detail",
+      "kind": "table",
+      "title": "Chi tiết vận hành",
+      "metrics": [
+        "cases",
+        "baseline_hours",
+        "human_hours",
+        "released_hours",
+        "runtime_cost_vnd",
+        "net_cash_benefit_vnd"
+      ],
+      "groupBy": "workflow"
+    }
+  ]
+}

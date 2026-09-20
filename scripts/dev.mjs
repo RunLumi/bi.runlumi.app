@@ -1,0 +1,29 @@
+import {createServer} from 'node:http';
+import {readFile} from 'node:fs/promises';
+import {fileURLToPath} from 'node:url';
+import {resolve,sep} from 'node:path';
+import {fixture} from './local-adapters.mjs';
+const {api,env,close}=await fixture();
+const webRoot=fileURLToPath(new URL('../apps/web/',import.meta.url));
+const mime={'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
+const port=8787;
+const server=createServer(async(req,res)=>{
+ try{
+  if(!['localhost:8787','127.0.0.1:8787'].includes(req.headers.host??'')){res.writeHead(403);res.end('Loopback host required');return;}
+  const url=new URL(req.url??'/',`http://${req.headers.host}`);
+  if(url.pathname.startsWith('/api/') || url.pathname==='/healthz'){
+   let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>65536){res.writeHead(413);res.end('Body too large');return;}chunks.push(chunk);}
+   const headers=new Headers();for(const[k,v]of Object.entries(req.headers))if(typeof v==='string')headers.set(k,v);
+   if(!headers.has('x-demo-user'))headers.set('x-demo-user','alpha-owner');
+   const method=req.method??'GET';const request=new Request(url,{method,headers,...(!['GET','HEAD'].includes(method)?{body:Buffer.concat(chunks)}:{})});
+   const response=await api(request,env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;
+  }
+  const path=resolve(webRoot,`.${decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname)}`);
+  if(!path.startsWith(webRoot.endsWith(sep)?webRoot:webRoot+sep)){res.writeHead(403);res.end();return;}
+  const type=Object.entries(mime).find(([ext])=>path.endsWith(ext))?.[1];
+  if(!type){res.writeHead(404);res.end();return;}
+  const data=await readFile(path);res.writeHead(200,{'Content-Type':type,'X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});res.end(data);
+ }catch(error){res.writeHead(500);res.end('Local development error');console.error(error.message);}
+});
+server.listen(port,'127.0.0.1',()=>console.log(`Lumi BI demo: http://localhost:${port}\nSynthetic data only. Loopback-only. Production entry never imports this authentication adapter.`));
+process.on('SIGINT',()=>server.close(()=>{close();process.exit(0);}));
