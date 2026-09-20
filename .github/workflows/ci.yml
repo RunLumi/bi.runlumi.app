@@ -1,0 +1,60 @@
+name: verify
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.16.0
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.16.0
+      - name: Resolve initial UI lock in secret-free CI
+        run: |
+          if test -f apps/web/package-lock.json; then
+            npm --prefix apps/web ci --ignore-scripts
+          else
+            npm --prefix apps/web install --ignore-scripts
+          fi
+      - run: npm run build:web
+      - run: npx playwright install --with-deps chromium
+        working-directory: apps/web
+      - run: npm --prefix apps/web run test:e2e
+      - name: Package reproducibility evidence
+        if: always()
+        run: |
+          mkdir -p artifacts
+          cp apps/web/package-lock.json artifacts/frontend-package-lock.json
+          npm --prefix apps/web audit --json > artifacts/npm-audit.json || true
+          node -e "const fs=require('fs'),z=require('zlib');console.log('LUMI_LOCK_GZIP_BASE64='+z.gzipSync(fs.readFileSync('apps/web/package-lock.json')).toString('base64'))"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: frontend-evidence
+          path: |
+            artifacts/
+            apps/web/dist/
+          retention-days: 7

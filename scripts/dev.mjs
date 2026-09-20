@@ -4,12 +4,12 @@ import {fileURLToPath} from 'node:url';
 import {resolve,sep} from 'node:path';
 import {fixture} from './local-adapters.mjs';
 const {api,env,close}=await fixture();
-const webRoot=fileURLToPath(new URL('../apps/web/',import.meta.url));
-const mime={'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
+const webRoot=fileURLToPath(new URL('../apps/web/dist/',import.meta.url));
+const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.woff2':'font/woff2','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
 const port=8787;
 const server=createServer(async(req,res)=>{
  try{
-  if(!['localhost:8787','127.0.0.1:8787'].includes(req.headers.host??'')){res.writeHead(403);res.end('Loopback host required');return;}
+  if(!['localhost:8787','127.0.0.1:8787','localhost:5173','127.0.0.1:5173'].includes(req.headers.host??'')){res.writeHead(403);res.end('Loopback host required');return;}
   const url=new URL(req.url??'/',`http://${req.headers.host}`);
   if(url.pathname.startsWith('/api/') || url.pathname==='/healthz'){
    let size=0;const chunks=[];for await(const chunk of req){size+=chunk.length;if(size>65536){res.writeHead(413);res.end('Body too large');return;}chunks.push(chunk);}
@@ -18,7 +18,7 @@ const server=createServer(async(req,res)=>{
    const method=req.method??'GET';const request=new Request(url,{method,headers,...(!['GET','HEAD'].includes(method)?{body:Buffer.concat(chunks)}:{})});
    const response=await api(request,env);res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;
   }
-  const path=resolve(webRoot,`.${decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname)}`);
+  const path=resolve(webRoot,`.${decodeURIComponent(!url.pathname.split('/').at(-1).includes('.')?'/index.html':url.pathname)}`);
   if(!path.startsWith(webRoot.endsWith(sep)?webRoot:webRoot+sep)){res.writeHead(403);res.end();return;}
   const type=Object.entries(mime).find(([ext])=>path.endsWith(ext))?.[1];
   if(!type){res.writeHead(404);res.end();return;}

@@ -1,0 +1,3 @@
+import type {ComponentProps} from 'react';import {cn} from '@/lib/utils';
+export function Input({className,...props}:ComponentProps<'input'>){return <input data-slot="input" className={cn('h-10 min-w-0 rounded-md border border-input bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50',className)} {...props}/>;}
+export function Textarea({className,...props}:ComponentProps<'textarea'>){return <textarea data-slot="textarea" className={cn('w-full rounded-md border border-input bg-white p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring',className)} {...props}/>;}

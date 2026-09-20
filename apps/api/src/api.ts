@@ -1,3 +1,4 @@
+import {controlRequest} from './control-client.ts';
 import { AppError, id, object, parseSnapshot, type Principal } from '../../../packages/core/contracts.ts';
 import { metrics, parseQuery, compileQuery, parseDashboard } from '../../../packages/core/semantics.ts';
 import { authorizeTenant, canEdit } from './tenant.ts';
@@ -38,19 +39,26 @@ export function createApi(authenticate:Authenticate, demo=false) {
       }
       const principal=await authenticate(request,env);
       if(url.pathname==='/api/session' && request.method==='GET'){
-        const rows=await env.CONTROL_DB.prepare("SELECT t.id,t.name,m.role FROM tenants t JOIN memberships m ON m.tenant_id=t.id WHERE t.state='active' AND m.state='active' AND m.issuer=? AND m.subject=? AND t.cell_id=? ORDER BY t.id")
-          .bind(principal.issuer,principal.subject,env.CELL_ID).all();
-        return secure(json({demo,tenants:rows.results}),requestId);
+        const response=await controlRequest(env,request,'/control/session',undefined,demo);
+        const body=await response.json() as {tenants:{cell_id:string}[];platformOperator:boolean};
+        return secure(json({...body,demo,tenants:body.tenants.filter(t=>t.cell_id===env.CELL_ID)}),requestId);
       }
-      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|dashboards|imports)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
+      if(url.pathname.startsWith('/api/control/')){
+        const body=request.method==='GET'?undefined:await readJson(request);
+        return secure(await controlRequest(env,request,url.pathname.replace('/api/control/','/control/admin/'),body,demo),requestId);
+      }
+      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|dashboards|imports|configuration)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
       if(!match)throw new AppError(404,'NOT_FOUND');
       const tenantId=id(match[1]);const route=match[2];const resource=match[3];
-      const ctx=await authorizeTenant(env,principal,tenantId);
+      const feature=route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
+      const ctx=await authorizeTenant(env,principal,tenantId,request,feature,demo);
+      const active=ctx.active;
+      if(route==='configuration'&&request.method==='GET'&&!resource)return secure(json({active:active?{releaseId:active.releaseId,revision:active.revision,sourceCommit:active.sourceCommit,name:active.pack.name,queries:active.pack.queries,ai:{enabled:active.pack.ai.enabled,providerInstanceRef:active.pack.ai.providerInstanceRef,modelRef:active.pack.ai.modelRef,dailyBudgetUsd:active.pack.ai.dailyBudgetUsd,inferenceImplemented:false}}:null}),requestId);
       let response:Response;
       if(route==='metrics' && request.method==='GET' && !resource){
-        response=json({version:'operations-v1',metrics:metrics.map(({expression,...m})=>m)});
+        response=json({version:'operations-v1',metrics:metrics.filter(m=>!active||active.pack.allowedMetrics.includes(m.id)).map(({expression,...m})=>m)});
       }else if(route==='query' && request.method==='POST' && !resource){
-        const query=parseQuery(await readJson(request));const compiled=compileQuery(query,ctx.id);
+        const query=parseQuery(await readJson(request));if(active&&query.metrics.some(m=>!active.pack.allowedMetrics.includes(m)))throw new AppError(403,'PACK_METRIC_DENIED');const compiled=compileQuery(query,ctx.id);
         // Atomic read batch keeps data and provenance on the same committed snapshot.
         const results=await ctx.db.batch([
           ctx.db.prepare('SELECT s.id,s.source_id,s.content_hash,s.observed_through,s.ingested_at FROM snapshots s JOIN active_snapshots a ON a.snapshot_id=s.id AND a.tenant_id=s.tenant_id WHERE s.tenant_id=? ORDER BY s.source_id LIMIT 21').bind(ctx.id),
@@ -58,23 +66,25 @@ export function createApi(authenticate:Authenticate, demo=false) {
         ]);
         const provenance=results[0]?.results??[];const data=results[1]?.results??[];
         if(provenance.length>20 || data.length>200)throw new AppError(422,'RESULT_BUDGET_EXCEEDED');
-        response=json({data,meta:{tenantId:ctx.id,definitionVersion:'operations-v1',from:query.from,toExclusive:query.to,reportingTimezone:'Asia/Ho_Chi_Minh',provenance,sourceCount:provenance.length,noPublishedData:provenance.length===0,generatedAt:new Date().toISOString(),rowsRead:results[1]?.meta.rows_read??null,caveat:'Released hours are capacity, not cash savings. Zero is not proof of complete source coverage.'}});
+        response=json({data,meta:{tenantId:ctx.id,configurationRelease:active?.releaseId??'builtin',definitionVersion:'operations-v1',from:query.from,toExclusive:query.to,reportingTimezone:'Asia/Ho_Chi_Minh',provenance,sourceCount:provenance.length,noPublishedData:provenance.length===0,generatedAt:new Date().toISOString(),rowsRead:results[1]?.meta.rows_read??null,caveat:'Released hours are capacity, not cash savings. Zero is not proof of complete source coverage.'}});
       }else if(route==='dashboards' && request.method==='GET'){
+        const gitDashboards=active?.pack.dashboards.map(d=>({...d,revision:active.revision,management:'git',releaseId:active.releaseId}))??[];
+        if(resource&&gitDashboards.some(d=>d.id===resource))return secure(json({dashboards:gitDashboards.filter(d=>d.id===resource)}),requestId);
         const result=resource
           ?await ctx.db.prepare('SELECT id,definition,revision FROM dashboards WHERE tenant_id=? AND id=?').bind(ctx.id,resource).all()
           :await ctx.db.prepare('SELECT id,definition,revision FROM dashboards WHERE tenant_id=? ORDER BY id LIMIT 50').bind(ctx.id).all();
         if(resource && !result.results.length)throw new AppError(404,'NOT_FOUND');
-        response=json({dashboards:result.results.map(r=>({id:r.id,revision:r.revision,definition:parseDashboard(JSON.parse(String(r.definition)))}))});
+        response=json({dashboards:[...gitDashboards,...result.results.filter(r=>!gitDashboards.some(d=>d.id===r.id)).map(r=>({id:r.id,revision:r.revision,management:'ui',definition:parseDashboard(JSON.parse(String(r.definition)))}))]});
         if(resource)response.headers.set('ETag',`"${result.results[0]?.revision}"`);
       }else if(route==='dashboards' && request.method==='POST' && !resource){
-        canEdit(ctx);const body=object(await readJson(request),['id','definition']);const dashboardId=id(body.id);const definition=parseDashboard(body.definition);const now=new Date().toISOString();
+        canEdit(ctx);const body=object(await readJson(request),['id','definition']);const dashboardId=id(body.id);if(active?.pack.dashboards.some(d=>d.id===dashboardId))throw new AppError(409,'GIT_MANAGED_DASHBOARD');const definition=parseDashboard(body.definition);const now=new Date().toISOString();
         const count=await ctx.db.prepare('SELECT COUNT(*) AS count FROM dashboards WHERE tenant_id=?').bind(ctx.id).first<{count:number}>();
         if((count?.count??0)>=50)throw new AppError(422,'DASHBOARD_QUOTA');
         try{await ctx.db.batch([ctx.db.prepare('INSERT INTO dashboards (tenant_id,id,definition,revision,updated_at) VALUES (?,?,?,1,?)').bind(ctx.id,dashboardId,JSON.stringify(definition),now),ctx.db.prepare('INSERT INTO audit_events (id,tenant_id,actor,event_type,resource_id,occurred_at) VALUES (?,?,?,?,?,?)').bind(crypto.randomUUID(),ctx.id,principal.subject,'dashboard.created',dashboardId,now)]);}
         catch(error){const prior=await ctx.db.prepare('SELECT id FROM dashboards WHERE tenant_id=? AND id=?').bind(ctx.id,dashboardId).first();if(prior)throw new AppError(409,'DASHBOARD_EXISTS');throw error;}
         response=json({id:dashboardId,revision:1,definition},201);
       }else if(route==='dashboards' && request.method==='PUT' && resource){
-        canEdit(ctx);const definition=parseDashboard(await readJson(request));
+        canEdit(ctx);if(active?.pack.dashboards.some(d=>d.id===resource))throw new AppError(409,'GIT_MANAGED_DASHBOARD');const definition=parseDashboard(await readJson(request));
         const etag=request.headers.get('if-match');
         if(!etag || !/^"[1-9]\d{0,8}"$/.test(etag))throw new AppError(428,'REVISION_REQUIRED');
         const revision=Number(etag.slice(1,-1));const now=new Date().toISOString();

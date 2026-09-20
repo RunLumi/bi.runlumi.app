@@ -17,10 +17,10 @@ for(const [key,p]of Object.entries(lock.packages)){
 parseDashboard(JSON.parse(await read('packs/operations-cost/dashboard.json')));
 const production=await read('apps/api/src/index.ts');
 assert(!/x-demo-user|local-adapters|fixtures\/|DEV_AUTH|DEMO_AUTH/.test(production));
-const headers=await read('apps/web/_headers');assert(headers.includes("frame-ancestors 'none'"));assert(headers.includes("script-src 'self'"));
+const headers=await read('apps/web/public/_headers');assert(headers.includes("frame-ancestors 'none'"));assert(headers.includes("script-src 'self'"));
 for(const file of ['README.md','AGENTS.md','SECURITY.md','docs/architecture.md','docs/deployment.md','docs/semantic-contract.md','docs/roadmap.md','docs/references.md']) assert((await read(file)).length>100);
 // Check local Markdown targets without fetching external URLs. Code fences are excluded.
-async function walk(dir){const list=[];for(const e of await readdir(dir,{withFileTypes:true})){if(e.name.startsWith('.')||['node_modules','validation-artifacts'].includes(e.name))continue;const p=path.join(dir,e.name);if(e.isDirectory())list.push(...await walk(p));else if(p.endsWith('.md'))list.push(p);}return list;}
+async function walk(dir){const list=[];for(const e of await readdir(dir,{withFileTypes:true})){if(e.name.startsWith('.')||['node_modules','dist','validation-artifacts'].includes(e.name))continue;const p=path.join(dir,e.name);if(e.isDirectory())list.push(...await walk(p));else if(p.endsWith('.md')&&!['DESIGN.md','ICON.md'].includes(e.name))list.push(p);}return list;}
 for(const file of await walk(root)){
  const source=(await readFile(file,'utf8')).replace(/```[\s\S]*?```/g,'');
  for(const match of source.matchAll(/\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g)){

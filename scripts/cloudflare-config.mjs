@@ -21,6 +21,8 @@ export function compileCell(i) {
   const team=ident(i.accessTeam,'accessTeam');
   const aud=check(i.accessAudience,/^[a-f0-9]{20,128}$/i,'accessAudience');
   const dbs=[{binding:'CONTROL_DB',database_name:ident(i.control?.databaseName,'control databaseName'),database_id:uuid(i.control?.databaseId,'control databaseId'),migrations_dir:'../migrations/control'}];
+  const controlWorker=ident(i.control?.workerName,'control workerName');
+  if(controlWorker===name)throw new Error('Control and cell Worker names must differ');
   const bindings=[],seenIds=new Set(),seenDatabases=new Set([dbs[0].database_id.toLowerCase()]);
   const seeds={},control=[];
   for (const t of i.tenants) {
@@ -32,26 +34,29 @@ export function compileCell(i) {
     // Fail rather than override existing routing or ownership. These are one-time reviewed bootstrap statements.
     control.push(`INSERT INTO tenants (id,name,binding_name,cell_id,state) VALUES (${quote(id)},${quote(t.name)},${quote(binding)},${quote(cellId)},'active');`);
     control.push(`INSERT INTO memberships (tenant_id,issuer,subject,role,state) VALUES (${quote(id)},${quote(`https://${team}.cloudflareaccess.com`)},${quote(t.ownerSubject)},'owner','active');`);
+    control.push(`INSERT INTO users (issuer,subject,state) VALUES (${quote(`https://${team}.cloudflareaccess.com`)},${quote(t.ownerSubject)},'active') ON CONFLICT DO NOTHING;`);
     if(!Array.isArray(t.sources)||!t.sources.length||t.sources.length>20) throw new Error('Specify 1-20 disjoint registered sources per tenant');
     const sourceIds=new Set();
     seeds[id]=[`INSERT INTO tenant_identity (singleton,tenant_id) VALUES (1,${quote(id)});`];
     for(const s of t.sources){const sourceId=ident(s.id,'source id');if(sourceIds.has(sourceId))throw new Error('Duplicate source');sourceIds.add(sourceId);seeds[id].push(`INSERT INTO sources (tenant_id,id,name,state) VALUES (${quote(id)},${quote(sourceId)},${quote(s.name)},'active');`);}
   }
-  return {config:{
+  const controlConfig={name:controlWorker,account_id:accountId,main:'../apps/control/src/index.ts',compatibility_date:'2026-09-20',workers_dev:false,preview_urls:false,routes:[],vars:{ACCESS_TEAM:team,ACCESS_AUD:aud},d1_databases:[dbs[0]],r2_buckets:[{binding:'PACKS',bucket_name:ident(i.control?.packsBucket,'control packsBucket')}]};
+  return {controlConfig,config:{
     name,account_id:accountId,main:'../apps/api/src/index.ts',compatibility_date:'2026-09-20',
     workers_dev:false,preview_urls:false,routes:[{pattern:hostname,custom_domain:true}],
-    assets:{directory:'../apps/web',binding:'ASSETS',not_found_handling:'single-page-application',run_worker_first:['/api/*','/healthz']},
+    assets:{directory:'../apps/web/dist',binding:'ASSETS',not_found_handling:'single-page-application',run_worker_first:['/api/*','/healthz']},
     vars:{CELL_ID:cellId,TENANT_BINDINGS:JSON.stringify(bindings),ACCESS_TEAM:team,ACCESS_AUD:aud},
-    d1_databases:dbs,r2_buckets:[{binding:'SOURCES',bucket_name:ident(i.r2Bucket,'r2Bucket')}],
+    services:[{binding:'CONTROL',service:controlWorker}],d1_databases:dbs.slice(1),r2_buckets:[{binding:'SOURCES',bucket_name:ident(i.r2Bucket,'r2Bucket')}],
     limits:{cpu_ms:50}
   },control,seeds};
 }
 export async function generate(inputPath) {
   const inventory=JSON.parse(await readFile(inputPath,'utf8'));
-  const {config,control,seeds}=compileCell(inventory);
+  const {config,controlConfig,control,seeds}=compileCell(inventory);
   const dir=path.join(root,'.generated');await mkdir(dir,{recursive:true});
   const file=path.join(dir,`wrangler.${inventory.cellId}.json`);
   await writeFile(file,JSON.stringify(config,null,2)+'\n',{mode:0o600});
+  await writeFile(path.join(dir,'wrangler.control.json'),JSON.stringify(controlConfig,null,2)+'\n',{mode:0o600});
   await writeFile(path.join(dir,'control-bootstrap.sql'),control.join('\n')+'\n',{mode:0o600});
   const dashboard=JSON.parse(await readFile(path.join(root,'packs/operations-cost/dashboard.json'),'utf8'));
   for(const [id,lines]of Object.entries(seeds)){
