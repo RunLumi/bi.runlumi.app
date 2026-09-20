@@ -13,7 +13,6 @@ export default defineConfig({
     viewport: { width: 1440, height: 1000 },
     locale: 'vi-VN',
     colorScheme: 'light',
-    reducedMotion: 'reduce',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined },
