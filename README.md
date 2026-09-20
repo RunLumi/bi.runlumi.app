@@ -34,6 +34,9 @@ Start with the [commerce specifications](docs/specs/README.md), then the
 - Authorized commerce export onboarding, durable raw receipts/outbox and immutable
   order, settlement and physical-stock normalization. Invalid business formats
   are quarantined; checksums and current source permissions are enforced.
+- Owner-only normalization jobs now have durable tenant-D1 admission, idempotent
+  replay, lease fencing and bounded retry/dead-letter state. This is a manual local
+  consumer boundary; it is not a deployed Queue, scheduler or recovery claim.
 - Reviewed cross-source identity mappings, declared independent control totals,
   immutable publication previews and compare-and-swap activation. Prior reports
   remain reproducible; unknown financial components remain unavailable.
@@ -46,7 +49,8 @@ connector or full financial warehouse. Maximum 100 records/48 KB per raw file,
 10 normalized source snapshots and 512 KB per published report. Orders use an
 explicit tax basis and order-cohort recognition; no line/event-date P&L is implied.
 
-**Not shipped:** live Nhanh/Haravan/Shopee adapters; large chunked source sync;
+**Not shipped:** live Nhanh/Haravan/Shopee adapters; large chunked source sync or
+a deployed Queue/Workflow consumer;
 line-level returns/refunds/COGS; general commerce semantic querying and field/row
 finance permissions; demand forecasting/stock aging; marketing/customer cohorts;
 Ask Lumi inference; scheduled delivery/embeds; agent execution; self-service

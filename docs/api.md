@@ -86,6 +86,21 @@ Both outcomes return HTTP 200; inspect state. Missing/tampered raw evidence retu
 bounded metadata. No raw rows or R2 URLs are exposed. See
 [the exact supported interchange contract](implementation/02-normalization.md).
 
+## Durable commerce jobs (implementation 07)
+
+Owner + `data.import`: `POST /api/tenants/:tenant/commerce-jobs` accepts
+`{ "receiptId": "cr_..." }` and returns a tenant-scoped durable job ID. The
+active admission limit is 10 jobs and is enforced transactionally. `GET` returns
+at most 50 metadata rows; `GET /:jobId` returns one row; `POST /:jobId` is a
+bounded manual lease execution. Current public states are `QUEUED`, `RUNNING`,
+`RETRY_PENDING`, `SUCCEEDED`, `FAILED` and `CANCELLED`.
+
+Admission and execution recheck source connection revision, receipt state and route
+epoch. The job path never returns raw evidence or credentials. This is not a
+deployed Queue/Workflow consumer: no provider polling, DLQ, cron sweep, fair
+backfill or Cloudflare recovery claim is implied. See
+[the durable job boundary](implementation/07-durable-commerce-jobs.md).
+
 ## Bounded commerce review workflow (increments 02–03)
 
 All routes below use `/api/tenants/{tenant}` and currently require an independently

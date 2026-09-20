@@ -14,18 +14,19 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | 04 | Versioned commerce metric catalog and bounded publication-backed query contract | [04](04-governed-commerce-query.md) |
 | 05 | Owner-reviewed per-resource capability and coverage matrix with publication gates | [05](05-capability-coverage-review.md) |
 | 06 | Role-scoped commerce metric catalog and publication-backed query denial for sensitive fields | [06](06-field-scoped-commerce-query.md) |
+| 07 | Tenant-scoped durable normalization jobs with transactional admission and lease fencing | [07](07-durable-commerce-jobs.md) |
 
 ## Complete specification inventory
 
 | Spec | Current executable boundary | Work not yet implemented/certified |
 |---|---|---|
 | C00 | Product and commercial tests specified | Paid merchant demand/ROI and acquisition evidence |
-| C01 | Authenticated memberships, route identity, control/data cells | Lifecycle provisioning, fleet migration, scoped job admission |
+| C01 | Authenticated memberships, route identity, control/data cells, bounded job admission | Lifecycle provisioning, fleet migration and service-authenticated consumer admission |
 | C02 | Owner-authorized export scope, source revision, immutable raw metadata and reviewed capability/coverage states | OAuth/PKCE installation, secret broker, provider capability certification |
 | C03 | Nhanh source labels in checked interchange | Actual Nhanh transport, incremental sync and installation tests |
 | C04 | Haravan source labels in checked interchange | Actual Haravan transport, auth/event certification |
 | C05 | Shopee source labels in checked interchange | Authorized app/region/scopes, official protocol certification and adapter |
-| C06 | Raw/outbox, manual bounded consumer, quarantine, immutable publication and CAS | Chunked runs, Queue leases/consumer, dead letters, outage/orphan recovery |
+| C06 | Raw/outbox, bounded durable job consumer, quarantine, immutable publication and CAS | Chunked runs, deployed Queue transport/consumer, dead letters, outage/orphan recovery |
 | C07 | Opaque source identity, reviewed aliases/priorities, stock gauges | Full line/bundle/payment/refund/fulfillment/event model and source authority packs |
 | C08 | Independent declared counts/totals fail closed; report lineage; capability gaps downgrade dependent metrics | Authenticated control evidence, provider completeness/reconciliation certification |
 | C09 | Exact order-cohort money, cost/fee/income nulls, statement cash, physical units; versioned bounded catalog | Full metric registry, line/event-time/FX semantics, compatible release lifecycle |
@@ -42,9 +43,9 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | C20 | Operator-asserted immutable packs and activation/rollback | Verified GitHub/OIDC source attestation, tenant-local pointer migration and compatibility DAG |
 | C21 | Decisions explicitly execute nothing | Approved action proposal, Lumi Agents handoff, scoped retries and outcome receipts |
 | C22 | Server tenant/role checks, private storage contract, source revocation and reviewed commerce field denial | Row/column policy system, privacy deletion/replay tombstones, support access and security assessment |
-| C23 | Cloudflare cell configuration/runbooks, bounded synchronous paths | Workerd/staging, restore/load/tenant fairness, async OLAP exit evidence |
+| C23 | Cloudflare cell configuration/runbooks, bounded synchronous paths, local durable job admission/leases | Workerd/staging Queue, restore/load/tenant fairness, async OLAP exit evidence |
 | C24 | License feature/time/grace checks | Metering/admission accounting, seats, billing/payment/partner operations |
-| C25 | Versioned internal response contracts and bounded API endpoints | Public SDK/OpenAPI, compatibility/deprecation and signed extension events |
+| C25 | Versioned internal response contracts, bounded API endpoints and durable job metadata | Public SDK/OpenAPI, compatibility/deprecation and signed extension events |
 | C26 | Synthetic math/isolation/race/tamper and browser regressions | Authenticated cloud, load, recovery, live-source and merchant acceptance gates |
 | C27 | Dependency-ordered increments with explicit exclusions | Paid proof, repeatability, support economics and earned expansion |
 
@@ -53,8 +54,9 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 1. Reviewed metric releases and permission-scoped commerce typed queries with
    shared answer evidence; exact metric/time/scope contracts before an LLM plans
    queries.
-2. Source/field permissions, scoped credentials and durable job admission; then
-   the first real provider transport, certified against an authorized installation.
+2. Source/field permissions, scoped credentials and a service-authenticated job
+   consumer; then the first real provider transport, certified against an
+   authorized installation.
 3. Chunked full-source publication, line/event facts and reconciliation; preserve
    the bounded review path as a useful diagnostic, not a fake bulk importer.
 4. Governed analyst, scheduled delivery and action handoff on those authority/data
