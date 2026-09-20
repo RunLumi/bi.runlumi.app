@@ -17,19 +17,41 @@ certification. See [scope mapping](docs/pr2-commerce-alignment.md).
 - Frontend strict TS + Vite production build, runtime notice generation.
 - Lock/provenance/license admission for 173 packages in the UI graph.
 
-## Browser and clean-install gate
+## Verified remote clean-install and browser evidence
 
-10 Playwright tests cover commerce readiness; operations values/source evidence;
+[Verification run 35495156608](https://github.com/RunLumi/lumi-bi/actions/runs/35495156608)
+completed successfully for both `core` and `web` jobs.
+
+- PR source head: `e3ec921c9e9e1f9316e7b10502b4896d7374e3d8`.
+- Tested GitHub merge ref: `9be88f8b461fd096c9575a9f2aa568f0cd9894a5`.
+- Main incorporated in that merge ref: `635ca830c65d6e9c79f1476e4512eb2d57e5e75c`.
+- Clean Ubuntu runner, Node 22.16.0 / npm 10.9.2, Playwright 1.62.1,
+  Chromium 151.0.7922.34 (Playwright build 1234).
+- Both committed package graphs installed with `npm ci --ignore-scripts`.
+- Core typecheck, all 91 tests and commerce specification/oracle checks passed.
+- Frontend lock/provenance/license gate, strict TS/build and runtime notices passed.
+- The blocking npm advisory check reported zero vulnerabilities in this run.
+  This is a point-in-time registry check, not a guarantee of vulnerability absence.
+- All 10 browser tests passed, with no retries.
+
+Browser tests cover commerce readiness; operations values/source evidence;
 identity/role separation; all major views at 320, 390, 768 and 1280 pixels; absent
-configuration; empty periods; whole-dashboard refusal of a stale context.
+configuration; empty periods; and whole-dashboard refusal of a stale context.
 
-Local Chromium HTTP navigation is blocked by the execution environment
-(`ERR_BLOCKED_BY_ADMINISTRATOR`). This is not counted as passing browser evidence.
-The final `verify` GitHub Actions workflow installs the committed lock in a clean
-runner, runs advisory/provenance/build gates, runs the actual browser tests and
-uploads screenshots/test traces and tested-revision/asset hashes. Merge requires
-that final-head workflow to pass. The old offline HTML smoke test is not evidence
-for the new React application.
+The `frontend-evidence` artifact (ID 10600517725, seven-day retention) contains the
+tested revision, asset/lock hashes, npm audit output and three screenshots:
+commerce desktop, operations desktop and operations mobile. All three screenshots
+were downloaded and visually checked. Artifact ZIP SHA-256:
+`bb7f513c665d75531f23d6ba36674fe4971cd3b307d1597ade013a322c238da0`.
+
+Local Chromium HTTP navigation was blocked by the execution environment
+(`ERR_BLOCKED_BY_ADMINISTRATOR`); that local attempt is not counted as passing
+browser evidence. The remote Playwright run above supplies actual HTTP/browser
+validation. The old offline HTML smoke test is not evidence for the React app.
+
+This evidence-record update changes documentation only. The final PR head must
+still pass the verification workflow before merging; later code changes require
+new evidence rather than inheriting the run above.
 
 ## Not certified by this PR
 
