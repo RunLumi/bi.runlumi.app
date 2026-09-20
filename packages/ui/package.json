@@ -14,8 +14,7 @@
   "exports": {
     "./*.ts": "./dist/*.js",
     "./*.tsx": "./dist/*.js",
-    "./*": "./dist/*.js",
-    ".": "./dist/index.js"
+    "./*": "./dist/*.js"
   },
   "scripts": {
     "build": "node ../../scripts/build-package.mjs ui"

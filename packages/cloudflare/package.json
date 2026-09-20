@@ -13,8 +13,8 @@
   ],
   "exports": {
     "./*.ts": "./dist/*.js",
-    "./*": "./dist/*.js",
-    ".": "./dist/index.js"
+    "./*.tsx": "./dist/*.js",
+    "./*": "./dist/*.js"
   },
   "scripts": {
     "build": "node ../../scripts/build-package.mjs cloudflare"

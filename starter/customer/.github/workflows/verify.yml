@@ -1,0 +1,32 @@
+name: verify
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+      - name: Install exact graph without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Validate customer configuration (fails closed on reserved routes and bad identity)
+        run: npm run validate
+      - name: Typecheck against installed core packages
+        run: npm run typecheck
+      - name: Build the application from packaged core artifacts
+        run: npm run build
+      - name: Guarded upgrade plan (reports migrations and extension compatibility)
+        run: npm run upgrade -- --check

@@ -9,12 +9,13 @@
     "node": ">=22.16.0"
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "exports": {
     "./*.ts": "./dist/*.js",
-    "./*": "./dist/*.js",
-    ".": "./dist/index.js"
+    "./*.tsx": "./dist/*.js",
+    "./*": "./dist/*.js"
   },
   "scripts": {
     "build": "node ../../scripts/build-package.mjs core"

@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.sqlite
+*.sqlite-*
+*.db
+*.log
+.DS_Store
+test-results/
+playwright-report/
+coverage/
+# Vendored exact core artifacts are committed for reproducible offline installs.
+# Do not add vendor/ here.

@@ -1,0 +1,22 @@
+{
+  "templateVersion": "0.1.0",
+  "description": "Minimal Lumi BI customer application. Files here are copied on generation; files marked generated are refreshed by core upgrades through three-way merge.",
+  "generatedFiles": [
+    "apps/web/package.json",
+    "apps/web/index.html",
+    "apps/web/tsconfig.json",
+    "apps/web/vite.config.ts",
+    "apps/worker/wrangler.jsonc",
+    "lumi.lock.json",
+    ".github/workflows/verify.yml"
+  ],
+  "customerOwnedFiles": [
+    "customer/",
+    "infra/",
+    "docs/",
+    "apps/web/src/main.tsx",
+    "apps/web/src/App.tsx",
+    "apps/worker/src/index.ts",
+    "AGENTS.md"
+  ]
+}

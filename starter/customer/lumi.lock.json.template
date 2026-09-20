@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "customerId": "__CUSTOMER_ID__",
+  "deploymentId": "__DEPLOYMENT_ID__",
+  "environment": "__ENVIRONMENT__",
+  "core": {
+    "version": "__CORE_VERSION__",
+    "extensionApi": 1,
+    "templateVersion": "__TEMPLATE_VERSION__",
+    "sourceCommit": "__SOURCE_COMMIT__",
+    "releaseDigest": "__RELEASE_DIGEST__",
+    "packages": {
+      "@runlumi/core": {"version": "__CORE_VERSION__", "sha256": "__CORE_SHA256__"},
+      "@runlumi/cloudflare": {"version": "__CORE_VERSION__", "sha256": "__CLOUDFLARE_SHA256__"},
+      "@runlumi/ui": {"version": "__CORE_VERSION__", "sha256": "__UI_SHA256__"}
+    },
+    "migrations": {"controlBaseline": 4, "tenantBaseline": 8}
+  },
+  "customerPages": [],
+  "extensions": []
+}

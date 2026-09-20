@@ -1,0 +1,15 @@
+-- Customer-owned migrations. This ledger is separate from the immutable core ledger.
+-- Rules:
+--   * Number files 0001_..., 0002_... and keep them immutable once applied.
+--   * Add owned tables and indexes only. Do not alter or drop core-owned schema.
+--   * Declare the compatible core schema version in a comment header.
+-- The core tenant migrations run first; these run after them in the serving database.
+-- Example (commented so a fresh install is a no-op):
+-- CREATE TABLE customer_saved_views (
+--   tenant_id TEXT NOT NULL,
+--   id TEXT NOT NULL,
+--   definition TEXT NOT NULL,
+--   revision INTEGER NOT NULL DEFAULT 1,
+--   updated_at TEXT NOT NULL,
+--   PRIMARY KEY (tenant_id, id)
+-- );

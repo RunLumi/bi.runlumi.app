@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "__CUSTOMER_ID__-lumi",
+  "main": "../apps/worker/src/index.ts",
+  "compatibility_date": "2026-09-20",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{"pattern": "__HOSTNAME__", "custom_domain": true}],
+  "assets": {
+    "directory": "../apps/web/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/healthz"]
+  },
+  "vars": {
+    "CELL_ID": "__DEPLOYMENT_ID__",
+    "DEPLOYMENT_ID": "__DEPLOYMENT_ID__",
+    "ENVIRONMENT": "__ENVIRONMENT__",
+    "CUSTOMER_ID": "__CUSTOMER_ID__",
+    "TENANT_BINDINGS": "[\"SERVING\"]",
+    "ACCESS_TEAM": "__ACCESS_TEAM__",
+    "ACCESS_AUD": "__ACCESS_AUD__"
+  },
+  "services": [{"binding": "CONTROL", "service": "__CONTROL_WORKER__"}],
+  "d1_databases": [{"binding": "SERVING", "database_name": "__DATABASE_NAME__", "database_id": "__DATABASE_ID__", "migrations_dir": "../customer/migrations"}],
+  "r2_buckets": [{"binding": "SOURCES", "bucket_name": "__SOURCES_BUCKET__"}],
+  "limits": {"cpu_ms": 50}
+}
