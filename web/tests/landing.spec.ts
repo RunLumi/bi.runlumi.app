@@ -93,8 +93,8 @@ test('static routes, SEO, privacy, security headers, OG and true 404', async ({ 
   const response = await page.goto('/');
   expect(response?.headers()['content-security-policy']).toContain("script-src 'self'");
   expect(response?.headers()['content-security-policy']).not.toContain('unsafe-inline');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://bi.runlumi.app/');
-  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://bi.runlumi.app/social-card.png');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://about.bi.runlumi.app/');
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://about.bi.runlumi.app/social-card.png');
   for (const path of ['/social-card.png', '/favicon.svg', '/robots.txt', '/sitemap.xml', '/THIRD_PARTY_NOTICES.txt', '/quyen-rieng-tu/']) expect((await request.get(path)).status()).toBe(200);
   expect((await request.get('/not-a-real-page/')).status()).toBe(404);
   await page.goto('/quyen-rieng-tu/');

@@ -1,8 +1,10 @@
 # Lumi BI — public marketing site
 
-Vietnamese Astro landing for **https://bi.runlumi.app**, independent from the
+Vietnamese Astro landing for **https://about.bi.runlumi.app**, independent from the
 React tenant application in `../apps/web`. Separate package and lock, static
 output, no auth, tenant bindings, API calls, tracking or customer data.
+The platform remains at **https://bi.runlumi.app**. See [GEO.md](GEO.md) for public
+identity, JSON-LD, llms.txt, regression gates and post-deployment acceptance.
 
 ## Develop and verify
 
@@ -45,13 +47,13 @@ Create a separate **Pages** project, not another tenant Worker.
 | Build output directory | `dist` |
 | Node / `NODE_VERSION` | `24.21.0` |
 | `PUBLIC_CONTACT_EMAIL` | Monitored public mailbox; default `hello@runlumi.app` |
-| Custom domain | `bi.runlumi.app` |
+| Custom domain | `about.bi.runlumi.app` |
 
 Output is `dist`, **not `web/dist` when root is already `web`**. `.npmrc` disables
 dependency lifecycle scripts. `wrangler.toml` declares the same static output;
 no SSR adapter, Functions, D1, R2, API key or runtime secret is needed.
 
-Review the assigned preview before adding `bi.runlumi.app` in **Pages → Custom
+Review the assigned preview before adding `about.bi.runlumi.app` in **Pages → Custom
 domains**. Follow the account's actual DNS instructions; do not guess a Pages
 hostname or overwrite an existing route without checking it. Repository changes
 alone do **not** create a Cloudflare project, deployment, DNS record or TLS cert.
@@ -61,7 +63,7 @@ alone do **not** create a Cloudflare project, deployment, DNS record or TLS cert
 1. Confirm the mailbox is monitored and send a real test message from desktop and
    mobile. The CTA only opens an editable email; the website never submits it or
    invents a successful registration. Invalid mailbox configuration fails build.
-2. Check `/`, `/quyen-rieng-tu/`, `/robots.txt`, `/sitemap.xml`, fonts, favicon and
+2. Check `/`, `/quyen-rieng-tu/`, `/robots.txt`, `/sitemap.xml`, `/llms.txt`, fonts, favicon and
    social card. `/privacy` and `/privacy/` must redirect to the Vietnamese route.
    Unknown URLs must return an actual 404, not an application SPA fallback.
 3. Check live `_headers`: strict CSP without `unsafe-inline` or `unsafe-eval`,
@@ -91,6 +93,7 @@ Ask Lumi remain roadmap work. The public demo is a separate synthetic example,
 not a connection, customer result or working AI agent.
 
 `src/data/site.ts` owns positioning, contact and roadmap statuses;
+`src/lib/geo.ts` owns escaped JSON-LD and the generated llms.txt summary;
 `src/data/demo.ts` owns independent scenarios; `Demo.astro` pairs metrics with
 sources, definitions and unknowns. `global.css` mirrors DESIGN.md's canonical
 palette and material recipes. `public/scripts/site.js` is progressive enhancement.
