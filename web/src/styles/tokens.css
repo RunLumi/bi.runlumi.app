@@ -1,0 +1,47 @@
+/* DESIGN.md §19: preserve exact sRGB anchors. Geist Variable is Fontsource's
+   CSS family name for the same Geist brand face, not an additional typeface. */
+:root {
+  color-scheme: light;
+  --color-lumi-blue: #006093;
+  --color-lumi-blue-hover: #004F80;
+  --color-lumi-blue-active: #003E6A;
+  --color-lumi-blue-soft: #E4F3FC;
+  --color-civic-navy: #102A43;
+  --color-ink: #172033;
+  --color-soft-slate: #5E6677;
+  --color-paper-white: #F4F0E8;
+  --color-surface-white: #FFFFFF;
+  --color-archive-gray: #E7EAF0;
+  --color-border-subtle: #E7EAF0;
+  --color-border: #D9DEE8;
+  --color-border-strong: #C8D0DE;
+  --color-signal-amber: #F4A62A;
+  --color-amber-soft: #FFF4DC;
+  --color-risk-red: #C2410C;
+  --color-red-soft: #FFF1EC;
+  --color-success-green: #1F7A4D;
+  --color-green-soft: #E9F7EF;
+  --font-sans: 'Geist Variable', Geist, 'Noto Sans', 'Noto Sans Thai', 'Noto Sans Arabic', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR', 'Noto Sans SC', 'Noto Sans TC', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: var(--font-sans);
+  --text-xs: clamp(.75rem, .73rem + .1vw, .8125rem);
+  --text-sm: clamp(.8125rem, .79rem + .12vw, .875rem);
+  --text-base: 1rem; /* Enforce §16's 16px body floor. */
+  --text-lg: clamp(1.0625rem, 1.01rem + .28vw, 1.1875rem);
+  --text-xl: clamp(1.25rem, 1.16rem + .45vw, 1.5rem);
+  --text-2xl: clamp(1.5rem, 1.34rem + .8vw, 2rem);
+  --text-3xl: clamp(1.875rem, 1.6rem + 1.35vw, 2.75rem);
+  --text-display: clamp(2.625rem, 5.6vw, 5.5rem); /* Marketing scale, §6.4. */
+  --radius-card: 8px;
+  --radius-control: 8px;
+  --radius-sm: 4px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px;
+  --shadow-card: inset 0 1px 0 0 color-mix(in oklch, white 60%, transparent), 0 1px 2px -1px color-mix(in oklch, var(--color-civic-navy) 8%, transparent), 0 8px 20px -10px color-mix(in oklch, var(--color-civic-navy) 10%, transparent);
+  --shadow-raised: inset 0 1px 0 0 color-mix(in oklch, white 72%, transparent), 0 8px 24px -6px color-mix(in oklch, var(--color-civic-navy) 10%, transparent), 0 2px 6px -2px color-mix(in oklch, var(--color-civic-navy) 6%, transparent);
+  --shadow-button: inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent), 0 1px 2px 0 color-mix(in oklch, var(--color-civic-navy) 22%, transparent);
+  --gradient-primary: linear-gradient(180deg, color-mix(in oklch, white 10%, var(--color-lumi-blue)) 0%, var(--color-lumi-blue) 52%, var(--color-lumi-blue-hover) 100%);
+  --canvas-glow: radial-gradient(115% 50% at 50% -6%, color-mix(in oklch, white 60%, transparent) 0%, transparent 58%);
+  --motion-fast: 120ms; --motion-normal: 180ms; --motion-slow: 260ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1);
+}

@@ -1,0 +1,8 @@
+---
+interface Props { href?: string; }
+const { href = '/' } = Astro.props;
+---
+<a class="brand" href={href} aria-label="Lumi BI · Trang chủ">
+  <img src="/brand/lumi.svg" width="96" height="39" alt="Lumi" />
+  <span class="brand-divider" aria-hidden="true"></span><span class="brand-bi">BI</span>
+</a>
