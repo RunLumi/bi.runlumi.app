@@ -1,0 +1,38 @@
+name: prepare-ui-dependencies
+on:
+  push:
+    branches: [feat/control-plane-gitops-react-v2]
+    paths: [.github/workflows/prepare-ui.yml]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.16.0
+      - name: Resolve UI dependencies in isolated directory without lifecycle scripts
+        shell: bash
+        run: |
+          mkdir -p .local/ui-deps
+          cd .local/ui-deps
+          printf '{"name":"@runlumi/bi","version":"0.2.0","private":true,"type":"module","license":"UNLICENSED"}\n' > package.json
+          npm install --save-exact --ignore-scripts react@19.3.0 react-dom@19.3.0 @tanstack/react-query@5 @tabler/icons-react@3 @radix-ui/react-slot@1 class-variance-authority@0.7.1 clsx@2.1.1 tailwind-merge@3
+          npm install --save-dev --save-exact --ignore-scripts vite@8.3.0 @vitejs/plugin-react@6 tailwindcss@4 @tailwindcss/vite@4 typescript@5.9.3 @types/react@19 @types/react-dom@19 @types/node@22 @playwright/test@1.62.1
+          npm ls --depth=0
+          npm audit --json > audit.json || true
+          tar -czf ../ui-deps.tgz node_modules package.json package-lock.json audit.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ui-dependency-lock
+          path: |
+            .local/ui-deps.tgz
+            .local/ui-deps/package.json
+            .local/ui-deps/package-lock.json
+            .local/ui-deps/audit.json
+          retention-days: 2
