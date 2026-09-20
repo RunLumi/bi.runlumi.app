@@ -1,14 +1,16 @@
 import { site, faqs } from '../data/site.ts';
+import { publicContactEmail } from '../data/contact.ts';
 
 interface PageMetadata {
   canonical: string;
   title: string;
   description: string;
   includeFaq?: boolean;
+  email?: string;
 }
 
 // Data only. This module runs at build time; it never fetches or executes content.
-export function createStructuredData({ canonical, title, description, includeFaq = false }: PageMetadata) {
+export function createStructuredData({ canonical, title, description, includeFaq = false, email = site.email }: PageMetadata) {
   const url = new URL(canonical);
   if (url.origin !== site.origin || url.search || url.hash) {
     throw new Error('Structured data must use a clean public-site canonical URL');
@@ -28,7 +30,7 @@ export function createStructuredData({ canonical, title, description, includeFaq
         name: site.name,
         url: home,
         logo: `${site.origin}/brand/lumi.svg`,
-        email: site.email,
+        email: publicContactEmail(email),
       },
       {
         '@type': 'WebSite',
@@ -71,7 +73,7 @@ export function serializeJsonLd(value: unknown): string {
     .replace(/&/g, '\\u0026').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 }
 
-export function renderLlmsTxt(): string {
+export function renderLlmsTxt(email = site.email): string {
   // Share the actual public answers, including limitations; no second marketing truth.
   const answers = faqs.map(({ question, answer }) => `**${question}**\n\n${answer}`).join('\n\n');
   return `# ${site.name}
@@ -81,7 +83,7 @@ export function renderLlmsTxt(): string {
 Trang giới thiệu: ${site.origin}/
 Nền tảng BI (bề mặt riêng, không thuộc trang giới thiệu): ${site.appOrigin}/
 Nội dung: ${site.name}. Rà soát: ${site.reviewedAtISO}.
-Liên hệ: ${site.email}.
+Liên hệ: ${publicContactEmail(email)}.
 
 ${answers}
 

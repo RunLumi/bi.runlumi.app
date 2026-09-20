@@ -7,7 +7,7 @@ Reviewed 2026-09-20. Applies only to the Astro marketing site in `web/`.
 The supplied NsLookup report for `about.bi.runlumi.app` recorded **59/100**:
 technical 31/40, entity 9/30, answer 19/30. It reported no llms.txt, Organization
 schema, JSON-LD types or author signals. Its question count is a heuristic: this
-site renders **six reviewed FAQ answers**, not thirteen invented answers.
+site renders **seven reviewed FAQ answers**, after the concurrent landing update, not thirteen invented answers.
 
 The root README already separates the landing page (`https://about.bi.runlumi.app`)
 from the platform (`https://bi.runlumi.app`). The old Astro config, metadata and
@@ -24,7 +24,7 @@ identifies the separate application. No DNS, app routes or tenant code changes.
 | 404 HTML | `noindex, follow`; no structured-data graph. |
 | Author | Visible Lumi BI organization byline and editorial review date, matching metadata. |
 | Brand | Existing public logo, name, email and absolute URLs; no invented legal details, social profiles, credentials, ratings or prices. |
-| `/llms.txt` | Static UTF-8 Markdown summary generated from the same six answers, including all capability limits, and checked public links. |
+| `/llms.txt` | Static UTF-8 Markdown summary generated from the same seven answers, including all capability limits, and checked public links. |
 | Discovery | HTML `rel="describedby"` link and visible footer link to llms.txt. |
 | Canonicals / OG / sitemap / robots | Marketing URLs use the landing origin, never the platform or a preview hostname. |
 
@@ -43,7 +43,7 @@ external enhancement script, rejecting other inline script types and bodies.
 
 `npm run build` invokes `scripts/verify-geo.mjs` for every built HTML page. It checks
 entity identity and references, canonical consistency, exact FAQ source parity,
-404/noindex behavior, public logo existence, generated llms parity, linked routes
+404/noindex behavior, public logo existence, configured-contact parity, generated llms parity, linked routes
 and fragment IDs, robots and sitemap. Existing JS budget, no-tracking, no-hydration,
 security and distribution-notice checks remain in place.
 

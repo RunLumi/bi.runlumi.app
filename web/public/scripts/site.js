@@ -1,8 +1,8 @@
 /* Progressive enhancement only: no data fetching, tracking, LLM calls or storage. */
 (() => {
   const root = document.querySelector('[data-demo]');
-  const tabs = Array.from(document.querySelectorAll('[data-demo-tab]'));
-  const panels = Array.from(document.querySelectorAll('[data-demo-panel]'));
+  const tabs = Array.from(root?.querySelectorAll('[data-demo-tab]') || []);
+  const panels = Array.from(root?.querySelectorAll('[data-demo-panel]') || []);
   let selectScenario = null;
 
   if (root && tabs.length === panels.length && tabs.length > 0 && tabs.every(tab => panels.some(panel => panel.dataset.demoPanel === tab.dataset.demoTab))) {
@@ -18,9 +18,11 @@
       panel.setAttribute('aria-labelledby', `tab-${panel.dataset.demoPanel}`);
       panel.tabIndex = 0;
     });
-    const syncOrientation = () => nav.setAttribute('aria-orientation', matchMedia('(min-width: 1000px)').matches ? 'vertical' : 'horizontal');
+    // CSS stacks tabs on phone and desktop; only the tablet row is horizontal.
+    const horizontalTabs = matchMedia('(min-width: 760px) and (max-width: 999px)');
+    const syncOrientation = () => nav.setAttribute('aria-orientation', horizontalTabs.matches ? 'horizontal' : 'vertical');
     syncOrientation();
-    matchMedia('(min-width: 1000px)').addEventListener('change', syncOrientation);
+    horizontalTabs.addEventListener('change', syncOrientation);
     selectScenario = (id, focus = false) => {
       const selected = tabs.find(tab => tab.dataset.demoTab === id);
       if (!selected) return;
@@ -36,6 +38,8 @@
       tab.addEventListener('click', event => {
         event.preventDefault();
         selectScenario(tab.dataset.demoTab);
+        // A selected scenario is linkable; replacing state avoids trapping Back.
+        history.replaceState(null, '', `#demo-${tab.dataset.demoTab}`);
       });
       tab.addEventListener('keydown', event => {
         const vertical = nav.getAttribute('aria-orientation') === 'vertical';
@@ -59,7 +63,10 @@
     selectScenario(tabs[0].dataset.demoTab);
     fromHash();
     window.addEventListener('hashchange', fromHash);
-    document.querySelectorAll('[data-select-scenario]').forEach(link => link.addEventListener('click', () => selectScenario(link.dataset.selectScenario)));
+    document.querySelectorAll('[data-select-scenario]').forEach(link => link.addEventListener('click', () => {
+      selectScenario(link.dataset.selectScenario);
+      document.getElementById(`demo-${link.dataset.selectScenario}`)?.focus({ preventScroll: true });
+    }));
   }
 
   document.querySelectorAll('[data-mobile-nav]').forEach(menu => {

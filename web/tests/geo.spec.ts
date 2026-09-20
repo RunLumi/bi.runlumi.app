@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { site, faqs } from '../src/data/site';
+import { publicContactEmail } from '../src/data/contact';
 import { createStructuredData, serializeJsonLd, renderLlmsTxt } from '../src/lib/geo';
 
 const metadata = { canonical: `${site.origin}/`, title: site.title, description: site.description, includeFaq: true };
@@ -23,7 +24,11 @@ test('raw HTML exposes consistent organization, website, author and FAQ entities
   const html = await response.text();
   const blocks = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
   expect(blocks).toHaveLength(1);
-  expect(JSON.parse(blocks[0][1]!)).toEqual(createStructuredData(metadata));
+  const graph = JSON.parse(blocks[0][1]!);
+  const organization = graph['@graph'].find((node: Record<string, unknown>) => node['@type'] === 'Organization');
+  const email = publicContactEmail(organization.email);
+  expect(html).toContain(`href="mailto:${email}"`);
+  expect(graph).toEqual(createStructuredData({ ...metadata, email }));
   expect(html).toContain(`name="author" content="${site.name}"`);
   expect(html).toContain(`href="${site.origin}/llms.txt"`);
   expect((await request.get('/brand/lumi.svg')).status()).toBe(200);
@@ -81,7 +86,10 @@ test('llms.txt, crawler access and sitemap use the landing domain', async ({ req
   expect(response.status()).toBe(200);
   expect(response.headers()['content-type']).toMatch(/^text\/plain/);
   const llms = await response.text();
-  expect(llms).toBe(renderLlmsTxt());
+  const homepage = await (await request.get('/')).text();
+  const email = homepage.match(/href="mailto:([^"?]+)"/)?.[1];
+  expect(email).toBeTruthy();
+  expect(llms).toBe(renderLlmsTxt(email));
   for (const { question, answer } of faqs) {
     expect(llms).toContain(question);
     expect(llms).toContain(answer);

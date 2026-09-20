@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { site, faqs } from '../src/data/site.ts';
 import { renderLlmsTxt } from '../src/lib/geo.ts';
+import { publicContactEmail } from '../src/data/contact.ts';
 
 // A narrow assertion over Astro's built output, not a general HTML sanitizer.
 // Only our external enhancement script and parsed JSON-LD data blocks are admitted.
@@ -29,6 +30,7 @@ export async function verifyGeoBuild(root) {
   const read = path => readFile(new URL(`dist/${path}`, root), 'utf8');
   assert.equal(site.origin, 'https://about.bi.runlumi.app', 'Landing must not canonicalize to the BI app');
   const home = `${site.origin}/`;
+  let publishedEmail;
   const files = (await readdir(new URL('dist/', root), { recursive: true })).filter(path => path.endsWith('.html'));
   for (const path of files) {
     const html = await read(path);
@@ -47,7 +49,12 @@ export async function verifyGeoBuild(root) {
     assert.equal(new Set(graph.map(node => node['@id'])).size, graph.length, 'Unique entity IDs');
     assert.equal(organization.name, site.name);
     assert.equal(organization.url, home);
-    assert.equal(organization.email, site.email);
+    // Astro may have loaded a .env file not loaded by native Node. Validate the
+    // published contact and require parity across HTML, metadata and llms.txt.
+    assert.equal(publicContactEmail(organization.email), organization.email);
+    publishedEmail ??= organization.email;
+    assert.equal(organization.email, publishedEmail, 'One published contact across pages');
+    assert(html.includes(`href="mailto:${publishedEmail}"`), 'Metadata contact must be visible');
     assert.equal(organization.logo, `${site.origin}/brand/lumi.svg`);
     assert.equal(website.name, site.name);
     assert.equal(website.url, home);
@@ -76,8 +83,9 @@ export async function verifyGeoBuild(root) {
     }
   }
   await stat(new URL('dist/brand/lumi.svg', root));
+  assert(publishedEmail, 'At least one indexable public page');
   const llms = await read('llms.txt');
-  assert.equal(llms, renderLlmsTxt(), 'llms.txt must be generated from reviewed content');
+  assert.equal(llms, renderLlmsTxt(publishedEmail), 'llms.txt must be generated from reviewed content');
   assert(llms.startsWith(`# ${site.name}\n\n> `));
   // Check every Markdown destination against local build output, including anchors.
   for (const [, target] of llms.matchAll(/\]\((https:\/\/[^)]+)\)/g)) {

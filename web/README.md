@@ -1,12 +1,14 @@
 # Lumi BI — public marketing site
 
-Vietnamese Astro landing page for **https://about.bi.runlumi.app**. Independent from the
-React tenant application in `../apps/web`: separate package/lock, static output,
-no API calls, no auth, no tenant bindings, no tracking and no customer data.
+Vietnamese Astro landing for **https://about.bi.runlumi.app**, independent from the
+React tenant application in `../apps/web`. Separate package and lock, static
+output, no auth, tenant bindings, API calls, tracking or customer data.
 The platform remains at **https://bi.runlumi.app**. See [GEO.md](GEO.md) for public
 identity, JSON-LD, llms.txt, regression gates and post-deployment acceptance.
 
 ## Develop and verify
+
+Use **Node 24.21.0** from `web/.nvmrc`. Root/application runtime pins are unchanged.
 
 ```sh
 cd web
@@ -18,129 +20,129 @@ npx --no-install playwright install chromium
 npm run test:e2e
 ```
 
-Node 24.21.0 is pinned in `.nvmrc`. `npm run build` checks Astro/TypeScript, emits
-HTML/CSS/local fonts and verifies routes, SEO, security constraints, JS budget,
-image dimensions and distribution notices. Tests use a loopback-only server with
-the common production CSP from `_headers`, not Astro's permissive dev server.
-Set `CHROMIUM_EXECUTABLE_PATH` only when intentionally testing a system browser.
+`check` runs Astro/TypeScript, JavaScript syntax and independent fixture tests.
+`build` emits HTML/CSS/local fonts and verifies routes, canonical URL, CSP
+constraints, JavaScript budget, image dimensions and distribution notices.
+Browser tests use the built site with common security headers, not Astro's dev
+server. Set `CHROMIUM_EXECUTABLE_PATH` only for an intentional system-browser run;
+CI installs the browser belonging to the locked Playwright version.
 
-The browser gets a small vanilla enhancement script, not React, chart libraries
-or an AI SDK. With JavaScript disabled, every scenario remains visible, native
-FAQ/evidence disclosures work, navigation works and contact remains a mail link.
+No React hydration, chart library or AI SDK reaches the browser. With JavaScript
+disabled, all scenarios remain visible; native FAQ/evidence disclosures and
+contact links remain usable. Clicked tabs are shareable; keyboard orientation
+matches the phone/desktop column and tablet row.
 
-## Cloudflare Pages — Git integration
+## Deploy with Cloudflare Pages Git integration
 
-Create a **Pages** project, not another tenant Worker:
+Create a separate **Pages** project, not another tenant Worker.
 
 | Setting | Value |
 | --- | --- |
 | Repository | `RunLumi/lumi-bi` |
-| Suggested project name | `lumi-bi-web` (confirm availability) |
-| Production branch | `main`, after this change is reviewed and merged |
+| Suggested project name | `lumi-bi-web` |
+| Production branch | `main` |
 | Root directory | `web` |
 | Framework preset | Astro |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| Environment variable | `NODE_VERSION=24.21.0` |
+| Node / `NODE_VERSION` | `24.21.0` |
+| `PUBLIC_CONTACT_EMAIL` | Monitored public mailbox; default `hello@runlumi.app` |
+| Custom domain | `about.bi.runlumi.app` |
 
-The output is `dist`, **not `web/dist` when the root is already `web`**. No adapter,
-SSR, Pages Functions, API keys, D1, R2 or Node compatibility flag is required.
-`wrangler.toml` declares the same output for an optional reviewed CLI workflow;
-it does not create a project, attach a domain or configure Git integration.
+Output is `dist`, **not `web/dist` when root is already `web`**. `.npmrc` disables
+dependency lifecycle scripts. `wrangler.toml` declares the same static output;
+no SSR adapter, Functions, D1, R2, API key or runtime secret is needed.
 
-In Pages → Custom domains, add **about.bi.runlumi.app** to this project first. Follow the
-provided DNS instructions; use the actual assigned Pages target, not an assumed
-hostname. Check existing records/Worker routes before changing DNS. Confirm the
-custom domain and TLS are active and open it from an external browser.
+Review the assigned preview before adding `about.bi.runlumi.app` in **Pages → Custom
+domains**. Follow the account's actual DNS instructions; do not guess a Pages
+hostname or overwrite an existing route without checking it. Repository changes
+alone do **not** create a Cloudflare project, deployment, DNS record or TLS cert.
 
-Configure build watch paths to include `/web/*` (and this workflow as needed) so
-changes to the tenant app do not rebuild the marketing site. The Pages UI's own
-watch-pattern syntax is authoritative; test with a harmless preview commit.
-Production Git deployment and custom-domain setup require the account owner.
-This repository change does **not** itself deploy or change DNS.
+### Production acceptance
 
-Post-deployment acceptance: verify canonical URL, HTTP 404, headers, local font
-loads, keyboard/mobile controls, email recipient, social preview, TLS, and that
-`*.pages.dev` previews return the configured `X-Robots-Tag: noindex, nofollow`.
-A locally passing test does not prove Cloudflare edge/DNS behavior.
+1. Confirm the mailbox is monitored and send a real test message from desktop and
+   mobile. The CTA only opens an editable email; the website never submits it or
+   invents a successful registration. Invalid mailbox configuration fails build.
+2. Check `/`, `/quyen-rieng-tu/`, `/robots.txt`, `/sitemap.xml`, `/llms.txt`, fonts, favicon and
+   social card. `/privacy` and `/privacy/` must redirect to the Vietnamese route.
+   Unknown URLs must return an actual 404, not an application SPA fallback.
+3. Check live `_headers`: strict CSP without `unsafe-inline` or `unsafe-eval`,
+   frame denial, `nosniff`, and immutable cache only for hashed assets. Verify
+   `*.pages.dev` hosts have `X-Robots-Tag: noindex, nofollow` and public TLS works.
+4. Inspect desktop, phone, keyboard, 200% text, reduced motion/transparency, and
+   Vietnamese glyphs. Confirm copy still matches current product capabilities.
 
-Primary platform references checked 2026-09-20:
+The loopback test server exercises common headers and exact redirect rules,
+not all Pages host/cache/edge behavior. Roll back by choosing the previous Pages
+deployment; no database migration is involved. A form, tracker or embedded service
+would require explicit consent, submission states, privacy and CSP review.
+
+Official references checked 2026-09-20:
 - https://developers.cloudflare.com/pages/framework-guides/deploy-an-astro-site/
+- https://developers.cloudflare.com/pages/configuration/monorepos/
 - https://developers.cloudflare.com/pages/configuration/headers/
 - https://developers.cloudflare.com/pages/configuration/custom-domains/
 - https://docs.astro.build/en/guides/deploy/cloudflare/
 
-## Content and product truth
+## Product and design contracts
 
-Read `../README.md`, `../AGENTS.md`, `../DESIGN.md`, `../ICON.md` and the commerce
-specifications before changing public claims. As reviewed 2026-09-20, the source
-README identifies a foundation preview, **not merchant-verified production**.
-Live Nhanh/Haravan/Shopee integration, Ask Lumi and commerce calculations are not
-advertised as shipped. Connector names are roadmap targets, not partner badges.
+Read the root README, AGENTS, DESIGN and ICON documents before changing claims.
+The application has a bounded authorized-export commerce workflow, not a
+merchant-verified production system. Live Nhanh/Haravan/Shopee connections and
+Ask Lumi remain roadmap work. The public demo is a separate synthetic example,
+not a connection, customer result or working AI agent.
 
-- `src/data/site.ts`: positioning, navigation, contact, connector statuses, FAQ.
-- `src/lib/geo.ts`: shared JSON-LD graph, safe serialization and llms.txt content.
-- `src/data/demo.ts`: isolated synthetic scenarios and definitions; no API.
-- `src/components/Demo.astro`: source, limit and missing-cost evidence adjacent to metrics.
-- `src/pages/index.astro`: the edited marketing narrative.
-- `src/styles/global.css`: scoped token mirror and responsive layouts.
-- `public/scripts/site.js`: accessible progressive enhancement only.
-- `public/_headers`: CSP, security/cache headers, noindex on Pages hostnames.
+`src/data/site.ts` owns positioning, contact and roadmap statuses;
+`src/lib/geo.ts` owns escaped JSON-LD and the generated llms.txt summary;
+`src/data/demo.ts` owns independent scenarios; `Demo.astro` pairs metrics with
+sources, definitions and unknowns. `global.css` mirrors DESIGN.md's canonical
+palette and material recipes. `public/scripts/site.js` is progressive enhancement.
 
-Money example: 512.0m before refunds minus 26.0m refunds = 486.0m VND net revenue.
-The seven daily points sum to that same 486.0m. Pending settlement is not cash
-received. Missing COGS means unknown contribution margin, never zero. Operations
-example: 57 new exceptions during the week differs from 24 still open at period
-end. Stock examples are stale snapshots, not forecasts. Scenarios are independent.
+The warm paper `#F4F0E8`, navy `#102A43`, blue `#006093`, Geist, modest 8px sheets
+and controlled elevation follow DESIGN.md. Only the sticky navigation uses a
+high-opacity glass-chrome treatment, with an opaque default/reduced-transparency
+fallback; charts, evidence and content remain opaque. Text uses relative units
+and reflows rather than hiding horizontal overflow.
 
-Contact is an editable `mailto:` draft to `hello@runlumi.app`, never a silently
-sent lead or invented success state. No fake testimonials, customer logos, prices,
-certifications, revenue uplift claims or payment capture. Confirm the mailbox
-with the owner before marketing launch; production delivery is not tested here.
+Main's canonical outlined logo is preserved in `public/brand/`. Geist **5.3.0**
+and its exact admitted lock integrity retain the Vietnamese fix from main.
+Acceptance inspects the actual font rendering a Vietnamese alphabet using browser
+font inspection, not merely a loaded-family check. Geist Mono 5.2.6 is limited to
+ASCII dates/digits/edition text. No font binaries are committed outside generated
+package-managed output.
 
-## Design review notes
+Fixture contracts: 512m before returns − 26m returns = **486m VND net revenue**;
+all seven daily points sum to that same total. Pending settlement is not received
+cash. Missing costs keep contribution unknown. Operations has **57 new** events
+but **24 open** at period end. Stale stock is not a forecast or an order approval.
+No fabricated testimonials, partner badges, prices, certifications or ROI claims.
 
-Canonical paper `#F4F0E8`, ink `#102A43`, blue `#006093`, Geist/Geist Mono, restrained
-sheet elevation, folded-L geometry, one navy editorial insight sheet. Light-only.
-The existing app logo has older blue fills; marketing reuses its exact geometry
-with the canonical monochrome Lumi Blue. The application is deliberately unchanged.
+## PR #8 reconciliation and evidence
 
-Fonts are served locally from locked Fontsource packages, with `font-display:swap`.
-**Known font boundary:** Geist 5.2.6's shipped subsets lack some Vietnamese codepoints
-(e.g. U+1EA5, U+1EC7). The DESIGN.md-approved Noto/system fallback is retained for
-those characters, not a claim that Geist provides full Vietnamese coverage. Do not
-introduce a different display family or remove accents to hide this limitation.
-Review Vietnamese on macOS, iOS, Android and Windows before launch; browser tests
-and visual evidence record only the environment actually run. No font binaries
-are committed into the repository outside package-managed build output.
+The two-parent merge preserves current main's commerce/application work. The
+PR's coherent three-scenario design is retained, alongside main's Vietnamese
+font fix, canonical brand assets, `web/AGENTS.md` and public-contact override.
+One `landing.yml` replaces conflicting pipelines. Node is consistent across the
+manifest, `.nvmrc`, CI and Pages instructions.
 
-SVG charts have named text alternatives and real data tables. Unknown/stale/demo
-states use text, not color alone. Native disclosures, visible focus, Escape menu
-closing, roving keyboard tabs, copy error handling and reduced motion are tested.
-The 320px layout stacks cards; it never clips the page to conceal overflow.
+The temporary lock reconciliation copied only the already-admitted Geist entry
+from immutable main; it is removed before final acceptance. Remaining CI is
+read-only: exact `npm ci`, audit, checks, build, browser acceptance, source/lock
+hashes, screenshots and test reports. It never deploys or writes branches.
 
-## Supply chain and notices
+Automated checks cover 1440/1024/768/390/320px, keyboard/deep links, no-JS behavior,
+clipboard failure, actual Vietnamese fonts, 200% text, redirects/404/SEO/CSP, no
+external requests/storage and axe WCAG rule sets. Results are evidence for that
+revision, not full WCAG, security, merchant or production-deployment certification.
 
-`package-lock.json` is committed. Lifecycle scripts are disabled. Astro 7.3.3
-(MIT), @astrojs/check 0.9.10 (MIT), TypeScript 6.0.3 (Apache-2.0), Playwright 1.62.1
-(Apache-2.0), axe Playwright 4.13.0 (MPL-2.0), Fontsource Geist/Geist Mono 5.2.6
-(OFL-1.1) were resolved from npm in an isolated feature-branch bootstrap. The
-bootstrap reported zero known audit vulnerabilities at that resolution; this is
-not a security certification. Full transitive versions/integrity are in the lock.
-Geist fonts and adapted MIT Tabler utility paths are the redistributed assets;
-`npm run build` writes their notices into `dist/THIRD_PARTY_NOTICES.txt`. Original
-Lumi code remains reserved under the root LICENSE. No application dependencies
-or product license changed.
+## Licensing
 
-To regenerate the committed 1200×630 social image after an intentional copy edit:
-install the test browser, then `node scripts/social-card.mjs`. This is a maintainer
-operation, not a Pages build requirement. Review the image before committing it.
+The committed lock fixes the complete graph and integrity. Original Lumi code
+remains reserved under root LICENSE. Build tools are not browser runtimes. Local
+Geist fonts use OFL-1.1; adapted Tabler utility paths use MIT. Build copies their
+actual license notices into `dist/THIRD_PARTY_NOTICES.txt`. Root dependencies and
+product licensing are unchanged.
 
-## Verification scope
-
-CI checks the built site at 1440, 1024, 768, 390 and 320px, records full-page
-screenshots, runs axe WCAG rule sets, checks tabs/evidence, mobile menu, deep links,
-no-JS fallback, clipboard rejection, metadata/404/privacy and reduced motion.
-Artifacts retain source, static output and test evidence. The CI workflow has
-read-only repository permission and never deploys. Passing automated checks do
-not establish full WCAG conformance, real connector readiness or Cloudflare parity.
+The committed 1200×630 social card can be regenerated by a maintainer with the
+locked browser using `node scripts/social-card.mjs`; this is not a Pages build
+requirement. Review the generated image before committing it.

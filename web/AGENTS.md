@@ -30,9 +30,10 @@ changing a chart. Null, missing, estimated, contribution, profit and actual cash
 are different concepts. UI examples are not API integration tests.
 
 Before shipping run `npm ci --ignore-scripts`, `npm run check`, `npm run build`,
-and `npm run test:e2e` with the pinned browser installed. Inspect desktop/mobile
-screenshots and retain the actual commit/run identity. A passing local preview
-is not proof of Pages headers, DNS, email delivery or production accessibility.
+and `npm run test:e2e` with the pinned browser installed. Use Node 24.21.0 from
+this directory's `.nvmrc`. Inspect desktop/mobile screenshots and retain the
+actual commit/run identity. A passing local preview is not proof of Pages
+headers, DNS, email delivery or production accessibility.
 
 Keep the dependency graph locked. No framework hydration, analytics, storage,
 external fonts, secrets or API calls without an explicit product requirement and

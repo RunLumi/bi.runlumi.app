@@ -1,16 +1,20 @@
+import { publicContactEmail } from './contact.ts';
+// Astro supplies import.meta.env; native build verification uses process.env.
+const contactEmail = publicContactEmail(import.meta.env?.PUBLIC_CONTACT_EMAIL || process.env.PUBLIC_CONTACT_EMAIL || 'hello@runlumi.app');
+
 export const site = {
   name: 'Lumi BI',
   // The public landing page and authenticated platform are different surfaces.
   origin: 'https://about.bi.runlumi.app',
   appOrigin: 'https://bi.runlumi.app',
-  email: 'hello@runlumi.app',
+  email: contactEmail,
   title: 'Lumi BI — Thấy rõ kinh doanh. Biết việc cần làm.',
   description: 'Lumi BI: định hướng phân tích tiền, lợi nhuận, tồn kho và ngoại lệ vận hành cho doanh nghiệp thương mại Việt Nam. Khám phá bản minh họa và trao đổi về pilot.',
   reviewedAt: '20.09.2026',
   reviewedAtISO: '2026-09-20',
 } as const;
 
-export const contactHref = `mailto:${site.email}?subject=${encodeURIComponent('Trao đổi pilot Lumi BI')}&body=${encodeURIComponent('Chào Lumi,\n\nTôi muốn trao đổi về pilot Lumi BI.\n\nDoanh nghiệp:\nHệ thống đang dùng:\nCâu hỏi kinh doanh cần trả lời:\nCách liên hệ thuận tiện:\n\nCảm ơn Lumi.')}`;
+export const contactHref = `mailto:${site.email}?subject=${encodeURIComponent('Trao đổi pilot Lumi BI')}&body=${encodeURIComponent('Chào Lumi,\n\nTôi muốn trao đổi về pilot Lumi BI.\n\nDoanh nghiệp:\nHệ thống đang dùng:\nCâu hỏi kinh doanh cần trả lời:\nCách liên hệ thuận tiện:\n\nTôi không gửi mật khẩu, API key hoặc dữ liệu khách hàng trong thư này.\n\nCảm ơn Lumi.')}`;
 
 export const navigation = [
   { href: '/#gia-tri', label: 'Giá trị' },
@@ -35,6 +39,7 @@ export const decisions = [
 ] as const;
 
 export const faqs = [
+  { question: 'Lumi BI hiện ở giai đoạn nào?', answer: 'Nền tảng đã có luồng thử nghiệm tiếp nhận tệp xuất được cấp quyền, đối chiếu nguồn và xem số liệu thương mại. Chưa phải bản production được nghiệm thu với nhà bán hàng. Kết nối API trực tiếp và Ask Lumi vẫn đang phát triển. Các tình huống trên trang này là minh họa riêng, không phải giao diện đang kết nối cửa hàng của bạn.' },
   { question: 'Lumi BI có thay phần mềm bán hàng của tôi không?', answer: 'Không. Định hướng của Lumi BI là bổ sung lớp phân tích trên những hệ thống bạn đang dùng. Phạm vi dữ liệu, quyền truy cập và cách kết nối sẽ được xác nhận trước từng pilot; không mặc định phải thay quy trình đang vận hành.' },
   { question: 'Hiện đã kết nối được Nhanh, Haravan và Shopee chưa?', answer: 'Chưa. Đây là các tích hợp ưu tiên trong lộ trình, chưa phải kết nối thương mại đã phát hành. Khả năng truy cập API, quyền đối tác, loại tài khoản và dữ liệu thực tế cần được kiểm chứng riêng. Đăng ký pilot không đồng nghĩa được kích hoạt kết nối ngay.' },
   { question: 'Các con số trên trang này có phải kết quả của khách hàng?', answer: 'Không. Toàn bộ tình huống và số liệu trong phần khám phá là dữ liệu giả lập để minh họa hướng sản phẩm. Chúng không phải báo cáo trực tiếp, kết quả thử nghiệm khách hàng hay cam kết về lợi nhuận.' },
