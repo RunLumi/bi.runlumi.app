@@ -28,12 +28,30 @@ Start with the [commerce specifications](docs/specs/README.md), then the
 - Small approved operations snapshot importer, immutable evidence, idempotency,
   atomic publication, safe watermark rules and tested capacity/cash distinctions.
 
-**Not shipped:** live Nhanh/Haravan/Shopee adapters, commerce canonical facts and
-reconciliation, margin/settlement/inventory calculations, source-auth onboarding,
-field/row finance permissions, Ask Lumi, autonomous actions, raw SQL, exports,
-self-service billing, automated Git attestations, or production migration/fleet
-orchestration. No synthetic commerce chart is presented as a working integration.
+- Authorized commerce export onboarding, durable raw receipts/outbox and immutable
+  order, settlement and physical-stock normalization. Invalid business formats
+  are quarantined; checksums and current source permissions are enforced.
+- Reviewed cross-source identity mappings, declared independent control totals,
+  immutable publication previews and compare-and-swap activation. Prior reports
+  remain reproducible; unknown financial components remain unavailable.
+- Money/stock review screens, deterministic observed-condition findings, an
+  auditable decision register with positively verified outcomes, and authenticated
+  CSV/JSON exports. No finding, decision state or payout gap fabricates recovered cash.
 
+These commerce paths are a **bounded authorized-export workflow**, not a live
+connector or full financial warehouse. Maximum 100 records/48 KB per raw file,
+10 normalized source snapshots and 512 KB per published report. Orders use an
+explicit tax basis and order-cohort recognition; no line/event-date P&L is implied.
+
+**Not shipped:** live Nhanh/Haravan/Shopee adapters; large chunked source sync;
+line-level returns/refunds/COGS; general commerce semantic querying and field/row
+finance permissions; demand forecasting/stock aging; marketing/customer cohorts;
+Ask Lumi inference; scheduled delivery/embeds; agent execution; self-service
+billing; automated Git attestations; production migration/fleet orchestration.
+No synthetic commerce chart is presented as a working integration.
+
+See the [implementation record](docs/implementation/README.md) for the complete
+C00–C27 status and the next dependency-ordered work.
 See [PR #2 scope and acceptance mapping](docs/pr2-commerce-alignment.md) and
 [validation](VALIDATION.md). Specifications are contracts, not evidence of delivery.
 
@@ -51,7 +69,9 @@ npm run dev                   # builds React assets, then starts local demo
 
 Open `http://127.0.0.1:8787`. Home shows the target decision products and their
 unavailable capabilities. **Chi phí thao tác** opens the working operations-cost
-pack. Tenant A has **74 released hours and zero recorded cash savings**; the
+pack. Owners can open **Nguồn & bản nhập**, authorize a bounded source, use the
+[synthetic interchange examples](examples/commerce/README.md), normalize, preview
+and publish a report, then open **Số liệu thương mại**. Tenant A has **74 released hours and zero recorded cash savings**; the
 sample is deliberately not a customer case study.
 
 The demo harness is loopback-only and memory-only. It cannot be enabled by a

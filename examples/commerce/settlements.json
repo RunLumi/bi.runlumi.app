@@ -1,0 +1,57 @@
+{
+  "contract": "lumi.commerce.export.v1",
+  "provider": "generic",
+  "sourceAccountId": "shop-A",
+  "resourceType": "settlements",
+  "currency": "VND",
+  "taxBasis": "net-merchandise-actual-cash-v1",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "window": {
+    "from": "2026-09-01T00:00:00.000Z",
+    "toExclusive": "2026-09-20T00:00:00.000Z"
+  },
+  "observedAt": "2026-09-19T00:00:00.000Z",
+  "records": [
+    {
+      "id": "statement-1",
+      "economicAt": "2026-09-10T00:00:00.000Z",
+      "dueAt": null,
+      "finality": "final",
+      "components": [
+        {
+          "id": "entitlement",
+          "kind": "entitlement",
+          "amount": "700000"
+        },
+        {
+          "id": "fees",
+          "kind": "fee",
+          "amount": "-70000"
+        },
+        {
+          "id": "reserve",
+          "kind": "reserve_addition",
+          "amount": "-100000"
+        },
+        {
+          "id": "release",
+          "kind": "reserve_release",
+          "amount": "20000"
+        },
+        {
+          "id": "withholding",
+          "kind": "withholding",
+          "amount": "-30000"
+        }
+      ],
+      "receipts": [
+        {
+          "id": "bank-1",
+          "observedAt": "2026-09-11T00:00:00.000Z",
+          "amount": "500000",
+          "evidenceRef": "bank-statement-1"
+        }
+      ]
+    }
+  ]
+}

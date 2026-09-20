@@ -1,0 +1,30 @@
+{
+  "contract": "lumi.commerce.export.v1",
+  "provider": "generic",
+  "sourceAccountId": "shop-A",
+  "resourceType": "orders",
+  "currency": "VND",
+  "taxBasis": "net-merchandise-actual-cash-v1",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "window": {
+    "from": "2026-09-01T00:00:00.000Z",
+    "toExclusive": "2026-09-20T00:00:00.000Z"
+  },
+  "observedAt": "2026-09-19T00:00:00.000Z",
+  "records": [
+    {
+      "id": "9007199254740993",
+      "orderedAt": "2026-09-01T17:00:00.000Z",
+      "recognizedAt": "2026-09-03T00:00:00.000Z",
+      "state": "accepted",
+      "merchandise": "1000000",
+      "sellerDiscount": "100000",
+      "merchandiseReversal": "180000",
+      "cogs": "400000",
+      "cogsEvidenceRef": "cost-at-sale-1",
+      "variableFees": "80000",
+      "shippingIncome": "0",
+      "earnedSubsidy": "0"
+    }
+  ]
+}

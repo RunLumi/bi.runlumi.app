@@ -1,3 +1,8 @@
+import {readCommerceInsights,createCommerceDecision,updateCommerceDecision,readCommerceDecisions,exportCommerceReport} from './commerce-decisions.ts';
+import {revision as requireRevision} from '../../../packages/core/http.ts';
+import {readCommerceConnections,createCommerceConnection,changeCommerceConnection} from './commerce-connections.ts';
+import {registerCommerceMapping,previewCommercePublication,publishCommerce,readCommercePublication,readCommercePublicationStatus} from './commerce-publication.ts';
+import {normalizeCommerceReceipt,readCommerceNormalizations,readCommerceStaging} from './commerce-normalization.ts';
 import {acceptCommerceExport,readCommerceReceipts} from './commerce-receipts.ts';
 import {commerceReadiness} from '../../../packages/core/commerce-readiness.ts';
 import {assertDashboardScope,parseBatch,executeQueries} from './query.ts';
@@ -50,16 +55,49 @@ export function createApi(authenticate:Authenticate, demo=false) {
         const body=request.method==='GET'?undefined:await readJson(request);
         return secure(await controlRequest(env,request,url.pathname.replace('/api/control/','/control/admin/'),body,demo),requestId);
       }
-      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|dashboards|imports|configuration|readiness|commerce-receipts)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
+      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
       if(!match)throw new AppError(404,'NOT_FOUND');
       const tenantId=id(match[1]);const route=match[2];const resource=match[3];
-      const feature=route==='commerce-receipts'?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
+      const feature=['commerce-receipts','commerce-normalizations','commerce-mappings','commerce-publications','commerce-connections','commerce-insights','commerce-decisions','commerce-exports','commerce-staging'].includes(route??'')?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
       const ctx=await authorizeTenant(env,principal,tenantId,request,feature,demo);
       const active=ctx.active;
       if(route==='configuration'&&request.method==='GET'&&!resource)return secure(json({active:active?{releaseId:active.releaseId,revision:active.revision,sourceCommit:active.sourceCommit,provenance:active.provenance,attestationVerified:active.attestationVerified,name:active.pack.name,queries:active.pack.queries,ai:{enabled:active.pack.ai.enabled,providerInstanceRef:active.pack.ai.providerInstanceRef,modelRef:active.pack.ai.modelRef,dailyBudgetUsd:active.pack.ai.dailyBudgetUsd,inferenceImplemented:false}}:null}),requestId);
       if(route==='readiness'&&request.method==='GET'&&!resource)return secure(json(commerceReadiness),requestId);
       let response:Response;
-      if(route==='commerce-receipts'&&request.method==='POST'&&!resource){
+      if(route==='commerce-staging'&&request.method==='GET'&&resource){
+        response=json(await readCommerceStaging(ctx,resource));
+      }else if(route==='commerce-insights'&&request.method==='GET'&&!resource){
+        response=json(await readCommerceInsights(ctx));
+      }else if(route==='commerce-decisions'&&request.method==='GET'){
+        response=json(await readCommerceDecisions(ctx,resource));
+      }else if(route==='commerce-decisions'&&request.method==='POST'&&!resource){
+        response=json(await createCommerceDecision(ctx,await readJson(request)),201);
+      }else if(route==='commerce-decisions'&&request.method==='PUT'&&resource){
+        response=json(await updateCommerceDecision(ctx,resource,await readJson(request),requireRevision(request)));
+      }else if(route==='commerce-exports'&&request.method==='GET'&&resource){
+        url.searchParams.forEach((_value,key)=>{if(key!=='format')throw new AppError(400,'UNKNOWN_EXPORT_OPTION');});
+        response=await exportCommerceReport(ctx,resource,url.searchParams.get('format')??'csv');
+      }else if(route==='commerce-connections'&&request.method==='GET'&&!resource){
+        response=json(await readCommerceConnections(ctx));
+      }else if(route==='commerce-connections'&&request.method==='POST'&&!resource){
+        response=json(await createCommerceConnection(ctx,await readJson(request)),201);
+      }else if(route==='commerce-connections'&&request.method==='PUT'&&resource){
+        response=json(await changeCommerceConnection(ctx,resource,await readJson(request),requireRevision(request)));
+      }else if(route==='commerce-mappings'&&request.method==='POST'&&!resource){
+        response=json(await registerCommerceMapping(ctx,await readJson(request)));
+      }else if(route==='commerce-publications'&&request.method==='POST'&&resource==='preview'){
+        response=json(await previewCommercePublication(ctx,await readJson(request)));
+      }else if(route==='commerce-publications'&&request.method==='POST'&&!resource){
+        response=json(await publishCommerce(ctx,await readJson(request)),201);
+      }else if(route==='commerce-publications'&&request.method==='GET'&&resource==='status'){
+        response=json(await readCommercePublicationStatus(ctx));
+      }else if(route==='commerce-publications'&&request.method==='GET'){
+        response=json(await readCommercePublication(ctx,resource));
+      }else if(route==='commerce-normalizations'&&request.method==='POST'&&!resource){
+        response=json(await normalizeCommerceReceipt(ctx,env.SOURCES,await readJson(request)));
+      }else if(route==='commerce-normalizations'&&request.method==='GET'){
+        response=json(await readCommerceNormalizations(ctx,resource));
+      }else if(route==='commerce-receipts'&&request.method==='POST'&&!resource){
         const accepted=await acceptCommerceExport(ctx,env.SOURCES,await readJson(request));
         response=json(accepted,accepted.replayed?200:202);
       }else if(route==='commerce-receipts'&&request.method==='GET'){
