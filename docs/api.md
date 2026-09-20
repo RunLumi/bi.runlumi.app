@@ -65,3 +65,13 @@ admission. Missing data/coverage does not become evidence of zero business activ
 
 Configuration changes return `CONFIGURATION_CHANGED` (409); stale data-cell identity
 returns `TENANT_ROUTE_FENCED` (503). No cached response bypasses current authorization.
+
+## Commerce raw-receipt increment
+
+`POST /api/tenants/{tenant}/commerce-receipts` accepts a bounded owner-authorized
+export only for a reviewed active connection. New receipt: 202; identical replay:
+200; delivery-ID conflict or mid-upload source/route change: 409. Both POST and
+metadata-only `GET /api/tenants/{tenant}/commerce-receipts[/{receiptId}]` require
+owner membership and `data.import`. No raw JSON, object URL or credential is returned.
+These internal foundation routes do not imply a versioned public partner API.
+See the [envelope, error and durability contract](implementation/01-durable-export-receipts.md).

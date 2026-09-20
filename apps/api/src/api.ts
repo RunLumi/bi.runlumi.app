@@ -1,3 +1,4 @@
+import {acceptCommerceExport,readCommerceReceipts} from './commerce-receipts.ts';
 import {commerceReadiness} from '../../../packages/core/commerce-readiness.ts';
 import {assertDashboardScope,parseBatch,executeQueries} from './query.ts';
 import {controlRequest} from './control-client.ts';
@@ -49,16 +50,21 @@ export function createApi(authenticate:Authenticate, demo=false) {
         const body=request.method==='GET'?undefined:await readJson(request);
         return secure(await controlRequest(env,request,url.pathname.replace('/api/control/','/control/admin/'),body,demo),requestId);
       }
-      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|dashboards|imports|configuration|readiness)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
+      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|dashboards|imports|configuration|readiness|commerce-receipts)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
       if(!match)throw new AppError(404,'NOT_FOUND');
       const tenantId=id(match[1]);const route=match[2];const resource=match[3];
-      const feature=route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
+      const feature=route==='commerce-receipts'?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
       const ctx=await authorizeTenant(env,principal,tenantId,request,feature,demo);
       const active=ctx.active;
       if(route==='configuration'&&request.method==='GET'&&!resource)return secure(json({active:active?{releaseId:active.releaseId,revision:active.revision,sourceCommit:active.sourceCommit,provenance:active.provenance,attestationVerified:active.attestationVerified,name:active.pack.name,queries:active.pack.queries,ai:{enabled:active.pack.ai.enabled,providerInstanceRef:active.pack.ai.providerInstanceRef,modelRef:active.pack.ai.modelRef,dailyBudgetUsd:active.pack.ai.dailyBudgetUsd,inferenceImplemented:false}}:null}),requestId);
       if(route==='readiness'&&request.method==='GET'&&!resource)return secure(json(commerceReadiness),requestId);
       let response:Response;
-      if(route==='metrics' && request.method==='GET' && !resource){
+      if(route==='commerce-receipts'&&request.method==='POST'&&!resource){
+        const accepted=await acceptCommerceExport(ctx,env.SOURCES,await readJson(request));
+        response=json(accepted,accepted.replayed?200:202);
+      }else if(route==='commerce-receipts'&&request.method==='GET'){
+        response=json(await readCommerceReceipts(ctx,resource));
+      }else if(route==='metrics' && request.method==='GET' && !resource){
         response=json({version:'operations-v1',metrics:metrics.filter(m=>!active||active.pack.allowedMetrics.includes(m.id)).map(({expression,...m})=>m)});
       }else if(route==='query' && request.method==='POST' && !resource){
         response=json((await executeQueries(ctx,[parseQuery(await readJson(request))])).results[0]);
