@@ -42,10 +42,12 @@ export async function fixture({seed=true}={}){
  env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0001_initial.sql',root),'utf8'));
  env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0002_control_plane.sql',root),'utf8'));
  env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0003_release_safety.sql',root),'utf8'));
+ env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0004_tenant_lifecycle.sql',root),'utf8'));
  const migration=(await Promise.all((await readdir(new URL('migrations/tenant/',root))).filter(f=>f.endsWith('.sql')).sort().map(f=>readFile(new URL('migrations/tenant/'+f,root),'utf8')))).join('\n');
  const dashboard=JSON.parse(await readFile(new URL('packs/operations-cost/dashboard.json',root),'utf8'));
  for(const [tenant,binding,name] of [['alpha','TENANT_A','Doanh nghiệp A · minh họa'],['beta','TENANT_B','Doanh nghiệp B · minh họa']]){
   env.CONTROL_DB.db.prepare("INSERT INTO tenants (id,name,binding_name,cell_id,state) VALUES (?,?,?,'local','active')").run(tenant,name,binding);
+  env.CONTROL_DB.db.prepare("INSERT INTO tenant_lifecycle (tenant_id,state,revision,reason,updated_at) VALUES (?,'ACTIVE',1,'local fixture','2026-09-20T00:00:00.000Z')").run(tenant);
   env.CONTROL_DB.db.prepare("INSERT INTO licenses VALUES (?,'pilot','active','2026-01-01T00:00:00.000Z','2099-01-01T00:00:00.000Z',NULL,?,1,'2026-09-20T00:00:00.000Z')").run(tenant,JSON.stringify(['bi.read','dashboard.edit','data.import','git.publish']));
   for(const role of ['owner','editor','viewer'])env.CONTROL_DB.db.prepare("INSERT INTO memberships VALUES (?,'local-demo',?,?,'active')").run(tenant,`${tenant}-${role}`,role);
   const db=env[binding];db.db.exec(migration);

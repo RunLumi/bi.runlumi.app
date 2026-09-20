@@ -33,6 +33,7 @@ export function compileCell(i) {
     dbs.push({binding,database_name:ident(t.databaseName,'tenant databaseName'),database_id:databaseId,migrations_dir:'../migrations/tenant'});
     // Fail rather than override existing routing or ownership. These are one-time reviewed bootstrap statements.
     control.push(`INSERT INTO tenants (id,name,binding_name,cell_id,state) VALUES (${quote(id)},${quote(t.name)},${quote(binding)},${quote(cellId)},'active');`);
+    control.push(`INSERT INTO tenant_lifecycle (tenant_id,state,revision,reason,updated_at) VALUES (${quote(id)},'ACTIVE',1,'reviewed bootstrap',CURRENT_TIMESTAMP);`);
     control.push(`INSERT INTO memberships (tenant_id,issuer,subject,role,state) VALUES (${quote(id)},${quote(`https://${team}.cloudflareaccess.com`)},${quote(t.ownerSubject)},'owner','active');`);
     control.push(`INSERT INTO users (issuer,subject,state) VALUES (${quote(`https://${team}.cloudflareaccess.com`)},${quote(t.ownerSubject)},'active') ON CONFLICT DO NOTHING;`);
     if(!Array.isArray(t.sources)||!t.sources.length||t.sources.length>20) throw new Error('Specify 1-20 disjoint registered sources per tenant');

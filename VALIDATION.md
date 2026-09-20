@@ -5,7 +5,7 @@ Date: 2026-09-20.
 ## Local executed evidence
 
 - Strict backend TypeScript, the current host Node runtime (repository target remains
-  Node 22.16.0) and **240 Node/SQLite/WebCrypto tests**, none skipped.
+  Node 22.16.0) and **244 Node/SQLite/WebCrypto tests**, none skipped.
 - Existing tenant/auth/license/pack/query invariants remain covered.
 - Raw integrity, strict source/tax contracts, normalizer quarantine, exact money,
   source identity/authority, independent declared controls, atomic publication,
@@ -13,6 +13,9 @@ Date: 2026-09-20.
 - Durable normalization-job admission, concurrent-cap fencing, idempotent replay,
   owner/resource denial, lease contention, retry exhaustion and source revocation
   after admission.
+- Canonical tenant lifecycle transitions, strong revision fencing, operator-only
+  audit, session/cell access denial for inactive states and deletion fencing without
+  false erasure claims.
 - Frontend strict TypeScript, Vite production build and runtime notices pass.
 - Both dependency graphs unchanged; 173-package frontend lock/provenance checks pass.
 - Commerce specs: 28 files, 334 IDs, 50 links, 16 independent reference cases and

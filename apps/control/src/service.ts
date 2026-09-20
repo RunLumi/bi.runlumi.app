@@ -6,10 +6,18 @@ import type {Database} from '../../api/src/bindings.ts';
 import type {ControlEnv} from './bindings.ts';
 type Auth=(request:Request,env:ControlEnv)=>Promise<Principal>;
 type Member={id:string;name:string;binding_name:string;cell_id:string;route_epoch:number;role:Role};
+type LifecycleState='PROVISIONING'|'VALIDATING'|'ACTIVE'|'SUSPENDED'|'EXPORT_PENDING'|'DELETING'|'DELETED'|'FAILED';
+const lifecycleStates:readonly LifecycleState[]=['PROVISIONING','VALIDATING','ACTIVE','SUSPENDED','EXPORT_PENDING','DELETING','DELETED','FAILED'];
+const lifecycleTransitions:Record<LifecycleState,readonly LifecycleState[]>={
+ PROVISIONING:['VALIDATING','FAILED','DELETING'],VALIDATING:['ACTIVE','FAILED','PROVISIONING','DELETING'],
+ ACTIVE:['SUSPENDED','EXPORT_PENDING','DELETING'],SUSPENDED:['ACTIVE','EXPORT_PENDING','DELETING'],
+ EXPORT_PENDING:['ACTIVE','DELETING'],DELETING:['DELETED','FAILED'],FAILED:['PROVISIONING','DELETING'],DELETED:[]
+};
+function canTransition(from:LifecycleState,to:LifecycleState):boolean{return from===to||lifecycleTransitions[from].includes(to);}
 function primary(db:Database):Database{return db.withSession?db.withSession('first-primary'):db;}
 async function licenseFor(db:Database,tenant:string){return db.prepare('SELECT plan_id,state,starts_at,ends_at,grace_ends_at,features,revision FROM licenses WHERE tenant_id=?').bind(tenant).first<License>();}
 async function membership(db:Database,p:Principal,tenant:string):Promise<Member>{
-  const r=await db.prepare("SELECT t.id,t.name,t.binding_name,t.cell_id,t.route_epoch,m.role FROM tenants t JOIN memberships m ON m.tenant_id=t.id JOIN users u ON u.issuer=m.issuer AND u.subject=m.subject WHERE t.id=? AND t.state='active' AND m.state='active' AND u.state='active' AND m.issuer=? AND m.subject=?")
+  const r=await db.prepare("SELECT t.id,t.name,t.binding_name,t.cell_id,t.route_epoch,m.role FROM tenants t JOIN tenant_lifecycle l ON l.tenant_id=t.id AND l.state='ACTIVE' JOIN memberships m ON m.tenant_id=t.id JOIN users u ON u.issuer=m.issuer AND u.subject=m.subject WHERE t.id=? AND t.state='active' AND m.state='active' AND u.state='active' AND m.issuer=? AND m.subject=?")
     .bind(tenant,p.issuer,p.subject).first<Member>();
   if(!r||!['viewer','editor','owner'].includes(r.role))throw new AppError(403,'TENANT_ACCESS_DENIED');return r;
 }
@@ -38,7 +46,7 @@ export function createControl(authenticate:Auth,clock:()=>number=Date.now){
    if(!['GET','POST','PUT'].includes(request.method))throw new AppError(405,'METHOD_NOT_ALLOWED');
    const p=await authenticate(request,env);const db=primary(env.CONTROL_DB);const now=new Date(clock()).toISOString();
    if(url.pathname==='/control/session'&&request.method==='GET'){
-    const rows=await db.prepare("SELECT t.id,t.name,t.cell_id,m.role FROM tenants t JOIN memberships m ON m.tenant_id=t.id JOIN users u ON u.issuer=m.issuer AND u.subject=m.subject WHERE t.state='active' AND m.state='active' AND u.state='active' AND m.issuer=? AND m.subject=? ORDER BY t.id LIMIT 100").bind(p.issuer,p.subject).all();
+    const rows=await db.prepare("SELECT t.id,t.name,t.cell_id,m.role FROM tenants t JOIN tenant_lifecycle l ON l.tenant_id=t.id AND l.state='ACTIVE' JOIN memberships m ON m.tenant_id=t.id JOIN users u ON u.issuer=m.issuer AND u.subject=m.subject WHERE t.state='active' AND m.state='active' AND u.state='active' AND m.issuer=? AND m.subject=? ORDER BY t.id LIMIT 100").bind(p.issuer,p.subject).all();
     const tenants=[];for(const r of rows.results){const l=await licenseFor(db,String(r.id));tenants.push({...r,license:l?{plan:l.plan_id,state:l.state,endsAt:l.ends_at,revision:l.revision}:null,features:effectiveFeatures(l,clock())});}
     let isOperator=false;try{await operator(db,p);isOperator=true;}catch{}
     return json({tenants,platformOperator:isOperator});
@@ -54,15 +62,26 @@ export function createControl(authenticate:Auth,clock:()=>number=Date.now){
    }
    await operator(db,p); // A tenant owner is never implicitly a platform operator.
    if(url.pathname==='/control/admin/overview'&&request.method==='GET'){
-    const t=await db.prepare('SELECT t.id,t.name,t.cell_id,t.route_epoch,t.state,l.plan_id,l.state AS license_state,l.ends_at,l.revision AS license_revision,d.active_release_id,d.revision AS config_revision FROM tenants t LEFT JOIN licenses l ON l.tenant_id=t.id LEFT JOIN tenant_deployments d ON d.tenant_id=t.id ORDER BY t.id LIMIT 100').all();
+    const t=await db.prepare('SELECT t.id,t.name,t.cell_id,t.route_epoch,t.state,lifecycle.state AS lifecycle_state,lifecycle.revision AS lifecycle_revision,l.plan_id,l.state AS license_state,l.ends_at,l.revision AS license_revision,d.active_release_id,d.revision AS config_revision FROM tenants t JOIN tenant_lifecycle lifecycle ON lifecycle.tenant_id=t.id LEFT JOIN licenses l ON l.tenant_id=t.id LEFT JOIN tenant_deployments d ON d.tenant_id=t.id ORDER BY t.id LIMIT 100').all();
     const u=await db.prepare('SELECT u.issuer,u.subject,u.state,COUNT(m.tenant_id) AS tenant_count FROM users u LEFT JOIN memberships m ON m.issuer=u.issuer AND m.subject=u.subject AND m.state=\'active\' GROUP BY u.issuer,u.subject,u.state ORDER BY u.subject LIMIT 100').all();
     return json({tenants:t.results,users:u.results,limit:100,note:'Control metadata only. Operator role does not grant tenant-data access.'});
    }
-   const route=/^\/control\/admin\/tenants\/([a-z0-9_-]{1,64})\/(license|releases|activation)$/.exec(url.pathname);
+   const route=/^\/control\/admin\/tenants\/([a-z0-9_-]{1,64})\/(license|lifecycle|releases|activation)$/.exec(url.pathname);
    if(!route)throw new AppError(404,'NOT_FOUND');const tenant=id(route[1]);
-   const tenantRow=await db.prepare('SELECT id,state,route_epoch FROM tenants WHERE id=?').bind(tenant).first<{id:string;state:string;route_epoch:number}>();
+   const tenantRow=await db.prepare('SELECT t.id,t.state,t.route_epoch,l.state AS lifecycle_state,l.revision AS lifecycle_revision FROM tenants t JOIN tenant_lifecycle l ON l.tenant_id=t.id WHERE t.id=?').bind(tenant).first<{id:string;state:string;route_epoch:number;lifecycle_state:LifecycleState;lifecycle_revision:number}>();
    if(!tenantRow)throw new AppError(404,'NOT_FOUND');
-   if(route[2]!=='license'&&tenantRow.state!=='active')throw new AppError(403,'TENANT_INACTIVE');
+   if(route[2]!=='license'&&route[2]!=='lifecycle'&&(tenantRow.state!=='active'||tenantRow.lifecycle_state!=='ACTIVE'))throw new AppError(403,'TENANT_INACTIVE');
+   if(route[2]==='lifecycle'&&request.method==='PUT'){
+    const b=object(await readJson(request),['state','reason']);const state=String(b.state) as LifecycleState;const reason=text(b.reason,200);if(!lifecycleStates.includes(state))throw new AppError(422,'INVALID_TENANT_LIFECYCLE');
+    if(!canTransition(tenantRow.lifecycle_state,state))throw new AppError(409,'LIFECYCLE_TRANSITION_INVALID');const expected=revision(request),now=new Date(clock()).toISOString();
+    const legacyState=state==='ACTIVE'||state==='PROVISIONING'||state==='VALIDATING'?'active':'suspended';
+    const result=await db.batch([
+     db.prepare('UPDATE tenant_lifecycle SET state=?,revision=revision+1,reason=?,updated_at=? WHERE tenant_id=? AND revision=?').bind(state,reason,now,tenant,expected),
+     db.prepare('UPDATE tenants SET state=? WHERE id=? AND EXISTS (SELECT 1 FROM tenant_lifecycle WHERE tenant_id=? AND revision=? AND state=?)').bind(legacyState,tenant,tenant,expected+1,state),
+     db.prepare('INSERT INTO control_audit SELECT ?,?,?,?,?,?,?,? WHERE changes()>0').bind(crypto.randomUUID(),tenant,p.issuer,p.subject,'tenant.lifecycle',tenant,reason,now)
+    ]);
+    if(result[0]?.meta.changes!==1||result[1]?.meta.changes!==1)throw new AppError(409,'LIFECYCLE_REVISION_CONFLICT');return json({tenantId:tenant,state,revision:expected+1,reason});
+   }
    if(route[2]==='license'&&request.method==='PUT'){
     const b=object(await readJson(request),['license','reason']);const l=parseLicense(b.license);const reason=text(b.reason,200);const expected=revision(request);
     const current=await licenseFor(db,tenant);if(!current)throw new AppError(409,'PROVISION_LICENSE_FIRST');
@@ -98,7 +117,7 @@ export function createControl(authenticate:Auth,clock:()=>number=Date.now){
     if(r.object_key!==`tenants/${tenant}/packs/${r.content_hash}.json`)throw new AppError(503,'PACK_IDENTITY_MISMATCH');
     const obj=await env.PACKS.get(r.object_key);if(!obj)throw new AppError(503,'PACK_UNAVAILABLE');if(obj.size!==undefined&&obj.size>48_000)throw new AppError(503,'PACK_INTEGRITY');const body=await obj.text();if(await sha256(body)!==r.content_hash)throw new AppError(503,'PACK_INTEGRITY');const pack=parseTenantPack(JSON.parse(body));await validateAIProfile(db,tenant,pack);
     const result=await db.batch([
-     db.prepare(`UPDATE tenant_deployments SET active_release_id=?,revision=revision+1 WHERE tenant_id=? AND revision=? AND EXISTS (SELECT 1 FROM tenants WHERE id=? AND state='active' AND route_epoch=?)`).bind(release,tenant,expected,tenant,b.routeEpoch),
+     db.prepare(`UPDATE tenant_deployments SET active_release_id=?,revision=revision+1 WHERE tenant_id=? AND revision=? AND EXISTS (SELECT 1 FROM tenants t JOIN tenant_lifecycle l ON l.tenant_id=t.id WHERE t.id=? AND t.state='active' AND l.state='ACTIVE' AND t.route_epoch=?)`).bind(release,tenant,expected,tenant,b.routeEpoch),
      db.prepare('INSERT INTO control_audit SELECT ?,?,?,?,?,?,?,? WHERE changes()=1').bind(crypto.randomUUID(),tenant,p.issuer,p.subject,'pack.activated',release,reason,now)
     ]);if(result[0]?.meta.changes!==1)throw new AppError(409,'REVISION_CONFLICT');return json({releaseId:release,revision:expected+1});
    }
