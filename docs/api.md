@@ -46,12 +46,18 @@ public control Worker route. Operator role does not grant tenant-data membership
 
 - GET `/api/control/overview`: bounded tenant/user metadata only.
 - PUT `/api/control/tenants/:id/license`: `{license,reason}` plus strong If-Match.
+- PUT `/api/control/tenants/:id/lifecycle`: `{state,reason}` plus strong If-Match;
+  operator-only explicit transition and audit fence.
 - GET/POST `/api/control/tenants/:id/releases`: list/register compiled operator bundle.
 - POST `/api/control/tenants/:id/activation`: `{releaseId,routeEpoch,reason}` plus If-Match.
 
 Registration requires the server-owned repository/path mapping. It returns
 `provenance: operator-asserted`, `attestationVerified: false`. No GitHub verification
 or CI token-exchange endpoint is implemented. See [tenant packs](tenant-packs.md).
+
+Lifecycle transitions fence interactive access when the canonical state is not
+`ACTIVE`; they do not perform deletion or claim privacy/restore completion. See the
+[tenant lifecycle implementation record](implementation/08-tenant-lifecycle-fence.md).
 
 ## Dashboard evaluation context
 

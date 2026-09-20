@@ -15,13 +15,14 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | 05 | Owner-reviewed per-resource capability and coverage matrix with publication gates | [05](05-capability-coverage-review.md) |
 | 06 | Role-scoped commerce metric catalog and publication-backed query denial for sensitive fields | [06](06-field-scoped-commerce-query.md) |
 | 07 | Tenant-scoped durable normalization jobs with transactional admission and lease fencing | [07](07-durable-commerce-jobs.md) |
+| 08 | Canonical audited tenant lifecycle with fail-closed control-plane fencing | [08](08-tenant-lifecycle-fence.md) |
 
 ## Complete specification inventory
 
 | Spec | Current executable boundary | Work not yet implemented/certified |
 |---|---|---|
 | C00 | Product and commercial tests specified | Paid merchant demand/ROI and acquisition evidence |
-| C01 | Authenticated memberships, route identity, control/data cells, bounded job admission | Lifecycle provisioning, fleet migration and service-authenticated consumer admission |
+| C01 | Authenticated memberships, route identity, control/data cells, bounded job admission, audited lifecycle fence | Fleet migration, support grants and service-authenticated consumer admission |
 | C02 | Owner-authorized export scope, source revision, immutable raw metadata and reviewed capability/coverage states | OAuth/PKCE installation, secret broker, provider capability certification |
 | C03 | Nhanh source labels in checked interchange | Actual Nhanh transport, incremental sync and installation tests |
 | C04 | Haravan source labels in checked interchange | Actual Haravan transport, auth/event certification |
@@ -42,7 +43,7 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | C19 | Authenticated snapshot CSV/JSON, current revocation and formula defenses | Scheduled briefs, recipient authority, delivery dedup, XLSX/PDF/embeds |
 | C20 | Operator-asserted immutable packs and activation/rollback | Verified GitHub/OIDC source attestation, tenant-local pointer migration and compatibility DAG |
 | C21 | Decisions explicitly execute nothing | Approved action proposal, Lumi Agents handoff, scoped retries and outcome receipts |
-| C22 | Server tenant/role checks, private storage contract, source revocation and reviewed commerce field denial | Row/column policy system, privacy deletion/replay tombstones, support access and security assessment |
+| C22 | Server tenant/role checks, private storage contract, source revocation, lifecycle fencing and reviewed commerce field denial | Row/column policy system, privacy deletion/replay tombstones, support access and security assessment |
 | C23 | Cloudflare cell configuration/runbooks, bounded synchronous paths, local durable job admission/leases | Workerd/staging Queue, restore/load/tenant fairness, async OLAP exit evidence |
 | C24 | License feature/time/grace checks | Metering/admission accounting, seats, billing/payment/partner operations |
 | C25 | Versioned internal response contracts, bounded API endpoints and durable job metadata | Public SDK/OpenAPI, compatibility/deprecation and signed extension events |
