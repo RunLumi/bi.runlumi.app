@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "UNLICENSED",
-  "engines": { "node": ">=22.16.0" },
+  "engines": { "node": ">=22.19.0" },
   "scripts": {
     "dev": "astro dev --host 127.0.0.1",
     "check": "astro check && node --check public/site.js && node --experimental-strip-types --test tests/demo.test.ts",

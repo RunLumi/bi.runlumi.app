@@ -1,5 +1,4 @@
-# One-time dependency admission on the authoring branch. Remove before merge.
-# This job creates an unreferenced lock blob for review; it never pushes a branch.
+# Temporary lock admission; never pushes a branch. Remove after reviewing the blob.
 name: prepare-landing-lock
 on:
   push:
@@ -20,12 +19,12 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
-          node-version: 22.16.0
+          node-version: 22.23.2
           package-manager-cache: false
-      - name: Resolve exact direct versions without installing or running package scripts
+      - name: Reconcile root engine metadata in the existing exact graph
         working-directory: web
         run: npm install --package-lock-only --ignore-scripts
-      - name: Store only the generated lock as an unreferenced Git blob
+      - name: Store reviewed lock candidate without modifying refs
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
@@ -40,7 +39,7 @@ jobs:
           if (!response.ok) throw new Error(`Lock blob creation failed: ${response.status}`);
           const blob = await response.json();
           await mkdir('web/artifacts', { recursive: true });
-          await writeFile('web/artifacts/lock-blob.json', JSON.stringify({ sha: blob.sha, package: '@runlumi/bi-landing', generatedFrom: process.env.GITHUB_SHA }, null, 2));
+          await writeFile('web/artifacts/lock-blob.json', JSON.stringify({ sha: blob.sha, generatedFrom: process.env.GITHUB_SHA }, null, 2));
           console.log(`REVIEW_LOCK_BLOB_SHA=${blob.sha}`);
           NODE
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
