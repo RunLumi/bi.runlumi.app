@@ -1,0 +1,43 @@
+name: commerce-specs
+
+on:
+  pull_request:
+    paths:
+      - 'docs/specs/**'
+      - 'scripts/check-commerce-specs.py'
+      - '.github/workflows/commerce-specs.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'docs/specs/**'
+      - 'scripts/check-commerce-specs.py'
+      - '.github/workflows/commerce-specs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commerce-specs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts-and-bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1; verified 2026-09-20
+        with:
+          persist-credentials: false
+      - name: Validate owned specs and independent commerce oracles
+        run: python3 scripts/check-commerce-specs.py --self-test
+      - name: Set up repository Node version
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0; verified 2026-09-20
+        with:
+          node-version: '22.16.0'
+          package-manager-cache: false
+      - name: Install existing locked development dependency only
+        run: npm ci --ignore-scripts
+      - name: Preserve bootstrap typecheck, SQLite/auth tests and repository contracts
+        run: npm run check
