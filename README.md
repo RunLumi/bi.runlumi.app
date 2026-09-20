@@ -127,7 +127,18 @@ commercial license or grant operator access.
 
 ## License
 
-Original Lumi code remains private/reserved under [LICENSE](LICENSE).
-Dependencies retain their notices; builds include `THIRD_PARTY_NOTICES.txt`.
-See [dependency provenance](THIRD_PARTY_NOTICES.md). No relicensing is inferred
-from any other RunLumi project.
+**Source-available and self-hostable under [Elastic License 2.0](LICENSE), not
+OSI-approved open source.** Internal use and customization are permitted subject
+to ELv2; qualifying hosted/managed services need additional rights.
+
+[License scope](LICENSING.md) · [Usage examples](docs/licensing/usage-policy.md) ·
+[Partners and customers](docs/licensing/commercial-framework.md) ·
+[Contributing](CONTRIBUTING.md) · [Brand notices](TRADEMARKS.md)
+
+Apache-2.0 is reserved for explicitly reviewed thin SDK/starter scopes; none is
+licensed that way yet. The existing product is not dual-licensed under Apache.
+Third-party components retain their [own notices](THIRD_PARTY_NOTICES.md).
+Application and landing builds include `LICENSE.txt`, `NOTICE.txt` and
+`THIRD_PARTY_NOTICES.txt`. Run `npm run check:licensing` to verify metadata and
+notice boundaries. Packages retain `private: true`; no hosted service,
+registry release or legal rights audit is implied.

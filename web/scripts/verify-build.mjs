@@ -1,6 +1,7 @@
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
+import {writeProductNotices} from '../../scripts/product-notices.mjs';
 import { verifyGeoBuild } from './verify-geo.mjs';
 
 const root = new URL('../', import.meta.url);
@@ -37,10 +38,11 @@ assert(!entries.includes('functions'), 'Public site must not bind tenant service
 
 // Only local font binaries and an adapted utility-glyph subset are redistributed.
 // Build tools are not a browser runtime; the exact graph and integrity are in the lock.
-let notices = 'Lumi BI landing page — distribution notices\nOriginal Lumi code: UNLICENSED. See repository LICENSE.\n\n';
+let notices = 'Lumi BI landing page — distribution notices\nOriginal Lumi code: Elastic-2.0. See LICENSE.txt and NOTICE.txt.\n\n';
 for (const pkg of ['geist', 'geist-mono']) notices += `\n@fontsource-variable/${pkg}\n` + await read(`node_modules/@fontsource-variable/${pkg}/LICENSE`) + '\n';
 notices += '\nUtility arrow/check/chevron/menu paths adapted from Tabler Icons, Copyright (c) 2020 Paweł Kuna, MIT. Product glyphs are original Lumi geometry.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n';
 await writeFile(new URL('dist/THIRD_PARTY_NOTICES.txt', root), notices);
+await writeProductNotices(new URL('dist/', root));
 const fonts = await readdir(new URL('dist/_astro/', root));
 assert(fonts.some(name => /geist-vietnamese-wght-normal.*\.woff2$/.test(name)), 'Local Vietnamese Geist subset must ship');
 assert.equal(JSON.parse(await read('node_modules/@fontsource-variable/geist/package.json')).version, '5.3.0');

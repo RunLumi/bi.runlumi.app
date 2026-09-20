@@ -1,8 +1,9 @@
 // Copy notices (never execute package scripts) from the exact installed runtime graph.
 import {readFile,writeFile,access} from 'node:fs/promises';
+import {writeProductNotices} from './product-notices.mjs';
 const root=new URL('../apps/web/',import.meta.url);
 const lock=JSON.parse(await readFile(new URL('package-lock.json',root),'utf8'));
-const sections=['Lumi BI — third-party distribution notices. Original Lumi code remains private/reserved.'];
+const sections=['Lumi BI — third-party distribution notices. Original Lumi code: Elastic-2.0. See LICENSE.txt and NOTICE.txt.'];
 for(const[path,p]of Object.entries(lock.packages)){
  if(!path||p.dev)continue;
  let found;
@@ -18,4 +19,5 @@ for(const[path,p]of Object.entries(lock.packages)){
 }
 sections.push(await readFile(new URL('public/licenses/shadcn-ui.txt',root),'utf8'));
 await writeFile(new URL('dist/THIRD_PARTY_NOTICES.txt',root),sections.join('\n'));
-console.log('Runtime notices included in frontend build.');
+await writeProductNotices(new URL('dist/',root));
+console.log('Product license, attribution and runtime notices included in frontend build.');

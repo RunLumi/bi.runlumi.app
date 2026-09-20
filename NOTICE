@@ -1,0 +1,15 @@
+Lumi BI
+Copyright (c) 2026 RunLumi. All rights reserved except as expressly licensed.
+
+Original Lumi BI software and documentation in this distribution are made
+available under the Elastic License 2.0, unless explicitly identified otherwise.
+See LICENSE (LICENSE.txt in built web distributions) and the scope map at:
+https://github.com/RunLumi/lumi-bi/blob/main/LICENSING.md
+
+Third-party materials retain their own copyrights and licenses. See
+THIRD_PARTY_NOTICES.md (THIRD_PARTY_NOTICES.txt in built web distributions).
+An Apache-2.0 dependency does not make the Lumi BI product Apache-2.0.
+
+These notices do not modify the applicable licenses or grant endorsement,
+trademark, hosted-service, or customer-data rights. No Elastic affiliation or
+endorsement is implied by adopting its license.

@@ -160,6 +160,14 @@ when they reduce real risk or implementation cost. Record exact version,
 transitive license, artifact provenance and bundled content. Do not change the
 repository's license or visibility without explicit owner approval.
 
+The owner-approved licensing model is in LICENSING.md and licensing-policy.json:
+original product/docs use Elastic-2.0; third-party terms remain unchanged. Apache-2.0
+requires an explicitly reviewed thin SDK/starter scope; none is designated yet.
+Do not describe the whole product as OSI-approved open source, infer a commercial
+relicensing grant from a contribution, or copy core into a permissive starter.
+Run `npm run check:licensing` for metadata/notices; legal rights review remains
+human work under CONTRIBUTING.md and docs/licensing/rights-review.md.
+
 Do not build a generic semantic language, graph database, plugin marketplace,
 universal connector catalog or visual canvas before a paid repeated need. Do not
 call a status document an implemented feature. Prefer one production-quality
