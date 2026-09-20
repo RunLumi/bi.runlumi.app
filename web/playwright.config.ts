@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
+  testMatch: '**/*.spec.ts',
   timeout: 30_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -13,7 +14,7 @@ export default defineConfig({
     viewport: { width: 1440, height: 1000 },
     locale: 'vi-VN',
     colorScheme: 'light',
-    reducedMotion: 'reduce',
+    contextOptions: { reducedMotion: 'reduce' },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: { executablePath: process.env.CHROMIUM_EXECUTABLE_PATH || undefined },
