@@ -1,4 +1,4 @@
-name: prepare-landing-toolchain
+name: prepare-landing-social-card
 on:
   push:
     branches: [feat/astro-commerce-landing]
@@ -7,39 +7,35 @@ permissions:
   contents: read
 jobs:
   prepare:
-    # One-time bootstrap, removed before review. Never touches main or deploys.
     permissions:
       contents: write
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 22.16.0
-      - name: Resolve independent marketing dependencies without lifecycle scripts
-        run: |
-          mkdir -p web
-          cd web
-          printf '{"name":"@runlumi/bi-landing","version":"0.1.0","private":true,"type":"module","license":"UNLICENSED","engines":{"node":">=22.16.0"},"scripts":{"dev":"astro dev --host 127.0.0.1","check":"astro check","build":"astro check && astro build && node scripts/verify-build.mjs","preview":"astro preview --host 127.0.0.1","test:e2e":"playwright test"}}\n' > package.json
-          npm install --save-exact --ignore-scripts astro@7.3.3 @fontsource-variable/geist@5.2.6 @fontsource-variable/geist-mono@5.2.6
-          npm install --save-dev --save-exact --ignore-scripts @astrojs/check@0.9.10 typescript@6.0.3 @playwright/test@1.62.1 @axe-core/playwright@4
-          npm audit --json > audit.json || true
-          tar -czf ../landing-toolchain.tgz node_modules package.json package-lock.json audit.json
-      - name: Commit only the resolved marketing manifest and lock on this feature branch
+      - run: npm ci --ignore-scripts
+        working-directory: web
+      - run: npx --no-install playwright install --with-deps chromium
+        working-directory: web
+      - run: node scripts/social-card.mjs
+        working-directory: web
+      - name: Commit one generated image; remove this one-time bootstrap
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- web/package.json web/package-lock.json
-          git commit -m 'build(web): lock independent Astro marketing dependency graph'
+          git add -- web/public/social-card.png
+          git rm -- .github/workflows/prepare-landing.yml
+          git commit -m 'build(web): add rendered social preview and remove bootstrap workflow'
           git push origin HEAD:feat/astro-commerce-landing
+      - name: Package source for local verification
+        if: always()
+        run: tar --exclude=node_modules --exclude=dist --exclude=.astro -czf landing-source.tgz web
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: landing-toolchain
-          path: |
-            landing-toolchain.tgz
-            web/package.json
-            web/package-lock.json
-            web/audit.json
+          name: landing-source-bootstrap
+          path: landing-source.tgz
           retention-days: 1

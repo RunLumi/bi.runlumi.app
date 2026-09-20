@@ -1,0 +1,50 @@
+name: landing-web
+on:
+  pull_request:
+    paths: ['web/**', '.github/workflows/landing-web.yml', 'DESIGN.md', 'ICON.md']
+  push:
+    branches: [main, feat/astro-commerce-landing]
+    paths: ['web/**', '.github/workflows/landing-web.yml']
+permissions:
+  contents: read
+concurrency:
+  group: landing-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22.16.0
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install isolated locked graph without lifecycle scripts
+        run: npm ci --ignore-scripts
+        working-directory: web
+      - name: Check and build static output
+        run: npm run build
+        working-directory: web
+      - name: Install acceptance-test browser
+        run: npx --no-install playwright install --with-deps chromium
+        working-directory: web
+      - name: Test built HTML with production CSP, keyboard, axe and mobile layouts
+        run: npm run test:e2e
+        working-directory: web
+      - name: Package reviewable source (no dependencies, credentials or app data)
+        if: always()
+        run: tar --exclude=node_modules --exclude=dist --exclude=.astro --exclude=playwright-report --exclude=test-results -czf landing-source.tgz web
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: lumi-bi-landing-review
+          path: |
+            landing-source.tgz
+            web/dist
+            web/playwright-report
+            web/test-results
+          retention-days: 7
