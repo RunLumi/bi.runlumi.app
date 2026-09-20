@@ -1,13 +1,17 @@
-import { publicContactEmail } from './contact';
-const contactEmail = publicContactEmail(import.meta.env.PUBLIC_CONTACT_EMAIL || 'hello@runlumi.app');
+import { publicContactEmail } from './contact.ts';
+// Astro supplies import.meta.env; native build verification uses process.env.
+const contactEmail = publicContactEmail(import.meta.env?.PUBLIC_CONTACT_EMAIL || process.env.PUBLIC_CONTACT_EMAIL || 'hello@runlumi.app');
 
 export const site = {
   name: 'Lumi BI',
-  origin: 'https://bi.runlumi.app',
+  // The public landing page and authenticated platform are different surfaces.
+  origin: 'https://about.bi.runlumi.app',
+  appOrigin: 'https://bi.runlumi.app',
   email: contactEmail,
   title: 'Lumi BI | Rõ tiền. Rõ hàng. Vững quyết định.',
   description: 'Hiểu doanh thu, tiền về và tồn kho trong cùng một góc nhìn. Khám phá bản minh họa Lumi BI và trao đổi về bài toán kinh doanh của bạn.',
   reviewedAt: '20.09.2026',
+  reviewedAtISO: '2026-09-20',
 } as const;
 
 export const contactHref = `mailto:${site.email}?subject=${encodeURIComponent('Tìm hiểu Lumi BI cho doanh nghiệp')}&body=${encodeURIComponent('Chào đội ngũ Lumi,\n\nTôi muốn tìm hiểu Lumi BI có phù hợp với doanh nghiệp của mình không.\n\nTên doanh nghiệp:\nPhần mềm và kênh bán hàng đang dùng:\nVấn đề muốn làm rõ:\nCách liên hệ thuận tiện:\n\nCảm ơn Lumi.')}`;
