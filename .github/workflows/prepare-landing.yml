@@ -1,0 +1,53 @@
+# One-time dependency admission on the authoring branch. Remove before merge.
+# This job creates an unreferenced lock blob for review; it never pushes a branch.
+name: prepare-landing-lock
+on:
+  push:
+    branches: [feat/astro-landing-cloudflare-pages]
+    paths: ['.github/workflows/prepare-landing.yml']
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: github.repository == 'RunLumi/lumi-bi'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+      - name: Resolve exact direct versions without installing or running package scripts
+        working-directory: web
+        run: npm install --package-lock-only --ignore-scripts
+      - name: Store only the generated lock as an unreferenced Git blob
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile, mkdir, writeFile } from 'node:fs/promises';
+          const content = await readFile('web/package-lock.json', 'utf8');
+          const response = await fetch(`https://api.github.com/repos/${process.env.GITHUB_REPOSITORY}/git/blobs`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${process.env.GITHUB_TOKEN}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
+            body: JSON.stringify({ content, encoding: 'utf-8' }),
+          });
+          if (!response.ok) throw new Error(`Lock blob creation failed: ${response.status}`);
+          const blob = await response.json();
+          await mkdir('web/artifacts', { recursive: true });
+          await writeFile('web/artifacts/lock-blob.json', JSON.stringify({ sha: blob.sha, package: '@runlumi/bi-landing', generatedFrom: process.env.GITHUB_SHA }, null, 2));
+          console.log(`REVIEW_LOCK_BLOB_SHA=${blob.sha}`);
+          NODE
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: landing-lock-admission
+          path: |
+            web/package-lock.json
+            web/artifacts/lock-blob.json
+          retention-days: 2
