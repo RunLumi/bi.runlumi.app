@@ -129,6 +129,19 @@ export async function readCommercePublication(ctx:TenantContext,publicationId?:s
  const report=await storedReport(row);if(report.tenantId!==ctx.id)throw new AppError(503,'PUBLICATION_IDENTITY_MISMATCH');
  return {activePublicationId:head.active_publication_id,revision:head.revision,publication:{id:row.id,mappingId:row.mapping_id,contentHash:row.content_hash,publishedAt:row.created_at,report},noPublishedData:false,health:{pendingOrQuarantined:rows[2]!.results.slice(0,20),truncated:rows[2]!.results.length>20,scope:'retained-export-only',sourceCompletenessCertified:false}};
 }
+export async function readCommerceQueryPublication(ctx:TenantContext,publicationId:string){
+ const db=database(ctx),rows=await db.batch([
+  db.prepare('SELECT p.* FROM commerce_publications p WHERE p.tenant_id=? AND p.id=?').bind(ctx.id,publicationId),
+  db.prepare(`SELECT c.state,c.revision,r.connection_revision,r.state AS receipt_state FROM commerce_publication_inputs i
+   JOIN commerce_normalizations n ON n.tenant_id=i.tenant_id AND n.id=i.normalization_id
+   JOIN commerce_receipts r ON r.tenant_id=n.tenant_id AND r.id=n.receipt_id
+   JOIN commerce_connections c ON c.tenant_id=r.tenant_id AND c.id=r.connection_id
+   WHERE i.tenant_id=? AND i.publication_id=? LIMIT 11`).bind(ctx.id,publicationId)
+ ]);
+ if(rows.some(r=>!r.success))throw new AppError(503,'PUBLICATION_UNAVAILABLE');const row=rows[0]!.results[0] as unknown as StoredReport|undefined;if(!row)throw new AppError(404,'PUBLICATION_NOT_FOUND');
+ if(rows[1]!.results.some(r=>r.state!=='active'||r.revision!==r.connection_revision||r.receipt_state==='REVOKED'))throw new AppError(503,'PUBLICATION_SOURCE_REVOKED');
+ const report=await storedReport(row);if(report.tenantId!==ctx.id)throw new AppError(503,'PUBLICATION_IDENTITY_MISMATCH');return {id:row.id,contentHash:row.content_hash,report};
+}
 /** Metadata-only recovery surface: an invalidated report must not prevent a
  * permitted owner from pinning a replacement without exposing its business rows. */
 export async function readCommercePublicationStatus(ctx:TenantContext){

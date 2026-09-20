@@ -1,7 +1,7 @@
 import {readCommerceInsights,createCommerceDecision,updateCommerceDecision,readCommerceDecisions,exportCommerceReport} from './commerce-decisions.ts';
 import {revision as requireRevision} from '../../../packages/core/http.ts';
 import {readCommerceConnections,createCommerceConnection,changeCommerceConnection} from './commerce-connections.ts';
-import {registerCommerceMapping,previewCommercePublication,publishCommerce,readCommercePublication,readCommercePublicationStatus} from './commerce-publication.ts';
+import {registerCommerceMapping,previewCommercePublication,publishCommerce,readCommercePublication,readCommerceQueryPublication,readCommercePublicationStatus} from './commerce-publication.ts';
 import {normalizeCommerceReceipt,readCommerceNormalizations,readCommerceStaging} from './commerce-normalization.ts';
 import {acceptCommerceExport,readCommerceReceipts} from './commerce-receipts.ts';
 import {commerceReadiness} from '../../../packages/core/commerce-readiness.ts';
@@ -9,7 +9,7 @@ import {assertDashboardScope,parseBatch,executeQueries} from './query.ts';
 import {controlRequest} from './control-client.ts';
 import { AppError, id, object, parseSnapshot, sha256, type Principal } from '../../../packages/core/contracts.ts';
 import { metrics, parseQuery, parseDashboard } from '../../../packages/core/semantics.ts';
-import { commerceMetricCatalog, parseCommerceQuery, queryCommerceReport } from '../../../packages/core/commerce-query.ts';
+import { assertCommerceMetricScope, commerceMetricCatalog, parseCommerceQuery, queryCommerceReport } from '../../../packages/core/commerce-query.ts';
 import { readCommerceCapabilities, reviewCommerceCapability } from './commerce-capabilities.ts';
 import { authorizeTenant, canEdit } from './tenant.ts';
 import { importSnapshot } from './ingest.ts';
@@ -65,13 +65,13 @@ export function createApi(authenticate:Authenticate, demo=false) {
       const active=ctx.active;
       if(route==='configuration'&&request.method==='GET'&&!resource)return secure(json({active:active?{releaseId:active.releaseId,revision:active.revision,sourceCommit:active.sourceCommit,provenance:active.provenance,attestationVerified:active.attestationVerified,name:active.pack.name,queries:active.pack.queries,ai:{enabled:active.pack.ai.enabled,providerInstanceRef:active.pack.ai.providerInstanceRef,modelRef:active.pack.ai.modelRef,dailyBudgetUsd:active.pack.ai.dailyBudgetUsd,inferenceImplemented:false}}:null}),requestId);
       if(route==='readiness'&&request.method==='GET'&&!resource)return secure(json(commerceReadiness),requestId);
-      if(route==='commerce-metrics'&&request.method==='GET'&&!resource)return secure(json({contract:'lumi.query.v1',semanticRelease:'commerce-cohort-v1.0.0',metrics:commerceMetricCatalog()}),requestId);
+      if(route==='commerce-metrics'&&request.method==='GET'&&!resource)return secure(json({contract:'lumi.query.v1',semanticRelease:'commerce-cohort-v1.0.0',metrics:commerceMetricCatalog(ctx.role==='owner')}),requestId);
       if(route==='commerce-query'&&request.method==='POST'&&!resource){
         const query=parseCommerceQuery(await readJson(request));
-        const publication=await readCommercePublication(ctx,query.dataVersion);
-        if(!publication.publication||publication.publication.id!==query.dataVersion)throw new AppError(409,'COMMERCE_DATA_VERSION_NOT_ACTIVE');
-        const contextHash=await sha256(JSON.stringify([ctx.id,ctx.routeEpoch,publication.publication.id,ctx.principal.subject]));
-        return secure(json({queryId:crypto.randomUUID(),contract:query.contract,semanticRelease:'commerce-cohort-v1.0.0',dataVersion:publication.publication.id,contextHash,metrics:queryCommerceReport(publication.publication.report,query),quality:{state:publication.publication.report.qualityState,warnings:publication.publication.report.warnings,sourceCompletenessCertified:publication.publication.report.sourceCompletenessCertified},scope:{tenantId:ctx.id,description:'current authorized tenant scope'},lineage:{publicationId:publication.publication.id,contentHash:publication.publication.contentHash,sourceCount:publication.publication.report.sources.length}}),requestId);
+        assertCommerceMetricScope(ctx.role,query.metrics);const publication=await readCommerceQueryPublication(ctx,query.dataVersion);
+        if(publication.id!==query.dataVersion)throw new AppError(409,'COMMERCE_DATA_VERSION_NOT_ACTIVE');
+        const contextHash=await sha256(JSON.stringify([ctx.id,ctx.routeEpoch,publication.id,ctx.role,ctx.principal.subject]));
+        return secure(json({queryId:crypto.randomUUID(),contract:query.contract,semanticRelease:'commerce-cohort-v1.0.0',dataVersion:publication.id,contextHash,metrics:queryCommerceReport(publication.report,query),quality:{state:publication.report.qualityState,warnings:publication.report.warnings,sourceCompletenessCertified:publication.report.sourceCompletenessCertified},scope:{tenantId:ctx.id,role:ctx.role,description:'current authorized tenant scope; sensitive financial fields require owner role'},lineage:{publicationId:publication.id,contentHash:publication.contentHash,sourceCount:publication.report.sources.length}}),requestId);
       }
       if(route==='commerce-capabilities'&&request.method==='GET'&&!resource)return secure(json(await readCommerceCapabilities(ctx)),requestId);
       let response:Response;
