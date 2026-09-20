@@ -107,7 +107,7 @@ test('llms.txt, crawler access and sitemap use the landing domain', async ({ req
 
 test('JSON-LD remains inert and executable inline JavaScript remains blocked', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('tab', { name: /Tiền & lợi nhuận/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tab', { name: /Tiền và lợi nhuận/ })).toHaveAttribute('aria-selected', 'true');
   const executed = await page.evaluate(() => {
     const target = window as unknown as Record<string, unknown>;
     target.inlineGeoProbe = false;

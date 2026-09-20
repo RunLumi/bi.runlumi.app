@@ -8,42 +8,85 @@ export const site = {
   origin: 'https://about.bi.runlumi.app',
   appOrigin: 'https://bi.runlumi.app',
   email: contactEmail,
-  title: 'Lumi BI — Thấy rõ kinh doanh. Biết việc cần làm.',
-  description: 'Lumi BI: định hướng phân tích tiền, lợi nhuận, tồn kho và ngoại lệ vận hành cho doanh nghiệp thương mại Việt Nam. Khám phá bản minh họa và trao đổi về pilot.',
+  title: 'Lumi BI | Rõ tiền. Rõ hàng. Vững quyết định.',
+  description: 'Hiểu doanh thu, tiền về và tồn kho trong cùng một góc nhìn. Khám phá bản minh họa Lumi BI và trao đổi về bài toán kinh doanh của bạn.',
   reviewedAt: '20.09.2026',
   reviewedAtISO: '2026-09-20',
 } as const;
 
-export const contactHref = `mailto:${site.email}?subject=${encodeURIComponent('Trao đổi pilot Lumi BI')}&body=${encodeURIComponent('Chào Lumi,\n\nTôi muốn trao đổi về pilot Lumi BI.\n\nDoanh nghiệp:\nHệ thống đang dùng:\nCâu hỏi kinh doanh cần trả lời:\nCách liên hệ thuận tiện:\n\nTôi không gửi mật khẩu, API key hoặc dữ liệu khách hàng trong thư này.\n\nCảm ơn Lumi.')}`;
+export const contactHref = `mailto:${site.email}?subject=${encodeURIComponent('Tìm hiểu Lumi BI cho doanh nghiệp')}&body=${encodeURIComponent('Chào đội ngũ Lumi,\n\nTôi muốn tìm hiểu Lumi BI có phù hợp với doanh nghiệp của mình không.\n\nTên doanh nghiệp:\nPhần mềm và kênh bán hàng đang dùng:\nVấn đề muốn làm rõ:\nCách liên hệ thuận tiện:\n\nCảm ơn Lumi.')}`;
 
 export const navigation = [
-  { href: '/#gia-tri', label: 'Giá trị' },
-  { href: '/#minh-hoa', label: 'Khám phá' },
+  { href: '/#gia-tri', label: 'Lumi BI giúp gì?' },
+  { href: '/#minh-hoa', label: 'Xem minh họa' },
   { href: '/#ket-noi', label: 'Kết nối' },
   { href: '/#cau-hoi', label: 'Câu hỏi thường gặp' },
 ];
 
-// Roadmap intent, NOT partner logos, API approval or production connector status.
+// Roadmap intent, not partner endorsements or live connector availability.
 export const connectors = [
-  { name: 'Nhanh.vn', kind: 'Bán hàng & kho', status: 'Tích hợp dự kiến', mark: 'N' },
-  { name: 'Haravan', kind: 'Website & bán lẻ', status: 'Tích hợp dự kiến', mark: 'H' },
-  { name: 'Shopee', kind: 'Đơn hàng & đối soát', status: 'Tích hợp dự kiến', mark: 'S' },
-  { name: 'CSV / Excel', kind: 'Dữ liệu sẵn có', status: 'Trong lộ trình', mark: '↳' },
-  { name: 'API riêng', kind: 'Theo hệ thống của bạn', status: 'Cần khảo sát', mark: '{ }' },
+  { name: 'Nhanh.vn', kind: 'Bán hàng và quản lý kho', status: 'Tích hợp dự kiến', mark: 'N' },
+  { name: 'Haravan', kind: 'Website và bán lẻ', status: 'Tích hợp dự kiến', mark: 'H' },
+  { name: 'Shopee', kind: 'Đơn hàng và đối soát', status: 'Tích hợp dự kiến', mark: 'S' },
+  { name: 'CSV / Excel', kind: 'Báo cáo từ phần mềm', status: 'Trong lộ trình', mark: '↳' },
+  { name: 'API riêng', kind: 'Hệ thống của doanh nghiệp', status: 'Cần khảo sát', mark: '{ }' },
 ];
 
 export const decisions = [
-  { number: '01', label: 'TIỀN & LỢI NHUẬN', title: 'Bán được bao nhiêu.\nGiữ lại bao nhiêu?', text: 'Phân biệt doanh thu, tiền thực nhận và phần lãi còn lại. Không gọi một đơn hàng đã bán là tiền đã về.', question: 'Khoản nào chưa đối soát? Chi phí nào còn thiếu?', href: '#demo-money', glyph: 'money' },
-  { number: '02', label: 'HÀNG TỒN', title: 'Hàng nào cần nhập.\nHàng nào cần giải phóng?', text: 'Đặt tồn kho cạnh sức bán và độ mới của dữ liệu. Thấy chỗ thiếu hàng mà không bỏ quên vốn đang nằm yên.', question: 'Nên kiểm tra mã hàng nào trước khi đặt thêm?', href: '#demo-stock', glyph: 'stock' },
-  { number: '03', label: 'NGOẠI LỆ VẬN HÀNH', title: 'Việc gì đang lệch.\nAi cần xử lý tiếp?', text: 'Đưa chênh lệch, đơn bất thường và dữ liệu chưa khớp về một danh sách ưu tiên có người phụ trách.', question: 'Điều gì đang cần con người xem xét?', href: '#demo-operations', glyph: 'exception' },
+  {
+    number: '01', label: 'TIỀN VÀ LỢI NHUẬN',
+    title: 'Bán được nhiều hơn.\nCó còn lại nhiều hơn?',
+    text: 'Đặt doanh thu cạnh hoàn trả, giá vốn và các khoản phí. Phân biệt tiền đã về, tiền còn chờ và phần chưa đủ dữ liệu để tính lãi.',
+    question: 'Tiền còn chờ ở đâu? Đã tính đủ chi phí chưa?',
+    href: '#demo-money', glyph: 'money',
+  },
+  {
+    number: '02', label: 'TỒN KHO',
+    title: 'Đủ hàng để bán.\nKhông giữ hàng quá lâu.',
+    text: 'Nhìn tồn kho cùng nhịp bán để biết mã nào cần kiểm tra trước khi nhập thêm. Không bỏ quên vốn đang nằm trong những mặt hàng chậm bán.',
+    question: 'Hàng nào cần bổ sung? Hàng nào nên bán bớt?',
+    href: '#demo-stock', glyph: 'stock',
+  },
+  {
+    number: '03', label: 'VIỆC CẦN XỬ LÝ',
+    title: 'Thấy việc cần chú ý.\nRõ người cần xử lý.',
+    text: 'Từ đơn chậm đến khoản chưa khớp, đặt những việc cần xem xét cạnh chứng từ và người phụ trách. Bớt bỏ sót giữa nhiều báo cáo.',
+    question: 'Việc nào cần xử lý trước? Ai đang theo dõi?',
+    href: '#demo-operations', glyph: 'exception',
+  },
 ] as const;
 
 export const faqs = [
-  { question: 'Lumi BI hiện ở giai đoạn nào?', answer: 'Nền tảng đã có luồng thử nghiệm tiếp nhận tệp xuất được cấp quyền, đối chiếu nguồn và xem số liệu thương mại. Chưa phải bản production được nghiệm thu với nhà bán hàng. Kết nối API trực tiếp và Ask Lumi vẫn đang phát triển. Các tình huống trên trang này là minh họa riêng, không phải giao diện đang kết nối cửa hàng của bạn.' },
-  { question: 'Lumi BI có thay phần mềm bán hàng của tôi không?', answer: 'Không. Định hướng của Lumi BI là bổ sung lớp phân tích trên những hệ thống bạn đang dùng. Phạm vi dữ liệu, quyền truy cập và cách kết nối sẽ được xác nhận trước từng pilot; không mặc định phải thay quy trình đang vận hành.' },
-  { question: 'Hiện đã kết nối được Nhanh, Haravan và Shopee chưa?', answer: 'Chưa. Đây là các tích hợp ưu tiên trong lộ trình, chưa phải kết nối thương mại đã phát hành. Khả năng truy cập API, quyền đối tác, loại tài khoản và dữ liệu thực tế cần được kiểm chứng riêng. Đăng ký pilot không đồng nghĩa được kích hoạt kết nối ngay.' },
-  { question: 'Các con số trên trang này có phải kết quả của khách hàng?', answer: 'Không. Toàn bộ tình huống và số liệu trong phần khám phá là dữ liệu giả lập để minh họa hướng sản phẩm. Chúng không phải báo cáo trực tiếp, kết quả thử nghiệm khách hàng hay cam kết về lợi nhuận.' },
-  { question: 'AI sẽ tự tính số và tự thao tác trên cửa hàng?', answer: 'Ask Lumi vẫn trong lộ trình. Thiết kế yêu cầu AI giải thích kết quả từ định nghĩa chỉ số được kiểm soát, nêu nguồn và nói rõ phần chưa biết. Một phân tích không phải quyền tự sửa giá, đặt hàng, chuyển tiền hay gửi thông tin. Trang minh họa này không gọi mô hình AI và không thao tác với cửa hàng.' },
-  { question: 'Dữ liệu của doanh nghiệp sẽ được bảo vệ thế nào?', answer: 'Kiến trúc nền tảng có xác thực, kiểm tra quyền truy cập và cơ sở dữ liệu phục vụ riêng theo doanh nghiệp. Đây không phải cam kết cách ly tuyệt đối hay chứng nhận bảo mật. Phạm vi triển khai, người được truy cập, dữ liệu cần dùng và điều kiện vận hành phải được thống nhất, kiểm thử trước pilot.' },
-  { question: 'Pilot có giá bao nhiêu và bắt đầu như thế nào?', answer: 'Chưa công bố bảng giá cố định. Cuộc trao đổi đầu tiên dùng để chọn một câu hỏi, một nguồn dữ liệu và tiêu chí kiểm chứng. Phạm vi, phí triển khai, phí duy trì (nếu có) và điều kiện dừng được thống nhất trước khi bắt đầu; không có khoản thanh toán hoặc đăng ký tự động trên trang này.' },
+  {
+    question: 'Lumi BI có phù hợp với doanh nghiệp của tôi không?',
+    answer: 'Lumi BI tập trung vào doanh nghiệp thương mại, bán lẻ và bán hàng đa kênh, nơi đơn hàng, tiền về và tồn kho nằm ở nhiều hệ thống. Điểm bắt đầu là một câu hỏi cụ thể mà báo cáo hiện tại chưa trả lời rõ. Buổi trao đổi đầu tiên giúp hai bên xác định nhu cầu đó có phù hợp với khả năng hiện tại của Lumi BI không.',
+  },
+  {
+    question: 'Tôi có thể dùng Lumi BI ngay chưa?',
+    answer: 'Lumi BI đang ở giai đoạn thử nghiệm. Nền tảng đã có luồng tiếp nhận tệp dữ liệu được cấp quyền, đối chiếu nguồn và xem số liệu thương mại, nhưng chưa được nghiệm thu để vận hành thực tế tại doanh nghiệp. Bạn có thể trao đổi nhu cầu để cùng xác định phạm vi triển khai thử; chưa có gói tự đăng ký và dùng ngay.',
+  },
+  {
+    question: 'Tôi có phải đổi phần mềm bán hàng không?',
+    answer: 'Mục tiêu của Lumi BI là bổ sung góc nhìn phân tích, không thay phần mềm bán hàng hay quản lý kho của bạn. Cách lấy dữ liệu và phạm vi kết nối sẽ được kiểm tra trước khi triển khai thử. Không mặc định rằng doanh nghiệp phải đổi hệ thống hoặc làm lại quy trình đang dùng.',
+  },
+  {
+    question: 'Đã có kết nối trực tiếp với Nhanh.vn, Haravan và Shopee chưa?',
+    answer: 'Chưa. Đây là ba tích hợp được ưu tiên trong lộ trình. Khả năng kết nối phụ thuộc quyền truy cập dữ liệu, loại tài khoản và giới hạn của từng nền tảng. Lumi sẽ kiểm tra những điều này trước khi thống nhất phạm vi triển khai, thay vì hứa rằng mọi hệ thống đều kết nối được ngay.',
+  },
+  {
+    question: 'Các con số trên website có phải kết quả của khách hàng?',
+    answer: 'Không. Các tình huống và số liệu được tạo riêng để bạn trải nghiệm cách đọc báo cáo, xem nhận định và kiểm tra nguồn. Chúng không phải dữ liệu khách hàng, kết quả triển khai thực tế hay cam kết tăng doanh thu, lợi nhuận.',
+  },
+  {
+    question: 'AI có tự quyết định và thay đổi dữ liệu không?',
+    answer: 'Tính năng hỏi đáp bằng AI, Ask Lumi, chưa được phát hành. Hướng phát triển là giúp bạn hiểu số liệu, xem nguồn và cân nhắc việc cần làm. Một gợi ý không tự cấp quyền sửa giá, đặt hàng, chuyển tiền hay gửi thông tin. Bản minh họa trên website không gọi AI và không thao tác với hệ thống của bạn.',
+  },
+  {
+    question: 'Ai được xem dữ liệu của doanh nghiệp?',
+    answer: 'Nền tảng có cơ chế kiểm tra danh tính, quyền truy cập và cơ sở dữ liệu phục vụ riêng theo doanh nghiệp. Trước khi triển khai thử, hai bên cần thống nhất dữ liệu nào được dùng, ai được xem và cách kiểm tra các quyền đó. Cách triển khai và quyền truy cập phải được kiểm thử trước khi đưa dữ liệu thật vào hệ thống.',
+  },
+  {
+    question: 'Chi phí triển khai được tính như thế nào?',
+    answer: 'Lumi BI chưa công bố bảng giá cố định. Chi phí phụ thuộc nguồn dữ liệu, mức độ kết nối và bài toán cần giải quyết. Phí triển khai, phí duy trì nếu có, phạm vi công việc và cách nghiệm thu sẽ được thống nhất trước khi bắt đầu. Gửi email tìm hiểu không tạo đăng ký trả phí.',
+  },
 ];

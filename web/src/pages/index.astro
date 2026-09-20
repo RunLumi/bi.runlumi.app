@@ -6,41 +6,126 @@ import { site, contactHref, connectors, decisions, faqs } from '../data/site';
 ---
 <Site>
   <section class="hero container" aria-labelledby="hero-title">
-    <div class="hero-overline"><p class="eyebrow">LUMI BI / COMMERCE INTELLIGENCE</p><a class="preview-link" href="#bat-dau"><span class="annotation-dot"></span> Bản xem trước · Trao đổi pilot <Glyph name="arrow" /></a></div>
+    <div class="hero-overline">
+      <p class="eyebrow">LUMI BI / PHÂN TÍCH KINH DOANH</p>
+      <a class="preview-link" href="#bat-dau"><span class="annotation-dot"></span> Cùng tìm hiểu triển khai thử <Glyph name="arrow" /></a>
+    </div>
     <div class="hero-grid">
-      <div><h1 id="hero-title">Thấy rõ kinh doanh.<br /><span>Biết việc cần làm.</span></h1><p class="hero-signature">KHÔNG THAY HỆ THỐNG. THAY CÁCH BẠN NHÌN.</p></div>
-      <div class="hero-intro"><p>Doanh thu, tiền về, hàng tồn. Mỗi nơi một con số. <strong>Điều bạn cần là một góc nhìn đủ rõ để quyết định.</strong></p><p class="hero-description">Lumi BI được thiết kế để nối dữ liệu thương mại với bằng chứng và việc cần kiểm tra tiếp theo.</p><div class="hero-actions"><a class="button" href="#minh-hoa">Khám phá Lumi BI <Glyph name="arrow" /></a><a class="text-link" href="#bat-dau">Trao đổi về pilot</a></div><p class="hero-status">Bản xem trước sản phẩm. <a href="#cau-hoi">Xem phạm vi hiện tại</a>.</p></div>
+      <div>
+        <h1 id="hero-title">Rõ tiền. Rõ hàng.<br /><span>Vững quyết định.</span></h1>
+        <p class="hero-signature">GIỮ CÔNG CỤ QUEN. HIỂU RÕ HƠN VIỆC KINH DOANH.</p>
+      </div>
+      <div class="hero-intro">
+        <p>Đơn hàng một nơi. Tiền về một nơi. Hàng tồn lại ở nơi khác. <strong>Muốn quyết định, bạn vẫn phải tự ghép bức tranh.</strong></p>
+        <p class="hero-description">Lumi BI đang được phát triển để đưa doanh thu, tiền về và tồn kho về cùng một góc nhìn. Bớt thời gian ghép báo cáo, thêm cơ sở chọn việc cần làm.</p>
+        <div class="hero-actions">
+          <a class="button" href="#minh-hoa">Khám phá bản minh họa <Glyph name="arrow" /></a>
+          <a class="text-link" href="#bat-dau">Trao đổi với Lumi</a>
+        </div>
+        <p class="hero-status">Sản phẩm đang trong giai đoạn thử nghiệm. <a href="#cau-hoi">Tìm hiểu khả năng hiện tại</a>.</p>
+      </div>
     </div>
   </section>
 
   <Demo />
 
   <section class="section container" id="gia-tri" aria-labelledby="value-title">
-    <div class="section-kicker"><span class="eyebrow">01 / ĐIỀU THỰC SỰ QUAN TRỌNG</span><span class="section-rule"></span></div>
-    <div class="section-heading"><h2 id="value-title">Bạn không thiếu báo cáo.<br />Bạn cần thấy điều đáng làm.</h2><p>Hướng sản phẩm tập trung vào tiền, hàng và những điểm lệch trong vận hành. Không xây thêm biểu đồ chỉ để lấp đầy màn hình.</p></div>
-    <div class="decision-grid">{decisions.map(item => <article class="decision-card"><div class="decision-top"><span class="editorial-number">{item.number}</span><Glyph name={item.glyph} /></div><span class="eyebrow">{item.label}</span><h3>{item.title.split('\n').map(line => <span>{line}</span>)}</h3><p>{item.text}</p><div class="decision-question"><span>CÂU HỎI CẦN TRẢ LỜI</span><p>{item.question}</p></div><a href={item.href} class="text-link" data-select-scenario={item.href.replace('#demo-', '')}>Xem tình huống <Glyph name="arrow" /></a></article>)}</div>
+    <div class="section-kicker"><span class="eyebrow">01 / LUMI BI GIÚP BẠN NHÌN RÕ ĐIỀU GÌ?</span><span class="section-rule"></span></div>
+    <div class="section-heading">
+      <h2 id="value-title">Ba câu hỏi quan trọng.<br />Một bức tranh để trả lời.</h2>
+      <p>Bán hàng đa kênh không chỉ là theo dõi doanh thu. Bạn còn cần biết tiền về có khớp, hàng tồn có hợp lý và việc nào cần được xử lý trước.</p>
+    </div>
+    <div class="decision-grid">
+      {decisions.map(item => <article class="decision-card">
+        <div class="decision-top"><span class="editorial-number">{item.number}</span><Glyph name={item.glyph} /></div>
+        <span class="eyebrow">{item.label}</span>
+        <h3>{item.title.split('\n').map(line => <span>{line}</span>)}</h3>
+        <p>{item.text}</p>
+        <div class="decision-question"><span>ĐIỀU BẠN MUỐN BIẾT</span><p>{item.question}</p></div>
+        <a href={item.href} class="text-link" data-select-scenario={item.href.replace('#demo-', '')}>Xem ví dụ minh họa <Glyph name="arrow" /></a>
+      </article>)}
+    </div>
   </section>
 
-  <section class="sources-section" id="ket-noi" aria-labelledby="sources-title"><div class="container section">
-    <div class="section-kicker"><span class="eyebrow">02 / BỔ SUNG, KHÔNG THAY THẾ</span><span class="section-rule"></span></div>
-    <div class="section-heading"><h2 id="sources-title">Giữ hệ thống đang chạy.<br />Nối lại bức tranh kinh doanh.</h2><p>Không bắt đầu bằng một cuộc thay phần mềm. Bắt đầu từ nguồn dữ liệu bạn có và câu hỏi bạn chưa trả lời được.</p></div>
-    <div class="connector-grid">{connectors.map(item => <article class="connector-card"><span class="connector-mark" aria-hidden="true">{item.mark}</span><h3>{item.name}</h3><p>{item.kind}</p><span class="status-tag">{item.status}</span></article>)}</div>
-    <div class="connection-note"><Glyph name="evidence" /><p><strong>Minh bạch từ đầu:</strong> Nhanh, Haravan và Shopee là nhóm tích hợp ưu tiên, chưa phát hành. Khả năng kết nối phụ thuộc API, quyền truy cập và phạm vi từng pilot. Tên nền tảng không hàm ý quan hệ đối tác chính thức.</p></div>
-  </div></section>
+  <section class="sources-section" id="ket-noi" aria-labelledby="sources-title">
+    <div class="container section">
+      <div class="section-kicker"><span class="eyebrow">02 / KẾT NỐI, KHÔNG THAY THẾ</span><span class="section-rule"></span></div>
+      <div class="section-heading">
+        <h2 id="sources-title">Công cụ vẫn quen.<br />Góc nhìn rõ hơn.</h2>
+        <p>Bắt đầu từ dữ liệu bạn đã có, thay vì yêu cầu cả đội học lại cách làm việc. Mỗi kết nối được đánh giá theo hệ thống và nhu cầu thực tế của doanh nghiệp.</p>
+      </div>
+      <div class="connector-grid">{connectors.map(item => <article class="connector-card">
+        <span class="connector-mark" aria-hidden="true">{item.mark}</span><h3>{item.name}</h3><p>{item.kind}</p><span class="status-tag">{item.status}</span>
+      </article>)}</div>
+      <div class="connection-note"><Glyph name="evidence" /><p><strong>Lộ trình kết nối:</strong> Nhanh.vn, Haravan và Shopee được ưu tiên, chưa có kết nối trực tiếp được phát hành. Lumi sẽ kiểm tra khả năng truy cập dữ liệu trước khi thống nhất phạm vi thử nghiệm. Các tên trên không thể hiện quan hệ đối tác chính thức.</p></div>
+    </div>
+  </section>
 
   <section class="section container trust-section" id="bang-chung" aria-labelledby="trust-title">
-    <div class="trust-copy"><div class="section-kicker"><span class="eyebrow">03 / BẰNG CHỨNG TRƯỚC KẾT LUẬN</span></div><h2 id="trust-title">Một con số chỉ đáng tin<br />khi biết nó đến từ đâu.</h2><p>Nguồn nào? Kỳ nào? Tính ra sao? Còn thiếu gì? Đó là những câu hỏi Lumi BI đặt cạnh kết quả — không giấu trong phần chú thích.</p><div class="trust-principles"><div><span class="principle-marker">01</span><div><h3>Cùng một định nghĩa</h3><p>Dashboard và phần giải thích cần dùng chung cơ sở tính, không mỗi nơi một “sự thật”.</p></div></div><div><span class="principle-marker">02</span><div><h3>Chưa biết không phải bằng không</h3><p>Thiếu giá vốn thì chưa kết luận lãi. Dữ liệu cũ thì phải nêu rõ.</p></div></div><div><span class="principle-marker">03</span><div><h3>Con người giữ quyền quyết định</h3><p>AI giải thích trong phạm vi được phép. Một đề xuất không tự biến thành hành động.</p></div></div></div><p class="small-note">Các nguyên tắc thiết kế này không thay thế kiểm thử và nghiệm thu triển khai thực tế.</p></div>
-    <div class="evidence-document"><div class="document-header"><span class="eyebrow">PHIẾU CƠ SỞ TÍNH</span><span class="document-id">DEMO / 001</span></div><h3>Doanh thu thuần</h3><p class="document-value">486.000.000 <span>₫</span></p><span class="status-tag">Ví dụ giả lập · không phải báo cáo thật</span><div class="calculation"><div><span>Doanh thu trước hoàn trả</span><strong>512,0 triệu ₫</strong></div><div><span>Trừ khoản hoàn trả</span><strong>− 26,0 triệu ₫</strong></div><div class="calculation-result"><span>Doanh thu thuần</span><strong>486,0 triệu ₫</strong></div></div><dl class="document-metadata"><div><dt>Nguồn</dt><dd>Đơn hàng mẫu + hoàn trả mẫu</dd></div><div><dt>Kỳ dữ liệu</dt><dd>01–07.09.2026 · GMT+7</dd></div><div><dt>Quy ước thuế</dt><dd>Đồng nhất giữa hai tệp mẫu</dd></div></dl><div class="document-warning"><span class="attention-dot"></span><p><strong>Chưa thể suy ra lợi nhuận.</strong><br />8 SKU chưa có giá vốn. Chi phí chưa được xác nhận đầy đủ.</p></div><div class="document-footer"><Glyph name="evidence" /><span>Số liệu → định nghĩa → nguồn → giới hạn</span></div></div>
+    <div class="trust-copy">
+      <div class="section-kicker"><span class="eyebrow">03 / HIỂU CON SỐ, KHÔNG CHỈ NHÌN CON SỐ</span></div>
+      <h2 id="trust-title">Con số rõ nguồn.<br />Quyết định có cơ sở.</h2>
+      <p>Một báo cáo hữu ích không chỉ đưa ra kết quả. Nó cho bạn biết số liệu lấy từ đâu, được tính thế nào và còn thiếu gì để có thể kết luận.</p>
+      <div class="trust-principles">
+        <div><span class="principle-marker">01</span><div><h3>Cùng một cách hiểu</h3><p>Doanh thu không phải tiền đã về. Lãi sau một số khoản phí chưa phải lợi nhuận cuối cùng. Báo cáo cần phân biệt rõ để mọi người hiểu đúng cùng một con số.</p></div></div>
+        <div><span class="principle-marker">02</span><div><h3>Thiếu thì nói rõ</h3><p>Chưa có giá vốn thì chưa kết luận lãi. Số tồn đã cũ thì cần cập nhật. Không lấp chỗ trống bằng một con số có vẻ chắc chắn.</p></div></div>
+        <div><span class="principle-marker">03</span><div><h3>AI hỗ trợ. Bạn quyết định.</h3><p>Định hướng của AI trong Lumi BI là giải thích và gợi ý, không quyết định thay bạn. Tính năng hỏi đáp bằng AI vẫn đang phát triển.</p></div></div>
+      </div>
+      <p class="small-note">Khi triển khai thử, số liệu cần được đối chiếu cùng người phụ trách trước khi dùng cho quyết định thực tế.</p>
+    </div>
+    <div class="evidence-document">
+      <div class="document-header"><span class="eyebrow">TỪ KẾT QUẢ ĐẾN CÁCH TÍNH</span><span class="document-id">VÍ DỤ / 001</span></div>
+      <h3>Doanh thu thuần</h3><p class="document-value">486.000.000 <span>₫</span></p>
+      <span class="status-tag">Ví dụ minh họa · dữ liệu giả lập</span>
+      <div class="calculation">
+        <div><span>Doanh thu trước hoàn trả</span><strong>512,0 triệu ₫</strong></div>
+        <div><span>Trừ khoản hoàn trả</span><strong>− 26,0 triệu ₫</strong></div>
+        <div class="calculation-result"><span>Doanh thu thuần</span><strong>486,0 triệu ₫</strong></div>
+      </div>
+      <dl class="document-metadata">
+        <div><dt>Nguồn dữ liệu</dt><dd>Đơn hàng và hoàn trả mẫu</dd></div>
+        <div><dt>Kỳ báo cáo</dt><dd>01–07.09.2026 · GMT+7</dd></div>
+        <div><dt>Cách tính thuế</dt><dd>Cùng quy ước ở hai tệp mẫu</dd></div>
+      </dl>
+      <div class="document-warning"><span class="attention-dot"></span><p><strong>Chưa thể kết luận lãi.</strong><br />8 mã hàng chưa có giá vốn; một số chi phí chưa được xác nhận.</p></div>
+      <div class="document-footer"><Glyph name="evidence" /><span>Kết quả → cách tính → nguồn dữ liệu</span></div>
+    </div>
   </section>
 
   <section class="section container pilot-section" aria-labelledby="pilot-title">
-    <div class="section-kicker"><span class="eyebrow">04 / BẮT ĐẦU TỪ MỘT CÂU HỎI</span><span class="section-rule"></span></div>
-    <div class="section-heading"><h2 id="pilot-title">Không cần một dự án khổng lồ.<br />Cần một kết quả kiểm chứng được.</h2><p>Hướng triển khai dành cho chủ doanh nghiệp thương mại, đội vận hành và tài chính muốn hiểu cùng một bức tranh.</p></div>
-    <ol class="pilot-steps"><li><span class="step-number">01</span><h3>Chọn câu hỏi đáng giải</h3><p>Một nguồn dữ liệu. Một vấn đề về tiền, hàng hoặc vận hành. Chốt phạm vi, chi phí và tiêu chí nghiệm thu.</p></li><li><span class="step-number">02</span><h3>Đối chiếu với thực tế</h3><p>Kiểm tra quyền truy cập, định nghĩa và dữ liệu mẫu cùng người phụ trách. Số phải khớp trước khi được dùng.</p></li><li><span class="step-number">03</span><h3>Hữu ích rồi mới mở rộng</h3><p>Tiếp tục khi kết quả hỗ trợ quyết định thật. Điều chỉnh hoặc dừng khi dữ liệu hay giá trị chưa đủ.</p></li></ol>
-    <div class="pilot-boundary"><span>PHẠM VI RÕ TRƯỚC PILOT</span><p>Nguồn dữ liệu · Quyền truy cập · Chỉ số cần kiểm chứng · Người nghiệm thu · Điều kiện dừng</p></div>
+    <div class="section-kicker"><span class="eyebrow">04 / THỬ TỪ MỘT BÀI TOÁN CỤ THỂ</span><span class="section-rule"></span></div>
+    <div class="section-heading">
+      <h2 id="pilot-title">Bắt đầu nhỏ.<br />Chứng minh giá trị trước.</h2>
+      <p>Chọn một vấn đề đủ cụ thể để cùng giải quyết. Thống nhất cách kiểm tra kết quả, rồi mới quyết định có nên mở rộng.</p>
+    </div>
+    <ol class="pilot-steps">
+      <li><span class="step-number">01</span><h3>Nói rõ điều bạn đang vướng</h3><p>Tiền về chưa khớp, hàng chậm bán hay báo cáo mất quá nhiều công? Chọn một câu hỏi và kết quả bạn cần.</p></li>
+      <li><span class="step-number">02</span><h3>Cùng kiểm tra dữ liệu</h3><p>Lumi cùng người phụ trách xem nguồn dữ liệu, cách tính và khả năng kết nối. Thống nhất phạm vi, chi phí và cách nghiệm thu trước khi triển khai.</p></li>
+      <li><span class="step-number">03</span><h3>Dùng được rồi mới mở rộng</h3><p>Đối chiếu con số với nguồn và xem kết quả có giúp bạn quyết định tốt hơn không. Có giá trị thì mở rộng; chưa phù hợp thì điều chỉnh hoặc dừng.</p></li>
+    </ol>
+    <div class="pilot-boundary"><span>THỐNG NHẤT TRƯỚC KHI BẮT ĐẦU</span><p>Bài toán cần giải · Dữ liệu được dùng · Chi phí · Cách kiểm tra kết quả · Điều kiện tiếp tục</p></div>
   </section>
 
-  <section class="section container faq-section" id="cau-hoi" aria-labelledby="faq-title"><div><span class="eyebrow">NÓI RÕ TRƯỚC KHI BẮT ĐẦU</span><h2 id="faq-title">Câu hỏi<br />thường gặp.</h2><p>Định hướng rõ ràng.<br />Giới hạn cũng rõ ràng.</p></div><div class="faq-list">{faqs.map(item => <details><summary><span>{item.question}</span><Glyph name="chevron" /></summary><p>{item.answer}</p></details>)}</div></section>
+  <section class="section container faq-section" id="cau-hoi" aria-labelledby="faq-title">
+    <div><span class="eyebrow">TRƯỚC KHI BẠN BẮT ĐẦU</span><h2 id="faq-title">Câu hỏi<br />thường gặp.</h2><p>Về sản phẩm, dữ liệu<br />và cách triển khai.</p></div>
+    <div class="faq-list">{faqs.map(item => <details><summary><span>{item.question}</span><Glyph name="chevron" /></summary><p>{item.answer}</p></details>)}</div>
+  </section>
 
-  <section class="contact-section" id="bat-dau" aria-labelledby="contact-title"><div class="container contact-inner"><div class="contact-copy"><span class="eyebrow">CÂU HỎI CỦA BẠN LÀ ĐIỂM BẮT ĐẦU</span><h2 id="contact-title">Điều gì trong kinh doanh<br />bạn muốn nhìn rõ hơn?</h2><p>Một khoản tiền chưa khớp. Một kho hàng khó đoán. Một báo cáo chưa cho bạn câu trả lời. Hãy bắt đầu từ đó.</p></div><div class="contact-action"><a class="button" href={contactHref}>Trao đổi pilot Lumi BI <Glyph name="arrow" /></a><p>Mở ứng dụng email của bạn.<br />Bạn xem lại nội dung trước khi gửi.</p><p class="contact-note">Chỉ cần tên hệ thống và câu hỏi cần giải. Không gửi khóa API hoặc dữ liệu khách hàng trong thư đầu tiên.</p><div class="email-copy"><a href={`mailto:${site.email}`}>{site.email}</a><button type="button" data-copy-email={site.email} hidden>Sao chép</button></div><p class="copy-status" role="status" aria-live="polite" data-copy-status></p><span class="contact-status">Bản nền tảng thử nghiệm · Phạm vi pilot cần xác nhận</span></div></div></section>
+  <section class="contact-section" id="bat-dau" aria-labelledby="contact-title">
+    <div class="container contact-inner">
+      <div class="contact-copy">
+        <span class="eyebrow">KỂ CHO LUMI ĐIỀU BẠN ĐANG VƯỚNG</span>
+        <h2 id="contact-title">Bắt đầu từ câu hỏi<br />bạn chưa có lời giải.</h2>
+        <p>Một khoản tiền chưa khớp. Một mặt hàng nằm kho quá lâu. Một báo cáo bạn vẫn phải kiểm tra lại. Cùng xem Lumi BI có thể giúp gì cho bài toán của bạn.</p>
+      </div>
+      <div class="contact-action">
+        <a class="button" href={contactHref}>Trao đổi với Lumi <Glyph name="arrow" /></a>
+        <p>Mở email với nội dung gợi ý.<br />Bạn có thể sửa lại trước khi gửi.</p>
+        <p class="contact-note">Chỉ cần tên phần mềm đang dùng và vấn đề muốn giải quyết. Không gửi dữ liệu khách hàng, mật khẩu hoặc khóa truy cập trong thư đầu tiên.</p>
+        <div class="email-copy"><a href={`mailto:${site.email}`}>{site.email}</a><button type="button" data-copy-email={site.email} hidden>Sao chép email</button></div>
+        <p class="copy-status" role="status" aria-live="polite" data-copy-status></p>
+        <span class="contact-status">Phạm vi và chi phí được thống nhất trước khi triển khai.</span>
+      </div>
+    </div>
+  </section>
 </Site>

@@ -81,7 +81,7 @@ export function renderLlmsTxt(email = site.email): string {
 > ${site.description}
 
 Trang giới thiệu: ${site.origin}/
-Nền tảng BI (bề mặt riêng, không thuộc trang giới thiệu): ${site.appOrigin}/
+Nền tảng BI (ứng dụng riêng, không thuộc trang giới thiệu): ${site.appOrigin}/
 Nội dung: ${site.name}. Rà soát: ${site.reviewedAtISO}.
 Liên hệ: ${publicContactEmail(email)}.
 
@@ -89,11 +89,11 @@ ${answers}
 
 ## Nội dung công khai
 
-- [Giới thiệu Lumi BI](${site.origin}/): Định hướng sản phẩm và bản minh họa.
-- [Giá trị](${site.origin}/#gia-tri): Tiền, tồn kho và ngoại lệ vận hành.
+- [Giới thiệu Lumi BI](${site.origin}/): Sản phẩm đang phát triển và bản minh họa.
+- [Lumi BI giúp gì?](${site.origin}/#gia-tri): Tiền, tồn kho và việc cần xử lý.
 - [Kết nối](${site.origin}/#ket-noi): Tích hợp dự kiến, chưa phải quan hệ đối tác hay kết nối đã phát hành.
 - [Câu hỏi thường gặp](${site.origin}/#cau-hoi): Nguồn của các câu trả lời ở trên.
-- [Trao đổi pilot](${site.origin}/#bat-dau): Xác nhận phạm vi trước khi bắt đầu; không tự động gửi email.
+- [Trao đổi với Lumi](${site.origin}/#bat-dau): Cùng làm rõ nhu cầu và phạm vi triển khai thử; chỉ gửi email khi bạn chủ động gửi.
 
 ## Optional
 
