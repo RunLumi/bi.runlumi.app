@@ -46,11 +46,13 @@ jobs:
       - name: Install pinned Playwright browser
         run: ./apps/web/node_modules/.bin/playwright install --with-deps chromium
       - run: npm --prefix apps/web run test:e2e
-      - name: Record reproducible build hashes
+      - name: Record reproducible build hashes and tracked source
         if: always()
         run: |
           mkdir -p artifacts
           git rev-parse HEAD > artifacts/tested-revision.txt
+          git archive --format=tar.gz HEAD > artifacts/tested-source.tar.gz
+          sha256sum artifacts/tested-source.tar.gz > artifacts/source.sha256
           sha256sum apps/web/package-lock.json > artifacts/lock.sha256
           if test -d apps/web/dist; then find apps/web/dist -type f -print0 | sort -z | xargs -0 sha256sum > artifacts/assets.sha256; fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
