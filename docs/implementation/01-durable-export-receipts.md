@@ -69,3 +69,7 @@ C06-A01's crash boundary is exercised; C06-A02's durable dispatch boundary is ex
 ## Next dependency-ordered slice
 
 Implement a pinned export normalizer into staged C07 canonical identities, source-authority mapping and cross-OMS/marketplace deduplication, consuming retained receipt evidence. Then add C08 reconciliation and C09 money definitions with null costs/fees and historical COGS. Only a verified immutable publication may drive the first Money Truth decision card. Obtain real Nhanh authorization and a merchant's closed-period source controls in parallel; no amount of synthetic tests substitutes for those gates.
+
+## Snapshot event semantics (PR #4 review)
+
+This authorized-export transport is snapshot-only. `eventType` may be omitted for existing callers or explicitly be `snapshot`; the parser always records `eventType: snapshot` in the immutable, fingerprinted envelope. `upsert`, `delete`, `correction` and unknown event types are rejected before R2. Snapshot scope is exactly the declared account/resource/window, not permission to erase an entire tenant. A later normalizer must validate that scope and completeness before applying a replacement. Receipts captured by earlier code without event semantics are not silently reinterpreted: they require a reviewed re-import under a new delivery ID before normalization.

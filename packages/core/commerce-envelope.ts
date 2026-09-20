@@ -2,6 +2,7 @@ import {AppError,id,object,text} from './contracts.ts';
 
 /** Owner-uploaded evidence, not a verified vendor webhook or canonical commerce row. */
 export interface ExportEnvelope {
+ eventType:'snapshot';
  connectionId:string; sourceAccountId:string; resourceType:'orders'|'settlements'|'inventory';
  deliveryId:string; sourceObjectId:string; sourceRevision:string|null;
  sourceEventAt:string|null; sourceUpdatedAt:string|null;
@@ -13,7 +14,9 @@ function instant(value:unknown):string {
  return s;
 }
 export function parseExportEnvelope(value:unknown):ExportEnvelope {
- const b=object(value,['connectionId','sourceAccountId','resourceType','deliveryId','sourceObjectId','sourceRevision','sourceEventAt','sourceUpdatedAt','window','schemaFingerprint','rawJson']);
+ const b=object(value,['eventType','connectionId','sourceAccountId','resourceType','deliveryId','sourceObjectId','sourceRevision','sourceEventAt','sourceUpdatedAt','window','schemaFingerprint','rawJson']);
+ // This transport accepts bounded snapshots only, never implicit deltas/tombstones.
+ if(b.eventType!==undefined&&b.eventType!=='snapshot')throw new AppError(400,'UNSUPPORTED_EXPORT_EVENT_TYPE');
  const connectionId=id(b.connectionId),sourceAccountId=text(b.sourceAccountId,128),deliveryId=text(b.deliveryId,128),sourceObjectId=text(b.sourceObjectId,128);
  if(!['orders','settlements','inventory'].includes(String(b.resourceType)))throw new AppError(400,'INVALID_RESOURCE_TYPE');
  const w=object(b.window,['from','toExclusive']);const from=instant(w.from),toExclusive=instant(w.toExclusive);
@@ -22,7 +25,7 @@ export function parseExportEnvelope(value:unknown):ExportEnvelope {
  if(typeof b.rawJson!=='string'||!b.rawJson.length)throw new AppError(400,'RAW_JSON_REQUIRED');
  if(new TextEncoder().encode(b.rawJson).byteLength>48_000)throw new AppError(413,'RAW_EXPORT_TOO_LARGE');
  try{const raw:unknown=JSON.parse(b.rawJson);if(!raw||typeof raw!=='object')throw new Error();}catch{throw new AppError(400,'INVALID_RAW_JSON');}
- return {connectionId,sourceAccountId,resourceType:b.resourceType as ExportEnvelope['resourceType'],deliveryId,sourceObjectId,
+ return {eventType:'snapshot',connectionId,sourceAccountId,resourceType:b.resourceType as ExportEnvelope['resourceType'],deliveryId,sourceObjectId,
   sourceRevision:b.sourceRevision===null?null:text(b.sourceRevision,128),sourceEventAt:b.sourceEventAt===null?null:instant(b.sourceEventAt),sourceUpdatedAt:b.sourceUpdatedAt===null?null:instant(b.sourceUpdatedAt),
   window:{from,toExclusive},schemaFingerprint:b.schemaFingerprint,rawJson:b.rawJson};
 }
