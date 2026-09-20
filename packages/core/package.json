@@ -15,6 +15,7 @@
   "exports": {
     "./*.ts": "./dist/*.js",
     "./*.tsx": "./dist/*.js",
+    "./*.js": "./dist/*.js",
     "./*": "./dist/*.js"
   },
   "scripts": {
