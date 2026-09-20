@@ -1,36 +1,47 @@
-# Third-party provenance
+# Third-party provenance and dependency admission
 
-No third-party source is vendored. There are no runtime npm dependencies in
-this bootstrap. The local harness uses Node.js built-in SQLite; production
-uses Worker Web APIs and D1/R2 bindings. Cloudflare products have service terms
-separate from an OSS license.
+Original Lumi BI code remains private/reserved under LICENSE. No repository
+visibility or license changes are made by PR #2. Source visibility and code
+license are separate from customer-data confidentiality.
 
-## Build dependency
+## Server
 
-| Package | Exact version | License | Use |
-| --- | --- | --- | --- |
-| TypeScript | 5.8.3 | Apache-2.0 | Development typecheck only |
+API/control Worker code uses Web APIs and Cloudflare bindings, with no runtime
+npm dependencies. TypeScript 5.8.3 (Apache-2.0) remains the only root development
+dependency. Node built-in SQLite is the local test adapter, not production D1.
 
-Registry metadata and tarball integrity are locked in `package-lock.json`.
-Source: https://registry.npmjs.org/typescript/5.8.3
+## Frontend
 
-The CI actions are pinned by full commits; source and licenses are maintained by
-`actions/checkout` and `actions/setup-node`. Re-evaluate those pins before a
-production release. A pinned commit is reproducibility, not proof of safety.
+Exact direct/transitive versions and integrity digests are in
+`apps/web/package-lock.json`. No new versions are chosen by the review upgrade.
+The existing reviewed React/Vite graph is captured from secret-free CI and locked.
 
-## Candidates, not installed
+Runtime families: React/React DOM, React Router, TanStack Query, Radix slot/refs,
+Tabler icons, clsx, tailwind-merge (MIT); class-variance-authority (Apache-2.0);
+Geist font asset (OFL-1.1). Owned UI primitives carry the existing shadcn MIT
+notice. Build output includes full runtime notices via `scripts/web-notices.mjs`.
+Radix compose-refs omits a LICENSE in its package; the shared radix-ui/primitives
+WorkOS notice is read from the pinned sibling react-slot package.
 
-React, Hono and a chart library such as Apache ECharts may be evaluated when the
-first real dashboard requires them. A candidate is not an approved dependency.
-Do not add a full BI server or heavy semantic service just to render the first
-three customer dashboards. Compare embed terms before adopting third-party BI.
+Build-only exceptions are narrow: caniuse-lite browser data (CC-BY-4.0), and
+unmodified lightningcss plus platform binaries (MPL-2.0). They are build tooling,
+not additions to the server Worker or bundled runtime libraries. The admission
+script restricts these exceptions to those package names and dev-only placement.
+Any change of license, placement, vendoring or distribution requires re-review.
 
-## Dependency admission
+`check:web-deps` enforces exact direct versions, registry URLs, SHA-512 integrity
+and known licenses across the committed graph. CI uses `npm ci --ignore-scripts`,
+blocks high/critical advisories and fails on audit-service errors. This is an
+engineering admission gate, not a warranty that dependencies are defect-free.
 
-Review exact artifact, transitive dependencies, bundled models/assets/binaries,
-license, release age, maintainer changes and security advisories. Prefer a
-minimal maintained MIT/Apache/BSD/ISC dependency when it buys meaningful
-reliability. Copyleft, source-available, noncommercial, custom model and unknown
-licenses require explicit review; they are not all interchangeable or illegal.
-Preserve notices when shipping incorporated code. Do not change Lumi's own
-license because a dependency is MIT. No automatic merge of updates.
+GitHub Actions remain commit-SHA pinned. No action receives deployment credentials
+or a write token in the final verification workflow. Release integrity hashes are
+produced as CI artifacts; legacy SOURCE_CHECKSUMS.sha256 describes only the original
+bootstrap archive, not the current release.
+
+## Future admission
+
+Prefer a maintained permissive component when it materially reduces cost or risk.
+Review actual software, bundled assets/models/binaries, services and source licenses
+separately. No generic waiver for unknown/copyleft/noncommercial code. Do not change
+Lumi's own license merely because a dependency has MIT or Apache terms.

@@ -36,7 +36,7 @@ export function compileQuery(query: Query, tenantId: string): { sql: string; par
   selects.push('COUNT(*) AS matched_rows');
   if (group) selects.unshift(`${group} AS dimension`);
   return {
-    sql: `SELECT ${selects.join(', ')} FROM workflow_facts f JOIN active_snapshots a ON a.tenant_id = f.tenant_id AND a.snapshot_id = f.snapshot_id WHERE f.tenant_id = ? AND f.business_day >= ? AND f.business_day < ?${group ? ` GROUP BY ${group} ORDER BY ${group}` : ''} LIMIT 201`,
+    sql: `SELECT ${selects.join(', ')} FROM workflow_facts f JOIN active_snapshots a ON a.tenant_id = f.tenant_id AND a.snapshot_id = f.snapshot_id JOIN sources src ON src.tenant_id=a.tenant_id AND src.id=a.source_id AND src.state='active' WHERE f.tenant_id = ? AND f.business_day >= ? AND f.business_day < ?${group ? ` GROUP BY ${group} ORDER BY ${group}` : ''} LIMIT 201`,
     params: [tenantId, q.from, q.to]
   };
 }

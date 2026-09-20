@@ -6,25 +6,7 @@
   "hostname": null,
   "accessTeam": null,
   "accessAudience": null,
-  "control": {
-    "databaseName": "lumi-bi-control-sg-01",
-    "databaseId": null
-  },
-  "r2Bucket": "lumi-bi-snapshots-sg-01",
-  "tenants": [
-    {
-      "id": "customer-a",
-      "name": "Customer A",
-      "binding": "TENANT_A",
-      "databaseName": "lumi-bi-customer-a",
-      "databaseId": null,
-      "ownerSubject": null,
-      "sources": [
-        {
-          "id": "operations",
-          "name": "Reviewed operations source"
-        }
-      ]
-    }
-  ]
+  "control": {"databaseName":"lumi-bi-control","databaseId":null,"workerName":"lumi-bi-control","packsBucket":"lumi-bi-config-releases"},
+  "r2Bucket":"lumi-bi-snapshots-sg-01",
+  "tenants":[{"id":"customer-a","name":"Customer A","binding":"TENANT_A","databaseName":"lumi-bi-customer-a","databaseId":null,"ownerSubject":null,"sources":[{"id":"operations","name":"Reviewed operations source"}]}]
 }

@@ -6,10 +6,10 @@ export interface Statement {
   all<T = Record<string, unknown>>(): Promise<DbResult<T>>;
   run(): Promise<DbResult>;
 }
-export interface Database { prepare(sql: string): Statement; batch(statements: Statement[]): Promise<DbResult[]> }
+export interface Database { withSession?(constraint: string): Database; prepare(sql: string): Statement; batch(statements: Statement[]): Promise<DbResult[]> }
 export interface ObjectStore { put(key: string, value: string, options?: {httpMetadata?: {contentType:string}}): Promise<unknown> }
 export interface Env {
-  CONTROL_DB: Database;
+  CONTROL: {fetch(request:Request): Promise<Response>};
   SOURCES: ObjectStore;
   ASSETS: {fetch(request: Request): Promise<Response>};
   TENANT_BINDINGS: string;

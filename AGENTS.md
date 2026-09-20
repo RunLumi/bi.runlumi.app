@@ -52,8 +52,9 @@ One shared codebase, reusable vertical packs, tenant configuration and versioned
 releases. Do not fork the app for a customer. A private overlay may hold mappings
 and acceptance fixtures, not a second platform.
 
-The current design uses a control D1 plus one serving D1 per tenant in bounded
-cells. D1 is SQLite-based, not PostgreSQL with RLS. A Worker with several tenant
+The current design uses one central control Worker/D1 for metadata and current
+authority, and one serving D1 per tenant in bounded data cells. Cells access control
+through a private service binding; the control Worker has no commerce D1 bindings. D1 is SQLite-based, not PostgreSQL with RLS. A Worker with several tenant
 bindings still has a multi-tenant blast radius. Use a dedicated deployment/account
 boundary when actual customer risk requires it; do not describe database separation
 as complete process or IAM isolation.
@@ -152,8 +153,9 @@ four competing definitions of the same number. Model providers remain replaceabl
 
 ## Delivery discipline
 
-Keep contracts pure and adapters narrow. There are no runtime npm packages in
-this bootstrap; that is not a permanent ban. Adopt maintained, reviewed libraries
+Keep contracts pure and adapters narrow. The API/control runtime uses Web APIs
+without runtime npm packages. The React frontend has a separate committed lock,
+package-specific license admission and distribution notices. Adopt maintained, reviewed libraries
 when they reduce real risk or implementation cost. Record exact version,
 transitive license, artifact provenance and bundled content. Do not change the
 repository's license or visibility without explicit owner approval.

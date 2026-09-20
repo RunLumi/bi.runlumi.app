@@ -6,8 +6,9 @@ gates in [SECURITY](../SECURITY.md).
 
 ## 1. Validate and publish source
 
-Run `npm ci --ignore-scripts`, `npm run check`, and the synthetic local demo.
-Publish using the dry-run/explicit-push commands in the [README](../README.md).
+Run `npm run setup`, `npm run check`, `npm run check:commerce`,
+`npm run check:web-deps`, `npm run build:web`, and the synthetic local demo.
+Publish through a reviewed pull request using the workflow in [README](../README.md).
 Inspect actual GitHub CI results. There is no automatic deployment workflow.
 
 Use a reviewed, explicitly pinned Wrangler CLI in your deployment environment.
@@ -21,8 +22,9 @@ Avoid unreviewed `npx ...@latest` in a production deploy pipeline.
 
 Using an authorized Cloudflare administrator or deployment token, create:
 
-- a staging Worker and real custom hostname;
-- one control D1 for the cell;
+- a staging data-cell Worker and real custom hostname;
+- one central control Worker and control D1;
+- one private R2 PACKS bucket for reviewed configuration bundles;
 - one serving D1 per tenant;
 - one private R2 snapshot bucket for the cell;
 - an Access application protecting the hostname, with explicit allow policy.
@@ -48,35 +50,57 @@ human review of ownership, non-overlapping grain and expected data categories.
 npm run cf:config -- .local/cell.json
 ```
 
-The command generates `.generated/wrangler.<cellId>.json` and bootstrap SQL for
+The command generates `.generated/wrangler.control.json`,
+`.generated/wrangler.<cellId>.json`, and bootstrap SQL for
 control/tenant databases. Review each file. The SQL uses INSERT, not destructive
 UPSERT, so re-running provisioning cannot silently reroute an existing tenant.
 The generator does not create resources, migrate databases or deploy code.
 
-## 4. Run migrations, then one-time bootstrap SQL
+## 4. Migrate both planes; deploy control before cells
 
 Examples below assume a reviewed Wrangler is on PATH and cell ID `sg-01`.
 The bindings and config come from the generated inventory, not these sample names.
 
 ```bash
-wrangler d1 migrations apply CONTROL_DB --remote --config .generated/wrangler.sg-01.json
+# Control config is the ONLY config binding CONTROL_DB and PACKS.
+wrangler d1 migrations apply CONTROL_DB --remote --config .generated/wrangler.control.json
+wrangler d1 execute CONTROL_DB --remote --config .generated/wrangler.control.json --file .generated/control-bootstrap.sql
+
+# Repeat for EACH reviewed tenant binding. Includes additive route-fence migration.
 wrangler d1 migrations apply TENANT_A --remote --config .generated/wrangler.sg-01.json
-wrangler d1 execute CONTROL_DB --remote --config .generated/wrangler.sg-01.json --file .generated/control-bootstrap.sql
 wrangler d1 execute TENANT_A --remote --config .generated/wrangler.sg-01.json --file .generated/tenant-customer-a-bootstrap.sql
+
+# Build assets before validating either deployment.
+npm run build:web
+wrangler deploy --dry-run --config .generated/wrangler.control.json
 wrangler deploy --dry-run --config .generated/wrangler.sg-01.json
-```
 
-Apply every tenant database migration, not only the first binding. Verify tenant
-identity guard, foreign keys, trigger behavior and migration ledger in staging.
-Then inspect the dry-run bundle and authorize a real deployment explicitly:
-
-```bash
+# Explicitly authorized deployment only: private control service FIRST.
+wrangler deploy --config .generated/wrangler.control.json
 wrangler deploy --config .generated/wrangler.sg-01.json
 ```
 
-These commands are a runbook, not commands already executed. A data location label
-in `cellId` is just a name. It does not provision jurisdiction controls or guarantee
-Vietnam/Singapore-only storage. Configure and verify any required controls separately.
+All cells attached to this control service currently share the same Access team
+and audience. Use one reviewed multi-host Access application; arbitrary per-cell
+identity providers/audiences are not implemented. Never overwrite an existing
+control deployment with an inventory using a different audience.
+
+Bootstrap SQL creates memberships, not commercial authority. Provision a reviewed
+initial row in `licenses` using the control config before expecting data access.
+Set actual agreed plan, start/end, grace and allowed features; no perpetual license
+is granted by the generator. Keep this SQL in `.local/`, not Git. License changes
+then use operator API with `If-Match` and a reason. A platform operator is explicitly
+added to `users` / `platform_operators`; being a tenant owner never grants that role.
+
+Register `pack_sources` only after verifying who controls that repository and path.
+The current API accepts **operator-asserted** compiled bundles. It does not fetch
+GitHub, validate installation/OIDC identity, or attest a reviewed PR. Do not wire a
+customer-controlled workflow directly to these privileged operator routes. Every
+future automated publisher needs the C20 source-attestation gate first.
+
+These commands are a runbook, not commands executed by this PR. Cell names do not
+establish data residency. Validate real Access, D1 Sessions/batch, R2, static routing
+and CSP in staging before any customer data or certification.
 
 ## 5. Authenticated staging acceptance
 
@@ -131,3 +155,28 @@ D1 Time Travel is not a complete backup strategy. Record recovery point and time
 objectives, export policies, object retention and dependency on Cloudflare account
 access. Offboarding covers memberships, credentials, raw/derived data, evidence,
 caches, exports and legally required retention. Test the process with synthetic data.
+
+## Configuration activation and rollback
+
+`POST /api/control/tenants/:id/activation` takes `{releaseId, routeEpoch, reason}`
+and a strong `If-Match: "<configuration revision>"`. Obtain the current route epoch
+from the authorized control overview. The control transaction checks active tenant,
+route epoch and expected deployment revision. A stale activation fails; re-read and
+review instead of blindly retrying. Activation rechecks R2 hash, supported pack
+schema/semantic version and enabled AI profile ownership. Profile entries contain
+only opaque IDs, never keys. Revoked profiles fail closed on activation and reads.
+
+This implements configuration-pointer rollback for the existing `operations-v1`
+contract. It does NOT implement cross-data-schema rollback, arbitrary metrics, source
+mapping migration, dependency graphs or production Git attestations. Do not describe
+it as full C20 certification.
+
+## Fenced tenant movement
+
+There is no self-service movement API. An operator maintenance procedure must suspend
+new work, drain admitted requests/imports, copy and reconcile data, advance route epoch
+in the reviewed central route and target `tenant_identity`, verify new-cell bindings,
+then reactivate. Old copies with a stale epoch are rejected on admission. Restore must
+not restore an old epoch into service. Database-per-tenant alone is not a complete
+migration protocol. Concurrent fleet cutover, replay recovery and in-flight revocation
+remain staging gates; fail closed rather than serving through a stale copy.

@@ -1,133 +1,106 @@
-# Lumi BI
+# Lumi Commerce Intelligence
 
-**One set of business definitions. Many customer dashboards. Evidence behind every number.**
+**Know which money, stock and operating exceptions need attention. Explain the evidence.**
 
-Cloudflare-first BI for RunLumi: connect existing systems, publish trustworthy
-metrics, customize dashboards without product forks, and measure whether AI
-actually improves operating economics.
+Lumi connects commerce systems without replacing them. The target products are
+**Money Truth**, **Stock Decisions**, and **Operations Exceptions**; Executive Pulse
+summarizes them, and Ask Lumi will explain the same governed metric results.
 
-## Current status
+Start with the [commerce specifications](docs/specs/README.md), then the
+[delivery gates](docs/specs/commerce/27-delivery-plan-and-decision-gates.md).
 
-**Bootstrap 0.1.0, not production-certified.** This repository contains a runnable
-multi-tenant vertical slice, not a full Databricks replacement, a general warehouse,
-or a finished self-service BI product.
+## What runs today
 
-Implemented: Worker-compatible API, D1-shaped repositories, per-tenant database
-routing, membership checks, narrow Cloudflare Access JWT verification, R2 snapshot
-archive interface, atomic D1 publication, bounded semantic queries, configurable
-dashboards, optimistic edits, and a Vietnamese demo UI. Local tests execute real
-SQLite and generated RSA signatures through the same application services.
+**Foundation preview, not merchant-verified or Cloudflare production-certified.**
 
-Not yet implemented: real ERP/Sheets connectors, production SSO validation,
-workerd integration tests, asynchronous bulk ingestion, drag-and-drop canvas,
-R2 SQL warehouse adapter, dashboard result cache, NL-to-query, export links,
-billing, per-tenant query rate control, production deployment or GitHub publishing.
-See [validation](VALIDATION.md) for what was actually run.
+- Separate central control Worker/D1 for identities, memberships, tenant routes,
+  license entitlements and configuration releases. No commerce D1 bindings there.
+- Bounded cell API with per-tenant serving D1, primary authorization checks,
+  database identity/route fencing, role checks and no browser-selected binding.
+- React/Vite Vietnamese workspace with truthful commerce capability states,
+  a working operations-cost dashboard, sources/provenance and declarative editor.
+- Dashboard queries run in one bounded D1 batch with one configuration and known
+  source snapshot vector. Source completeness is explicitly unverified.
+- Operator-registered immutable R2 packs, tenant-specific activation and revision/
+  route-epoch conflict checks. Git-managed dashboards cannot be overwritten by UI.
+- AI profile references may be configured and tenant-validated; **no inference,
+  model billing, budget enforcement or external agent action is implemented**.
+- Small approved operations snapshot importer, immutable evidence, idempotency,
+  atomic publication, safe watermark rules and tested capacity/cash distinctions.
 
-## Run the demo
+**Not shipped:** live Nhanh/Haravan/Shopee adapters, commerce canonical facts and
+reconciliation, margin/settlement/inventory calculations, source-auth onboarding,
+field/row finance permissions, Ask Lumi, autonomous actions, raw SQL, exports,
+self-service billing, automated Git attestations, or production migration/fleet
+orchestration. No synthetic commerce chart is presented as a working integration.
 
-Requires Node.js 22.16+ and npm. The pinned toolchain is in `.nvmrc`.
+See [PR #2 scope and acceptance mapping](docs/pr2-commerce-alignment.md) and
+[validation](VALIDATION.md). Specifications are contracts, not evidence of delivery.
 
-```bash
-npm ci --ignore-scripts
-npm run check
-npm run dev
-```
+## Run the local demo
 
-Open `http://127.0.0.1:8787`. Choose an owner, editor or viewer for two synthetic
-businesses. Change dates, inspect metric definitions and source hashes, duplicate
-a dashboard and edit its declarative JSON. The viewer cannot mutate via the API.
-
-The demo server lives under `scripts/`, uses memory-only SQLite, listens on
-loopback, and cannot be enabled through a flag in the production Worker.
-`npm run dev` and `npm test` require no third-party runtime packages; `typecheck`
-uses the pinned TypeScript development dependency. Node may print experimental
-SQLite/type-stripping warnings on this toolchain.
-
-## Architecture in one picture
-
-```text
-Shared codebase / immutable release
-         |
-         +-- Deployment cell / Cloudflare Worker + Static Assets
-              |-- Access identity verification
-              |-- control D1: membership + tenant-to-binding registry
-              |-- semantic query compiler + dashboard definitions
-              |-- tenant A D1: curated facts, active snapshot, dashboard config
-              |-- tenant B D1: curated facts, active snapshot, dashboard config
-              `-- private R2: tenant-prefixed snapshot archives
-
-Next: Queues + Workflows for ingestion; analytical adapter when D1 serving marts
-are insufficient; same semantic contract for dashboards and lumi-agents.
-```
-
-Database isolation is not complete compute isolation: the cell's Worker can access
-all of its bound tenant databases. A sensitive customer can get a dedicated cell
-without receiving a fork of the application. No PostgreSQL RLS is claimed for D1.
-
-## First pack: operations cost
-
-The synthetic sample deliberately shows **74 released hours and 0 recorded cash
-savings** for tenant A. Runtime and support costs therefore produce a negative net
-cash benefit. Capacity, avoided future hiring and realized cash are different
-outcomes. A persuasive dashboard must not blur them.
-
-The bootstrap supports one aggregate per source/workflow/business day, VND,
-explicit half-open date ranges, and source watermark/hash metadata. Seven static
-metric definitions and three widget kinds are enough to test the architecture.
-This is not yet arbitrary customer SQL or metric authoring.
-
-## Repository map
-
-```text
-apps/api/src/          Worker entry, auth, tenancy, ingestion, query API
-apps/web/             Static Vietnamese dashboard and config editor
-packages/core/        Strict contracts, semantic registry, SQL compiler
-migrations/control/   Tenant registry and membership schema
-migrations/tenant/    Curated facts, snapshot, dashboard and audit schema
-packs/operations-cost/ Reviewed reusable dashboard definition
-fixtures/             Synthetic data only
-scripts/              Local harness, validation and safe bootstrap tools
-infra/                Inventory example; generated config is gitignored
-tests/                Actual SQLite, WebCrypto and contract tests
-docs/                 Architecture, decisions, rollout and evidence
-```
-
-## Publish to the requested empty GitHub repository
-
-The bootstrap was prepared offline. It has **not** been pushed to GitHub.
-Use your existing Git credentials and configured Git author:
+Node.js 22.16.0 (`.nvmrc`) and npm are required. Both package graphs are locked.
 
 ```bash
-npm run init:github
-npm run init:github -- --push
+npm run setup                 # npm ci for root + frontend; lifecycle scripts off
+npm run check                 # core TypeScript, real SQLite/WebCrypto tests
+npm run check:commerce        # owned spec IDs, links, independent commerce oracles
+npm run check:web-deps        # locked dependency provenance/license admission
+npm run dev                   # builds React assets, then starts local demo
 ```
 
-The first command is a dry run. The second checks that
-`https://github.com/RunLumi/lumi-bi.git` is still empty, runs checks, initializes
-local `main`, commits and pushes. It refuses existing history and never force
-pushes. If the remote is no longer empty, use a normal reviewed branch instead.
-Do not send GitHub or Cloudflare tokens to a chat or commit them.
+Open `http://127.0.0.1:8787`. Home shows the target decision products and their
+unavailable capabilities. **Chi phí thao tác** opens the working operations-cost
+pack. Tenant A has **74 released hours and zero recorded cash savings**; the
+sample is deliberately not a customer case study.
+
+The demo harness is loopback-only and memory-only. It cannot be enabled by a
+production Worker flag. Switching identity creates a fresh query cache. A tenant
+owner is not a platform operator; the operator sees control metadata, not facts.
+
+For frontend iteration, start the local API and `npm run dev:web` in a second
+terminal. For browser regression tests after `npm run build:web`:
+
+```bash
+./apps/web/node_modules/.bin/playwright install chromium
+npm --prefix apps/web run test:e2e
+```
+
+## Architecture
+
+```text
+Browser -> Cell Worker -> private CONTROL service binding
+                            -> Access re-verification
+                            -> central control D1: current membership, license, route
+                            -> private PACKS R2: immutable active bundle
+           |
+           -> allowlisted binding + tenant identity + route epoch
+           -> tenant D1: facts, snapshots, UI dashboards, local audit
+           -> private SOURCES R2: tenant-prefixed source evidence
+```
+
+One product repo; isolated data and versioned configuration. A cell compromise
+still exposes its bound resources. Sensitive deployments can use dedicated cells;
+this is not a claim of PostgreSQL RLS or complete per-tenant compute isolation.
+
+[Architecture](docs/architecture.md) · [API](docs/api.md) ·
+[Tenant packs](docs/tenant-packs.md) · [Deployment](docs/deployment.md) ·
+[Security](SECURITY.md) · [Design](DESIGN.md) · [Icons](ICON.md)
 
 ## Cloudflare deployment
 
-[Deployment guide](docs/deployment.md) describes provisioning, Access setup,
-per-tenant migrations, generated bindings and the first authenticated canary.
-The generator writes config; it does not provision resources or deploy.
+No deployment or billable Cloudflare resources are created by repository CI.
+Generate an inventory-specific plan with `npm run cf:config -- .local/cell.json`,
+then follow the [runbook](docs/deployment.md): migrate both planes, build assets,
+deploy the private control Worker **before** the cell, and test real bindings.
 
-```bash
-npm run cf:config -- .local/cell.json
-```
-
-## Read first
-
-[AGENTS.md](AGENTS.md) · [Architecture](docs/architecture.md) ·
-[Cloudflare choices](docs/cloudflare.md) · [Semantic contract](docs/semantic-contract.md) ·
-[Security](SECURITY.md) · [Roadmap](docs/roadmap.md) · [Tasks](TASKS.md) ·
-[Primary references](docs/references.md)
+The control service has no public route. All attached cells currently share the
+same reviewed Access application audience. Generated SQL does not invent a
+commercial license or grant operator access.
 
 ## License
 
-Original code remains private/reserved under [LICENSE](LICENSE). No public
-relicensing is inferred from other RunLumi projects. Dependencies keep their own
-terms; see [third-party notices](THIRD_PARTY_NOTICES.md).
+Original Lumi code remains private/reserved under [LICENSE](LICENSE).
+Dependencies retain their notices; builds include `THIRD_PARTY_NOTICES.txt`.
+See [dependency provenance](THIRD_PARTY_NOTICES.md). No relicensing is inferred
+from any other RunLumi project.
