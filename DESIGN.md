@@ -7,8 +7,8 @@ desk, light-only warm paper, Geist/Geist Mono, folded-L geometry, restrained mat
 depth, and every existing color value remain the brand contract. Improve hierarchy,
 consistency, state clarity, and usability within that language; do not rebrand a page.
 
-[AGENTS.md](AGENTS.md) governs scope and trust. [Spec 23](docs/specs/v1/23-user-experience-handoff.md)
-governs Lumi Agents interaction semantics. This guide governs visual expression.
+[AGENTS.md](AGENTS.md) governs scope and trust. The [semantic contract](docs/semantic-contract.md)
+governs Lumi BI data and dashboard semantics. This guide governs visual expression.
 §19 owns base tokens; §10 owns component behavior; §24 is the review gate. Reuse the
 existing primitive before adding a variant. A new component must solve a repeated
 user problem that composition cannot, with explicit states and a removal test.
@@ -19,8 +19,8 @@ not claims that those features/files exist here. Lumi Agents implements its own
 Project → Task → Run journey using the same visual language. Do not add companion
 screens, mobile shells, or a framework merely to match an example.
 
-In this repository, inspect [desktop styles](apps/desktop/src/style.css),
-[markup](apps/desktop/src/index.html), and [behavior](apps/desktop/src/app.js) before
+In this repository, inspect [web styles](apps/web/styles.css),
+[markup](apps/web/index.html), and [behavior](apps/web/app.mjs) before
 implementation. Existing code or screenshots may lag this contract; record drift
 rather than treating it as a new palette. This document does not prove deployed
 parity, installed fonts, accessibility compliance, or passing tests.
