@@ -108,6 +108,71 @@ test('200% text reflow, light-only theme and reduced motion', async ({ page }) =
   await page.goto('/');
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe('light');
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).toBe('auto');
-  await page.addStyleTag({ content: 'html { font-size: 200% !important; }' });
+  const before = await page.locator('.hero-description').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+  // User text enlargement via CSSOM; unlike an inline style tag this works with strict CSP.
+  await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+  const after = await page.locator('.hero-description').evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+  expect(after).toBeGreaterThanOrEqual(before * 1.99);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test('Vietnamese diacritics use the shipped Geist font, not a silent system fallback', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    const probe = document.createElement('p');
+    probe.id = 'font-probe';
+    // Test the Vietnamese alphabet. U+20AB (dong currency sign) is absent from
+    // Geist 5.3.0's cmap and intentionally uses the declared Noto/system fallback;
+    // requiring that unrelated symbol to come from Geist would be a false gate.
+    probe.textContent = 'Ăă Ââ Đđ Êê Ôô Ơơ Ưư Ắắ Ằằ Ẳẳ Ẵẵ Ặặ Ấấ Ầầ Ẩẩ Ẫẫ Ậậ Ếế Ềề Ểể Ễễ Ệệ Ốố Ồồ Ổổ Ỗỗ Ộộ Ớớ Ờờ Ởở Ỡỡ Ợợ Ứứ Ừừ Ửử Ữữ Ựự Ỳỳ Ỵỵ Ỷỷ Ỹỹ';
+    document.body.append(probe);
+  });
+  await page.evaluate(() => document.fonts.ready);
+  const client = await page.context().newCDPSession(page);
+  await client.send('DOM.enable');
+  await client.send('CSS.enable');
+  const { root } = await client.send('DOM.getDocument');
+  const { nodeId } = await client.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#font-probe' });
+  const { fonts } = await client.send('CSS.getPlatformFontsForNode', { nodeId });
+  const rendered = fonts.filter(font => font.glyphCount > 0);
+  expect(rendered.length).toBeGreaterThan(0);
+  expect(rendered.every(font => font.isCustomFont && /Geist/i.test(font.familyName)), JSON.stringify(rendered)).toBe(true);
+  await client.detach();
+});
+
+for (const [width, orientation, nextKey] of [[390, 'vertical', 'ArrowDown'], [768, 'horizontal', 'ArrowRight']] as const) {
+  test(`tabs follow their visual orientation at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await expect(page.getByRole('tablist')).toHaveAttribute('aria-orientation', orientation);
+    await page.getByRole('tab', { name: /Tiền & lợi nhuận/ }).focus();
+    await page.keyboard.press(nextKey);
+    await expect(page.getByRole('tab', { name: /Hàng tồn/ })).toBeFocused();
+    await expect(page.getByRole('tabpanel')).toContainText('tệp kho');
+  });
+}
+
+test('clicked scenarios are shareable and old privacy links redirect', async ({ page, request }) => {
+  await page.goto('/');
+  await page.getByRole('tab', { name: /Hàng tồn/ }).click();
+  await expect(page).toHaveURL(/#demo-stock$/);
+  await page.reload();
+  await expect(page.getByRole('tab', { name: /Hàng tồn/ })).toHaveAttribute('aria-selected', 'true');
+  for (const path of ['/privacy', '/privacy/']) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(response.headers().location).toBe('/quyen-rieng-tu/');
+  }
+});
+
+test('static demo makes no external requests and leaves no browser storage', async ({ page }) => {
+  const requests: string[] = [];
+  page.on('request', req => requests.push(req.url()));
+  await page.goto('/');
+  for (const name of [/Hàng tồn/, /Ngoại lệ vận hành/, /Tiền & lợi nhuận/]) {
+    await page.getByRole('tab', { name }).click();
+  }
+  expect(requests.every(url => new URL(url).origin === 'http://127.0.0.1:4321')).toBe(true);
+  expect(await page.context().cookies()).toEqual([]);
+  expect(await page.evaluate(() => [localStorage.length, sessionStorage.length])).toEqual([0, 0]);
 });
