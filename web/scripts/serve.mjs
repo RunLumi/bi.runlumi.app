@@ -4,7 +4,8 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-const root = fileURLToPath(new URL('../dist/', import.meta.url));
+// Normalize away the URL's trailing slash before containment checks.
+const root = resolve(fileURLToPath(new URL('../dist/', import.meta.url)));
 const headersText = await readFile(resolve(root, '_headers'), 'utf8');
 const common = {};
 let active = false;
