@@ -25,15 +25,15 @@ export const scenarios: Scenario[] = [
     caveat: 'Nhận định minh họa · cần đối chiếu với chứng từ',
     source: 'Tệp đơn hàng mẫu + tệp hoàn trả mẫu + bảng kê thanh toán mẫu. Không có API trực tiếp.',
     definition: 'Trong tình huống này: doanh thu thuần = doanh thu ghi nhận trước hoàn trả 512.000.000 ₫ − hoàn trả 26.000.000 ₫ = 486.000.000 ₫. Các tệp dùng cùng quy ước thuế; đây không phải định nghĩa mặc định cho mọi doanh nghiệp.',
-    limit: 'Thiếu giá vốn của 8 SKU và chưa xác nhận đầy đủ chi phí. Không tính lãi đóng góp. Số chờ đối soát không được gọi là doanh thu hoặc tiền thực nhận.',
+    limit: 'Thiếu giá vốn của 8 mã hàng và chưa xác nhận đầy đủ chi phí. Không tính lãi đóng góp. Số chờ đối soát không được gọi là doanh thu hoặc tiền thực nhận.',
   },
   {
     id: 'stock', tab: 'Tồn kho', number: '02',
     title: 'Nên nhập thêm hay bán bớt hàng đang có?',
     subtitle: 'Nhìn hàng trong kho cùng nhịp bán để biết điều gì cần kiểm tra trước khi nhập thêm.',
     metrics: [
-      { label: 'Mã hàng cần kiểm tra', value: '6', unit: 'SKU', note: 'Tồn thấp so với nhịp bán trong dữ liệu mẫu' },
-      { label: 'Mã hàng chậm bán', value: '14', unit: 'SKU', note: '30 ngày chưa ghi nhận đơn trong dữ liệu mẫu' },
+      { label: 'Mã hàng cần kiểm tra', value: '6', unit: 'mã', note: 'Tồn thấp so với nhịp bán trong dữ liệu mẫu' },
+      { label: 'Mã hàng chậm bán', value: '14', unit: 'mã', note: '30 ngày chưa ghi nhận đơn trong dữ liệu mẫu' },
       { label: 'Lần cập nhật tồn kho', value: '2', unit: 'ngày trước', note: 'Cần cập nhật trước khi chốt nhập hàng' },
     ],
     series: [12, 18, 15, 22, 25, 32, 30], ceiling: 40,
@@ -43,7 +43,7 @@ export const scenarios: Scenario[] = [
     next: 'Kiểm tra tồn thực tế, hàng đang về và thời gian giao hàng của nhà cung cấp.',
     caveat: 'Tình huống độc lập · không phải dự báo nhu cầu',
     source: 'Tệp kho mẫu ngày 05.09.2026 và tệp bán hàng mẫu từ 01–07.09.2026.',
-    definition: 'Sức bán là số sản phẩm mã A bán mỗi ngày trong tệp mẫu. 14 SKU chậm bán là các mã không có đơn trong 30 ngày của tình huống. Không nội suy xác suất hết hàng.',
+    definition: 'Sức bán là số sản phẩm mã A bán mỗi ngày trong tệp mẫu. 14 mã hàng chậm bán là các mã không có đơn trong 30 ngày của tình huống. Không nội suy xác suất hết hàng.',
     limit: 'Tệp kho cũ 2 ngày. Chưa có thời gian giao, hàng đang về và kiểm đếm thực tế. Không đủ cơ sở tự đặt hàng.',
   },
   {

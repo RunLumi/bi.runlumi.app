@@ -1,0 +1,37 @@
+# One-shot maintainer asset regeneration; remove before merging PR #14.
+name: prepare-copy-social
+on:
+  push:
+    branches: [copy/vietnamese-commerce-landing]
+    paths: ['.github/workflows/prepare-copy-social.yml']
+permissions:
+  contents: read
+jobs:
+  render:
+    if: github.repository == 'RunLumi/lumi-bi' && github.ref == 'refs/heads/copy/vietnamese-commerce-landing'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: copy/vietnamese-commerce-landing
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: web/.nvmrc
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+        working-directory: web
+      - run: ./node_modules/.bin/playwright install --with-deps chromium
+        working-directory: web
+      - run: node scripts/social-card.mjs
+        working-directory: web
+      - name: Commit only the generated public image to the PR branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- web/public/social-card.png
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'copy(web): regenerate social preview from reviewed Vietnamese headline'
+          git push origin HEAD:refs/heads/copy/vietnamese-commerce-landing
