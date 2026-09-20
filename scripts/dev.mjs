@@ -1,10 +1,11 @@
 import {createServer} from 'node:http';
-import {readFile} from 'node:fs/promises';
+import {readFile,access} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {resolve,sep} from 'node:path';
 import {fixture} from './local-adapters.mjs';
-const {api,env,close}=await fixture();
 const webRoot=fileURLToPath(new URL('../apps/web/dist/',import.meta.url));
+try{await access(new URL('../apps/web/dist/index.html',import.meta.url));}catch{throw new Error('Frontend bundle missing. Run npm run setup, then npm run build:web (or npm run dev).');}
+const {api,env,close}=await fixture();
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.woff2':'font/woff2','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml'};
 const port=8787;
 const server=createServer(async(req,res)=>{

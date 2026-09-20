@@ -7,6 +7,7 @@
 | [0003](0003-semantic-boundary.md) | Typed semantic plans, source provenance, honest economics |
 | [0004](0004-identity-and-security.md) | Access pilot identity and fail-closed authorization |
 | [0005](0005-frontend-and-reuse.md) | Thin bootstrap UI and explicit dependency/license admission |
+| [0006](0006-central-control-and-commerce-foundation.md) | Central authority, React workspace, immutable operator packs and commerce readiness |
 
 Status is selected for this bootstrap. Accepted does not mean every implementation
 or cloud-specific behavior has been verified. Revisit by measured evidence.

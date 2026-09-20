@@ -17,7 +17,7 @@ pack over separately authorized data and obtain traceable, correct numbers.
 flowchart TD
   U[User] --> A[Access identity and Worker API]
   W[Static Assets: dashboard UI] --> A
-  A --> C[Control D1: membership and binding registry]
+  A --> C[Private control Worker + central D1: membership and route registry]
   C --> R[Tenant routing and database identity check]
   R --> Q[Typed semantic query compiler]
   Q --> D1[Tenant A serving D1]
@@ -34,18 +34,20 @@ flowchart TD
 
 ## Four boundaries
 
-**Control plane.** Identity membership and deployment routing. The prototype
-keeps one control database per cell, avoiding a global control database request
-bottleneck. Membership is checked on each request. Future cross-cell discovery
-uses authenticated routing, not a client-selected database ID.
+**Control plane.** A central metadata-only Worker/D1 resolves identities,
+memberships, entitlements and tenant routing. Cells use a private CONTROL service
+binding. Control independently validates JWTs and reads primary authority on every
+request; no authorization lease or KV cache is used. It has private PACKS R2 but
+no commerce D1 bindings. Current metadata release pointers live centrally, not yet
+in C20's target tenant-local deployment metadata.
 
 **Tenant data plane.** Each tenant gets its own serving D1. A registry maps an
 authorized tenant ID to an allowlisted binding. The database also stores its own
-tenant identity so an incorrect deployment binding fails closed. Tables retain
+tenant identity and route epoch so incorrect/stale deployment routing fails closed. Tables retain
 tenant keys and foreign keys as defense in depth.
 
 **Semantic plane.** Reviewed server definitions compile a bounded request to
-prepared SQL. The current `operations-v1` registry has no joins, custom SQL or
+prepared SQL. The current `operations-v1` registry has no author-defined joins, custom SQL or
 customer expressions. A future versioned model compiler must validate grains and
 joins before it grows. UI, AI and agent clients consume this same contract.
 
@@ -77,10 +79,15 @@ batches snapshot rows, facts, active pointer and audit in a tenant D1 transactio
 A failure may leave an orphan source object. It must not publish a half dataset.
 The active pointer prevents counting every historical snapshot as current data.
 
-Each query reads its results and source metadata in one D1 batch. The web client
-also checks that all cards used matching snapshot fingerprints; it rejects a
-mixed-snapshot render. A future consolidated dashboard-query endpoint can achieve
-stronger cross-widget consistency more efficiently.
+Each dashboard uses `query-batch`: one authorization and configuration pin, one
+transactional read batch for source coverage and all widget queries. Results carry
+one context hash, scope digest, route epoch, semantic release and known snapshot
+vector. A changed configuration revision rejects the request. This does not assert
+that independent upstream systems committed their data at the same instant.
+
+Source health explicitly distinguishes absent snapshots, missing registered sources
+and a watermark behind the requested period. Completeness is never certified by
+successful transport. Detailed target contracts remain in C06/C08/C10.
 
 ## Boundary with lumi-agents
 

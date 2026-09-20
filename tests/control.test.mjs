@@ -12,7 +12,7 @@ async function register(f,tenant='alpha',commit='a'.repeat(40),title='Tenant pac
  const response=await call(f,`/tenants/${tenant}/releases`,{method:'POST',body:{repository:'RunLumi/configs',sourcePath:'tenants/'+tenant,sourceCommit:commit,pack:pack({...f.dashboard,title},title)}});
  assert.equal(response.status,201,await response.clone().text());return(await response.json()).releaseId;
 }
-const activate=(f,releaseId,rev=0,tenant='alpha')=>call(f,`/tenants/${tenant}/activation`,{method:'POST',headers:{'if-match':`"${rev}"`},body:{releaseId,reason:'Reviewed configuration release'}});
+const activate=(f,releaseId,rev=0,tenant='alpha')=>call(f,`/tenants/${tenant}/activation`,{method:'POST',headers:{'if-match':`"${rev}"`},body:{releaseId,routeEpoch:1,reason:'Reviewed configuration release'}});
 test('license windows and grace distinguish read access from write permission',()=>{
  assert.deepEqual(effectiveFeatures(license(),now),['bi.read','dashboard.edit','git.publish']);
  for(const state of ['suspended','cancelled'])assert.deepEqual(effectiveFeatures(license({state,grace_ends_at:'2027-01-01T00:00:00.000Z'}),now),[]);

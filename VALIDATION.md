@@ -1,63 +1,43 @@
-# Validation record
+# Validation — PR #2 commerce foundation upgrade
 
-Date: 2026-09-20. Scope: local bootstrap only, not customer certification.
+Date: 2026-09-20. This file distinguishes local evidence, remote CI and production
+certification. See [scope mapping](docs/pr2-commerce-alignment.md).
 
-## Executed successfully
+## Local executed evidence
 
-- TypeScript 5.8.3 strict `tsc --noEmit` on Linux.
-- Node.js 22.16.0 built-in test runner: 60 tests, no skips.
-- Actual SQLite 3.49.1 in-memory D1-shaped adapter, not SQL string mocks.
-- Generated RSA JWT signature/claims validation using WebCrypto, not live Access.
-- Cross-tenant denial before data access, swapped binding guard, roles/revocation.
-- Semantic query validation, dimensions, dates, no raw SQL, null/capacity/cash rules.
-- Snapshot idempotency, conflicts, failed archive/database writes, atomic publication,
-  backwards-watermark protection, natural-grain uniqueness and concurrent retries.
-- Dashboard creation, role checks and optimistic edits with strong ETags.
-- Deployment config validation and execution of generated bootstrap SQL in SQLite.
-- GitHub publisher dry run; **no Git initialization or push was performed**.
-- Invalid placeholder Cloudflare inventory was refused as intended.
-- Repository dependency/config/document-link checks.
+- Strict core TypeScript 5.8.3 on Node 22.16.0.
+- 91 Node tests using actual SQLite and generated WebCrypto JWTs; no skipped tests.
+- Control/data separation; authorization, expiry/revocation, route identity/epochs.
+- Pack source immutability, conflicting retries, R2 integrity, enabled AI reference
+  ownership/revocation, revision/epoch activation and Git/UI edit boundaries.
+- One read-batch snapshot context, concurrent publication, limits and source quality.
+- Existing economics/import/grain/watermark/idempotency/role tests remain passing.
+- Commerce checker: 28 specs, 334 IDs, 50 links, 16 synthetic reference cases and
+  23 deliberate-rejection self-tests. These do not certify connectors.
+- Frontend strict TS + Vite production build, runtime notice generation.
+- Lock/provenance/license admission for 173 packages in the UI graph.
 
-## UI validation
+## Browser and clean-install gate
 
-Ten offline browser checks passed using Chromium with authored HTML/CSS/JavaScript.
-Fetch was connected through a stdio bridge to the actual API services and SQLite
-fixtures. Checks cover KPI values, six widgets, tenant switching, viewer controls,
-create/edit, desktop/mobile overflow, missing-data display and uncaught JS errors.
+10 Playwright tests cover commerce readiness; operations values/source evidence;
+identity/role separation; all major views at 320, 390, 768 and 1280 pixels; absent
+configuration; empty periods; whole-dashboard refusal of a stale context.
 
-Desktop viewport: 1440 x 1050. Mobile viewport: 390 x 844. Both screenshots were
-visually inspected. No horizontal page overflow or uncaught JavaScript error was
-observed. Horizontally scrollable tabular content is deliberate on mobile.
+Local Chromium HTTP navigation is blocked by the execution environment
+(`ERR_BLOCKED_BY_ADMINISTRATOR`). This is not counted as passing browser evidence.
+The final `verify` GitHub Actions workflow installs the committed lock in a clean
+runner, runs advisory/provenance/build gates, runs the actual browser tests and
+uploads screenshots/test traces and tested-revision/asset hashes. Merge requires
+that final-head workflow to pass. The old offline HTML smoke test is not evidence
+for the new React application.
 
-Reproduction, with a separately installed Python Playwright and Chromium:
+## Not certified by this PR
 
-```bash
-python tools/ui-smoke.py --chromium /path/to/chromium --out validation-artifacts
-```
+- No Cloudflare resources, deployments, real Access sessions or D1/R2 integration.
+- No production throughput/fair-share admission, restoration or two-cell cutover.
+- No live Nhanh/Haravan/Shopee source, merchant financial reconciliation or LLM call.
+- No field/row finance policy, tenant secret broker or GitHub/OIDC source attestation.
+- No payment collection, self-service billing, data-schema rollback or agent actions.
 
-Direct Chromium HTTP navigation to the local server was blocked by the environment
-(`ERR_BLOCKED_BY_ADMINISTRATOR`). The offline bridge is an explicit test substitute,
-not proof of network routing, CSP enforcement, Access or workerd compatibility.
-
-## Not executed / not certified
-
-- GitHub write, PR, merge or remote CI. Current connector exposes read-only operations.
-- Cloudflare resource creation, account changes, production deployment or billing.
-- Wrangler/workerd integration, actual D1/R2 transactions, migration ledger or quotas.
-- Real Access identity/key rotation and edge origin/routing configuration.
-- npm clean installation or live advisory audit: network access was unavailable to
-  the code container. TypeScript package metadata/integrity was checked via the
-  public registry; local typecheck used the preinstalled same compiler version.
-- macOS/Windows test jobs: workflow is prepared, not remotely executed.
-- Production load, per-tenant rate admission, restore, SLA or data residency.
-- Real customer connector, customer data, finance correctness across ERPs or AI inference.
-
-## Known bootstrap boundaries
-
-Seven reviewed operations metrics, VND only, 1-20 aggregated rows per source snapshot,
-1-20 registered sources per deployment inventory tenant, query window up to 93 days,
-200 result rows, 12 widgets/dashboard and 50 dashboards/tenant. No empty-snapshot
-publication, full visual canvas, arbitrary model editor or permission-filtered export.
-
-Every remaining gate is explicit in SECURITY.md and TASKS.md. Do not label this a
-released or deployed BI platform until those environment-specific checks pass.
+Source fetch time, fixture success, byte checksum and an operator-asserted commit
+are not substitutes for merchant verification or production certification.

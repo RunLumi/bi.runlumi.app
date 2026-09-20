@@ -13,48 +13,51 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22.16.0
-          cache: npm
+          package-manager-cache: false
       - run: npm ci --ignore-scripts
       - run: npm run check
+      - run: npm run check:commerce
+      - run: npm run check:web-deps
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22.16.0
-      - name: Resolve initial UI lock in secret-free CI
+          package-manager-cache: false
+      - name: Install exact reviewed graph without package lifecycle scripts
+        run: npm --prefix apps/web ci --ignore-scripts
+      - run: npm run check:web-deps
+      - name: Advisory gate (high/critical and audit failures block merge)
         run: |
-          if test -f apps/web/package-lock.json; then
-            npm --prefix apps/web ci --ignore-scripts
-          else
-            npm --prefix apps/web install --ignore-scripts
-          fi
+          mkdir -p artifacts
+          npm --prefix apps/web audit --audit-level=high --json > artifacts/npm-audit.json
       - run: npm run build:web
-      - run: npx playwright install --with-deps chromium
-        working-directory: apps/web
+      - name: Install pinned Playwright browser
+        run: ./apps/web/node_modules/.bin/playwright install --with-deps chromium
       - run: npm --prefix apps/web run test:e2e
-      - name: Package reproducibility evidence
+      - name: Record reproducible build hashes
         if: always()
         run: |
           mkdir -p artifacts
-          cp apps/web/package-lock.json artifacts/frontend-package-lock.json
-          npm --prefix apps/web audit --json > artifacts/npm-audit.json || true
-          node -e "const fs=require('fs'),z=require('zlib');console.log('LUMI_LOCK_GZIP_BASE64='+z.gzipSync(fs.readFileSync('apps/web/package-lock.json')).toString('base64'))"
+          git rev-parse HEAD > artifacts/tested-revision.txt
+          sha256sum apps/web/package-lock.json > artifacts/lock.sha256
+          if test -d apps/web/dist; then find apps/web/dist -type f -print0 | sort -z | xargs -0 sha256sum > artifacts/assets.sha256; fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
           name: frontend-evidence
           path: |
             artifacts/
-            apps/web/dist/
+            apps/web/test-results/
           retention-days: 7

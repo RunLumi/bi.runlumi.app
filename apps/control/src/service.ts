@@ -1,27 +1,35 @@
 import {AppError,id,object,text,sha256,type Principal,type Role} from '../../../packages/core/contracts.ts';
 import {features,effectiveFeatures,requireFeature,parseLicense,type Feature,type License} from '../../../packages/core/licensing.ts';
-import {parseTenantPack,type ActivePack} from '../../../packages/core/tenant-pack.ts';
+import {parseTenantPack,type ActivePack,type TenantPack} from '../../../packages/core/tenant-pack.ts';
 import {readJson,json,revision} from '../../../packages/core/http.ts';
 import type {Database} from '../../api/src/bindings.ts';
 import type {ControlEnv} from './bindings.ts';
 type Auth=(request:Request,env:ControlEnv)=>Promise<Principal>;
-type Member={id:string;name:string;binding_name:string;cell_id:string;role:Role};
+type Member={id:string;name:string;binding_name:string;cell_id:string;route_epoch:number;role:Role};
 function primary(db:Database):Database{return db.withSession?db.withSession('first-primary'):db;}
 async function licenseFor(db:Database,tenant:string){return db.prepare('SELECT plan_id,state,starts_at,ends_at,grace_ends_at,features,revision FROM licenses WHERE tenant_id=?').bind(tenant).first<License>();}
 async function membership(db:Database,p:Principal,tenant:string):Promise<Member>{
-  const r=await db.prepare("SELECT t.id,t.name,t.binding_name,t.cell_id,m.role FROM tenants t JOIN memberships m ON m.tenant_id=t.id JOIN users u ON u.issuer=m.issuer AND u.subject=m.subject WHERE t.id=? AND t.state='active' AND m.state='active' AND u.state='active' AND m.issuer=? AND m.subject=?")
+  const r=await db.prepare("SELECT t.id,t.name,t.binding_name,t.cell_id,t.route_epoch,m.role FROM tenants t JOIN memberships m ON m.tenant_id=t.id JOIN users u ON u.issuer=m.issuer AND u.subject=m.subject WHERE t.id=? AND t.state='active' AND m.state='active' AND u.state='active' AND m.issuer=? AND m.subject=?")
     .bind(tenant,p.issuer,p.subject).first<Member>();
   if(!r||!['viewer','editor','owner'].includes(r.role))throw new AppError(403,'TENANT_ACCESS_DENIED');return r;
 }
 async function operator(db:Database,p:Principal):Promise<void>{const r=await db.prepare("SELECT 1 AS ok FROM platform_operators o JOIN users u ON u.issuer=o.issuer AND u.subject=o.subject WHERE o.issuer=? AND o.subject=? AND u.state='active'").bind(p.issuer,p.subject).first();if(!r)throw new AppError(403,'PLATFORM_OPERATOR_REQUIRED');}
+async function validateAIProfile(db:Database,tenant:string,pack:TenantPack):Promise<void>{
+  // Disabled profiles never resolve or use these inert references.
+  if(!pack.ai.enabled)return;
+  const grant=await db.prepare("SELECT 1 AS ok FROM tenant_ai_profiles WHERE tenant_id=? AND provider_instance_ref=? AND model_ref=? AND credential_ref=? AND state='active'")
+    .bind(tenant,pack.ai.providerInstanceRef,pack.ai.modelRef,pack.ai.credentialRef).first();
+  if(!grant)throw new AppError(403,'AI_PROFILE_REFERENCE_DENIED');
+}
 async function activePack(db:Database,env:ControlEnv,tenant:string):Promise<ActivePack|null>{
   const r=await db.prepare('SELECT d.active_release_id,r.release_id,r.content_hash,r.object_key,r.source_commit,d.revision FROM tenant_deployments d LEFT JOIN tenant_releases r ON r.tenant_id=d.tenant_id AND r.release_id=d.active_release_id WHERE d.tenant_id=?').bind(tenant).first<{active_release_id:string|null;release_id:string|null;content_hash:string;object_key:string;source_commit:string;revision:number}>();
   if(!r||r.active_release_id===null)return null;
   if(!r.release_id)throw new AppError(503,'PACK_UNAVAILABLE');
   if(r.object_key!==`tenants/${tenant}/packs/${r.content_hash}.json`)throw new AppError(503,'PACK_IDENTITY_MISMATCH');
-  const obj=await env.PACKS.get(r.object_key);if(!obj)throw new AppError(503,'PACK_UNAVAILABLE');
-  const body=await obj.text();if(body.length>48_000||await sha256(body)!==r.content_hash)throw new AppError(503,'PACK_INTEGRITY');
-  return {releaseId:r.release_id,revision:r.revision,sourceCommit:r.source_commit,pack:parseTenantPack(JSON.parse(body))};
+  const obj=await env.PACKS.get(r.object_key);if(!obj)throw new AppError(503,'PACK_UNAVAILABLE');if(obj.size!==undefined&&obj.size>48_000)throw new AppError(503,'PACK_INTEGRITY');
+  const body=await obj.text();if(new TextEncoder().encode(body).byteLength>48_000||await sha256(body)!==r.content_hash)throw new AppError(503,'PACK_INTEGRITY');
+  const pack=parseTenantPack(JSON.parse(body));await validateAIProfile(db,tenant,pack);
+  return {releaseId:r.release_id,revision:r.revision,sourceCommit:r.source_commit,provenance:'operator-asserted',attestationVerified:false,pack};
 }
 export function createControl(authenticate:Auth,clock:()=>number=Date.now){
  return async(request:Request,env:ControlEnv):Promise<Response>=>{
@@ -46,13 +54,15 @@ export function createControl(authenticate:Auth,clock:()=>number=Date.now){
    }
    await operator(db,p); // A tenant owner is never implicitly a platform operator.
    if(url.pathname==='/control/admin/overview'&&request.method==='GET'){
-    const t=await db.prepare('SELECT t.id,t.name,t.cell_id,t.state,l.plan_id,l.state AS license_state,l.ends_at,l.revision AS license_revision,d.active_release_id,d.revision AS config_revision FROM tenants t LEFT JOIN licenses l ON l.tenant_id=t.id LEFT JOIN tenant_deployments d ON d.tenant_id=t.id ORDER BY t.id LIMIT 100').all();
+    const t=await db.prepare('SELECT t.id,t.name,t.cell_id,t.route_epoch,t.state,l.plan_id,l.state AS license_state,l.ends_at,l.revision AS license_revision,d.active_release_id,d.revision AS config_revision FROM tenants t LEFT JOIN licenses l ON l.tenant_id=t.id LEFT JOIN tenant_deployments d ON d.tenant_id=t.id ORDER BY t.id LIMIT 100').all();
     const u=await db.prepare('SELECT u.issuer,u.subject,u.state,COUNT(m.tenant_id) AS tenant_count FROM users u LEFT JOIN memberships m ON m.issuer=u.issuer AND m.subject=u.subject AND m.state=\'active\' GROUP BY u.issuer,u.subject,u.state ORDER BY u.subject LIMIT 100').all();
     return json({tenants:t.results,users:u.results,limit:100,note:'Control metadata only. Operator role does not grant tenant-data access.'});
    }
    const route=/^\/control\/admin\/tenants\/([a-z0-9_-]{1,64})\/(license|releases|activation)$/.exec(url.pathname);
    if(!route)throw new AppError(404,'NOT_FOUND');const tenant=id(route[1]);
-   if(!await db.prepare('SELECT id FROM tenants WHERE id=?').bind(tenant).first())throw new AppError(404,'NOT_FOUND');
+   const tenantRow=await db.prepare('SELECT id,state,route_epoch FROM tenants WHERE id=?').bind(tenant).first<{id:string;state:string;route_epoch:number}>();
+   if(!tenantRow)throw new AppError(404,'NOT_FOUND');
+   if(route[2]!=='license'&&tenantRow.state!=='active')throw new AppError(403,'TENANT_INACTIVE');
    if(route[2]==='license'&&request.method==='PUT'){
     const b=object(await readJson(request),['license','reason']);const l=parseLicense(b.license);const reason=text(b.reason,200);const expected=revision(request);
     const current=await licenseFor(db,tenant);if(!current)throw new AppError(409,'PROVISION_LICENSE_FIRST');
@@ -68,23 +78,27 @@ export function createControl(authenticate:Auth,clock:()=>number=Date.now){
     const source=await db.prepare('SELECT repository,source_path FROM pack_sources WHERE tenant_id=?').bind(tenant).first<{repository:string;source_path:string}>();
     if(!source||source.repository!==b.repository||source.source_path!==b.sourcePath)throw new AppError(403,'PACK_SOURCE_DENIED');
     if(typeof b.sourceCommit!=='string'||!/^[a-f0-9]{40}$/.test(b.sourceCommit))throw new AppError(400,'INVALID_COMMIT');
-    const pack=parseTenantPack(b.pack);const content=JSON.stringify(pack);const hash=await sha256(content);const release=`r_${(await sha256(b.sourceCommit+hash)).slice(0,32)}`;const key=`tenants/${tenant}/packs/${hash}.json`;
+    const pack=parseTenantPack(b.pack);await validateAIProfile(db,tenant,pack);const content=JSON.stringify(pack);const hash=await sha256(content);const release=`r_${(await sha256(b.sourceCommit+hash)).slice(0,32)}`;const key=`tenants/${tenant}/packs/${hash}.json`;
     const prior=await db.prepare('SELECT release_id,content_hash FROM tenant_releases WHERE tenant_id=? AND source_commit=?').bind(tenant,b.sourceCommit).first<{release_id:string;content_hash:string}>();
     if(prior){if(prior.content_hash!==hash)throw new AppError(409,'IMMUTABLE_RELEASE_CONFLICT');return json({releaseId:prior.release_id,replayed:true});}
     await env.PACKS.put(key,content,{httpMetadata:{contentType:'application/json'}});
     await db.batch([
-     db.prepare('INSERT INTO tenant_releases VALUES (?,?,?,?,?,?)').bind(tenant,release,hash,key,b.sourceCommit,now),
-     db.prepare('INSERT INTO control_audit VALUES (?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),tenant,p.issuer,p.subject,'pack.registered',release,'Reviewed source bundle',now)
-    ]);return json({releaseId:release,sourceCommit:b.sourceCommit},201);
+     db.prepare('INSERT INTO tenant_releases VALUES (?,?,?,?,?,?) ON CONFLICT(tenant_id,source_commit) DO NOTHING').bind(tenant,release,hash,key,b.sourceCommit,now),
+     db.prepare('INSERT INTO control_audit SELECT ?,?,?,?,?,?,?,? WHERE changes()=1').bind(crypto.randomUUID(),tenant,p.issuer,p.subject,'pack.registered',release,'Reviewed source bundle',now)
+    ]);
+    const winner=await db.prepare('SELECT content_hash FROM tenant_releases WHERE tenant_id=? AND source_commit=?').bind(tenant,b.sourceCommit).first<{content_hash:string}>();
+    if(winner?.content_hash!==hash)throw new AppError(409,'IMMUTABLE_RELEASE_CONFLICT');
+    return json({releaseId:release,sourceCommit:b.sourceCommit,provenance:'operator-asserted',attestationVerified:false},201);
    }
    if(route[2]==='activation'&&request.method==='POST'){
-    const b=object(await readJson(request),['releaseId','reason']);const release=id(b.releaseId),reason=text(b.reason,200),expected=revision(request);
+    const b=object(await readJson(request),['releaseId','reason','routeEpoch']);const release=id(b.releaseId),reason=text(b.reason,200),expected=revision(request);
+    if(!Number.isSafeInteger(b.routeEpoch)||b.routeEpoch!==tenantRow.route_epoch)throw new AppError(409,'ROUTE_EPOCH_CONFLICT');
     const r=await db.prepare('SELECT object_key,content_hash FROM tenant_releases WHERE tenant_id=? AND release_id=?').bind(tenant,release).first<{object_key:string;content_hash:string}>();
     if(!r)throw new AppError(404,'RELEASE_NOT_FOUND');
     if(r.object_key!==`tenants/${tenant}/packs/${r.content_hash}.json`)throw new AppError(503,'PACK_IDENTITY_MISMATCH');
-    const obj=await env.PACKS.get(r.object_key);if(!obj)throw new AppError(503,'PACK_UNAVAILABLE');const body=await obj.text();if(await sha256(body)!==r.content_hash)throw new AppError(503,'PACK_INTEGRITY');parseTenantPack(JSON.parse(body));
+    const obj=await env.PACKS.get(r.object_key);if(!obj)throw new AppError(503,'PACK_UNAVAILABLE');if(obj.size!==undefined&&obj.size>48_000)throw new AppError(503,'PACK_INTEGRITY');const body=await obj.text();if(await sha256(body)!==r.content_hash)throw new AppError(503,'PACK_INTEGRITY');const pack=parseTenantPack(JSON.parse(body));await validateAIProfile(db,tenant,pack);
     const result=await db.batch([
-     db.prepare('UPDATE tenant_deployments SET active_release_id=?,revision=revision+1 WHERE tenant_id=? AND revision=?').bind(release,tenant,expected),
+     db.prepare(`UPDATE tenant_deployments SET active_release_id=?,revision=revision+1 WHERE tenant_id=? AND revision=? AND EXISTS (SELECT 1 FROM tenants WHERE id=? AND state='active' AND route_epoch=?)`).bind(release,tenant,expected,tenant,b.routeEpoch),
      db.prepare('INSERT INTO control_audit SELECT ?,?,?,?,?,?,?,? WHERE changes()=1').bind(crypto.randomUUID(),tenant,p.issuer,p.subject,'pack.activated',release,reason,now)
     ]);if(result[0]?.meta.changes!==1)throw new AppError(409,'REVISION_CONFLICT');return json({releaseId:release,revision:expected+1});
    }

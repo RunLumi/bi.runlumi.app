@@ -11,7 +11,7 @@ export interface TenantPack {
 function unique<T>(items:T[],key:(item:T)=>string):T[]{if(new Set(items.map(key)).size!==items.length)throw new AppError(400,'PACK_DUPLICATE_ID');return items;}
 export function parseTenantPack(value:unknown):TenantPack {
   if(value===undefined)throw new AppError(400,'PACK_REQUIRED');
-  if(JSON.stringify(value).length>48_000)throw new AppError(413,'PACK_TOO_LARGE');
+  if(new TextEncoder().encode(JSON.stringify(value)).byteLength>48_000)throw new AppError(413,'PACK_TOO_LARGE');
   const v=object(value,['schemaVersion','semanticVersion','name','allowedMetrics','dashboards','queries','ai']);
   if(v.schemaVersion!==1||v.semanticVersion!=='operations-v1')throw new AppError(400,'PACK_VERSION_UNSUPPORTED');
   if(!Array.isArray(v.allowedMetrics)||!v.allowedMetrics.length||v.allowedMetrics.length>7)throw new AppError(400,'PACK_METRICS_REQUIRED');
@@ -26,4 +26,4 @@ export function parseTenantPack(value:unknown):TenantPack {
   return {schemaVersion:1,semanticVersion:'operations-v1',name:text(v.name,100),allowedMetrics,dashboards,queries,
     ai:{enabled:a.enabled,providerInstanceRef:id(a.providerInstanceRef),modelRef:id(a.modelRef),credentialRef:id(a.credentialRef),dailyBudgetUsd:a.dailyBudgetUsd,contextMode:'authorized-results-only',prompt:a.prompt}};
 }
-export interface ActivePack {releaseId:string;revision:number;sourceCommit:string;pack:TenantPack}
+export interface ActivePack {releaseId:string;revision:number;sourceCommit:string;provenance:'operator-asserted';attestationVerified:false;pack:TenantPack}
