@@ -21,7 +21,7 @@ jobs:
         run: |
           mkdir -p .local/ui-deps
           cd .local/ui-deps
-          printf '{"name":"@runlumi/bi","version":"0.2.0","private":true,"type":"module","license":"UNLICENSED"}\n' > package.json
+          printf '{"name":"@runlumi/bi","version":"0.2.0","private":true,"type":"module","license":"Elastic-2.0"}\n' > package.json
           npm install --save-exact --ignore-scripts react@19.3.0 react-dom@19.3.0 @tanstack/react-query@5 @tabler/icons-react@3 @radix-ui/react-slot@1 class-variance-authority@0.7.1 clsx@2.1.1 tailwind-merge@3
           npm install --save-dev --save-exact --ignore-scripts vite@8.3.0 @vitejs/plugin-react@6 tailwindcss@4 @tailwindcss/vite@4 typescript@5.9.3 @types/react@19 @types/react-dom@19 @types/node@22 @playwright/test@1.62.1
           npm ls --depth=0

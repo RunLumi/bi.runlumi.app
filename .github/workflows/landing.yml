@@ -1,10 +1,10 @@
 name: landing
 on:
   pull_request:
-    paths: ['web/**', '.github/workflows/landing.yml', 'DESIGN.md', 'ICON.md', 'AGENTS.md']
+    paths: ['web/**', '.github/workflows/landing.yml', 'DESIGN.md', 'ICON.md', 'AGENTS.md', 'LICENSE', 'NOTICE', 'LICENSING.md', 'licensing-policy.json', 'scripts/product-notices.mjs']
   push:
     branches: [main]
-    paths: ['web/**', '.github/workflows/landing.yml', 'DESIGN.md', 'ICON.md', 'AGENTS.md']
+    paths: ['web/**', '.github/workflows/landing.yml', 'DESIGN.md', 'ICON.md', 'AGENTS.md', 'LICENSE', 'NOTICE', 'LICENSING.md', 'licensing-policy.json', 'scripts/product-notices.mjs']
 permissions:
   contents: read
 concurrency:

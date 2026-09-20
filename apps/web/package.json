@@ -3,11 +3,11 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "Elastic-2.0",
   "engines": {"node": ">=22.16.0"},
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node ../../scripts/web-notices.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 127.0.0.1",
     "test:e2e": "playwright test"

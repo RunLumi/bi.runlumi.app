@@ -1,8 +1,12 @@
 # Third-party provenance and dependency admission
 
-Original Lumi BI code remains private/reserved under LICENSE. No repository
-visibility or license changes are made by PR #2. Source visibility and code
-license are separate from customer-data confidentiality.
+Original Lumi BI software and documentation now use Elastic-2.0 under LICENSE;
+see [license scope](LICENSING.md). This owner-authorized change does not relicense
+any third-party material. Source visibility and code license are separate from
+customer-data confidentiality. No dependency version or integrity digest changes.
+Builds retain the existing third-party notices and add `LICENSE.txt`/`NOTICE.txt`
+for the original product. The independently locked Astro `web/` site also retains
+its actual Geist/Geist Mono OFL and adapted Tabler MIT notices.
 
 ## Server
 

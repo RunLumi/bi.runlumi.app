@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "defaultLicense": "Elastic-2.0",
+  "licenseFile": "LICENSE",
+  "licenseSha256": "48255018b41fc0e965b1115af7e6779bc218bb8a6747d561da800d5022622aa2",
+  "copyrightNotice": "Copyright (c) 2026 RunLumi. All rights reserved except as expressly licensed.",
+  "packages": [
+    {
+      "manifest": "package.json",
+      "lock": "package-lock.json",
+      "license": "Elastic-2.0",
+      "private": true
+    },
+    {
+      "manifest": "apps/web/package.json",
+      "lock": "apps/web/package-lock.json",
+      "license": "Elastic-2.0",
+      "private": true
+    },
+    {
+      "manifest": "web/package.json",
+      "lock": "web/package-lock.json",
+      "license": "Elastic-2.0",
+      "private": true
+    }
+  ],
+  "apacheScopes": [],
+  "thirdPartyNotice": "THIRD_PARTY_NOTICES.md"
+}

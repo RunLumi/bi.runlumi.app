@@ -24,7 +24,10 @@ The current UI is not represented as a React app or a fully featured editor.
 
 ## Licensing
 
-Original Lumi BI code remains private/reserved. Public licensing is the owner's
+Historical decision, superseded for original-product licensing by
+[ADR 0009](0009-source-available-licensing.md).
+
+At bootstrap, original Lumi BI code remained reserved. Public licensing is the owner's
 strategic decision and is not inherited from lumi-agents. MIT/Apache dependencies
 can be candidates without automatically determining Lumi's own license. Preserve
 notices and review transitive models/assets/service terms before adoption.
