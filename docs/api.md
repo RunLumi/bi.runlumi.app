@@ -75,3 +75,60 @@ metadata-only `GET /api/tenants/{tenant}/commerce-receipts[/{receiptId}]` requir
 owner membership and `data.import`. No raw JSON, object URL or credential is returned.
 These internal foundation routes do not imply a versioned public partner API.
 See the [envelope, error and durability contract](implementation/01-durable-export-receipts.md).
+
+## Commerce normalization (implementation 02)
+
+Owner + `data.import`: `POST /api/tenants/:tenant/commerce-normalizations` accepts
+`{ "receiptId": "cr_..." }`. Returns a deterministic immutable normalization ID,
+state (`NORMALIZED` or `QUARANTINED`), stable reason, record count and hashes.
+Both outcomes return HTTP 200; inspect state. Missing/tampered raw evidence returns
+503; a route/source race returns 409. GET collection or `/:normalizationId` returns
+bounded metadata. No raw rows or R2 URLs are exposed. See
+[the exact supported interchange contract](implementation/02-normalization.md).
+
+## Bounded commerce review workflow (increments 02–03)
+
+All routes below use `/api/tenants/{tenant}` and currently require an independently
+verified **owner** with `data.import`. Editor/viewer/platform-operator identities
+have no implicit access. These are export-owner review tools, not a general
+field-scoped financial-reader API. No raw SQL is accepted.
+
+| Route | Method | Contract |
+|---|---|---|
+| `/commerce-connections` | GET | Up to 50 approved source identities/revisions, no credentials |
+| `/commerce-connections` | POST | `{id, provider, sourceAccountId, resourceType, approvalRef}` authorizes an export scope, not a live OAuth connector |
+| `/commerce-connections/{id}` | PUT | `{state, reason}`, strong `If-Match: "revision"`; revoked is terminal |
+| `/commerce-staging/{normalizationId}` | GET | Checksum-verified normalized identities/values after current source authorization; not published |
+| `/commerce-mappings` | POST | `{evidenceRef, entries:[{sourceKey, canonicalId, priority}]}` immutable owner-reviewed mapping |
+| `/commerce-publications/status` | GET | Only current head ID/revision, including for repair when source data access is blocked |
+| `/commerce-publications/preview` | POST | Candidate below, exact preview hash/report; no publication |
+| `/commerce-publications` | POST | Same candidate + `previewHash`, `reason`; atomic publication and revision advance |
+| `/commerce-publications[/{id}]` | GET | Current or retained immutable report, scope rechecked and hash verified |
+| `/commerce-insights` | GET | Deterministic observed findings pinned to current report, no autonomous actions |
+| `/commerce-decisions` | POST | `{publicationId, findingId, rationale, dueOn:null|"YYYY-MM-DD"}`; current real finding only |
+| `/commerce-decisions[/{id}]` | GET | Owner-scoped register; detail includes immutable transition events and truncation flag |
+| `/commerce-decisions/{id}` | PUT | `{state, note, outcomePublicationId:null|"cp_..."}` with strong If-Match; positive result evidence required for resolution |
+| `/commerce-exports/{publicationId}?format=csv` | GET | Private snapshot metric CSV; `json` preserves full bounded report; no public token or XLSX claim |
+
+Candidate:
+
+```json
+{
+  "normalizationIds": ["nb_..."],
+  "mappingId": null,
+  "controls": [],
+  "expectedRevision": 0,
+  "expectedPublicationId": null
+}
+```
+
+Independent controls (optional but absence stays visible):
+`{normalizationId, recordCount, netSales:null|"integer", expectedSettlement:null|"integer", evidenceRef}`.
+A count/value mismatch blocks. The evidence is owner-declared, not automatically
+verified as independent. See [implementation 03](implementation/03-reviewed-publication-and-decisions.md)
+for exact limits, tax/time basis and state transitions. All data and error responses
+are `private, no-store`; mutation requests reject cross-origin contexts.
+
+Apply additive tenant migrations `0004` through `0006` before enabling these routes.
+There is no deployed Queue consumer, source polling scheduler or external action in
+these endpoints. Unsupported vendor formats remain quarantined rather than guessed.
