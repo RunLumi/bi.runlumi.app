@@ -13,11 +13,14 @@ for (const line of headersText.split('\n')) {
   if (!/^\s/.test(line)) { active = line.trim() === '/*'; continue; }
   if (active) { const colon = line.indexOf(':'); common[line.slice(0, colon).trim()] = line.slice(colon + 1).trim(); }
 }
+const redirects = new Map((await readFile(resolve(root, '_redirects'), 'utf8')).split('\n').filter(line => line && !line.startsWith('#')).map(line => { const [from, to, code] = line.trim().split(/\s+/); return [from, { to, code: Number(code) }]; }));
 const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.xml': 'application/xml; charset=utf-8', '.txt': 'text/plain; charset=utf-8' };
 const server = createServer(async (req, res) => {
   try {
     if (!['GET', 'HEAD'].includes(req.method)) { res.writeHead(405); res.end(); return; }
     const pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
+    const redirect = redirects.get(pathname);
+    if (redirect) { res.writeHead(redirect.code, { ...common, Location: redirect.to }); res.end(); return; }
     let file = resolve(root, `.${pathname}`);
     if (file !== root && !file.startsWith(root + sep) || pathname.includes('\0') || pathname.includes('\\')) { res.writeHead(400); res.end(); return; }
     let code = 200;

@@ -39,6 +39,15 @@ let notices = 'Lumi BI landing page — distribution notices\nOriginal Lumi code
 for (const pkg of ['geist', 'geist-mono']) notices += `\n@fontsource-variable/${pkg}\n` + await read(`node_modules/@fontsource-variable/${pkg}/LICENSE`) + '\n';
 notices += '\nUtility arrow/check/chevron/menu paths adapted from Tabler Icons, Copyright (c) 2020 Paweł Kuna, MIT. Product glyphs are original Lumi geometry.\n\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\nThe above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\nTHE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n';
 await writeFile(new URL('dist/THIRD_PARTY_NOTICES.txt', root), notices);
+const fonts = await readdir(new URL('dist/_astro/', root));
+assert(fonts.some(name => /geist-vietnamese-wght-normal.*\.woff2$/.test(name)), 'Local Vietnamese Geist subset must ship');
+assert.equal(JSON.parse(await read('node_modules/@fontsource-variable/geist/package.json')).version, '5.3.0');
+for (const path of ['dist/404.html', 'dist/quyen-rieng-tu/index.html']) {
+  const document = await read(path);
+  assert(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(document), `Inline script in ${path}`);
+  assert(!/<style[\s>]|\sstyle=/i.test(document), `Inline CSS in ${path}`);
+}
+assert.match(await read('dist/_redirects'), /^\/privacy\/ \/quyen-rieng-tu\/ 301$/m);
 let assetBytes = 0;
-for (const file of await readdir(new URL('dist/_astro/', root))) assetBytes += (await stat(new URL(join('dist/_astro', file), root))).size;
+for (const file of fonts) assetBytes += (await stat(new URL(join('dist/_astro', file), root))).size;
 console.log(`Static build verified: ${Buffer.byteLength(html)} B HTML; ${Buffer.byteLength(js)} B interaction JS; ${assetBytes} B hashed assets.`);
