@@ -1,5 +1,8 @@
 # Lumi Commerce Intelligence
 
+- landing page:     https://about.bi.runlumi.app
+- platform:     https://bi.runlumi.app
+
 **Know which money, stock and operating exceptions need attention. Explain the evidence.**
 
 Lumi connects commerce systems without replacing them. The target products are
