@@ -4,6 +4,8 @@ import type {CommerceFinding} from '../../../../packages/core/commerce-insights.
 export type {CommerceReport,CommerceFinding};
 export const commercePermitted=(tenant:Tenant)=>tenant.role==='owner'&&tenant.features.includes('data.import');
 export interface CommercePublication {activePublicationId:string|null;revision:number;noPublishedData:boolean;publication:null|{id:string;contentHash:string;publishedAt:string;report:CommerceReport};health?:{pendingOrQuarantined:{id:string;state:string}[];truncated:boolean}}
+export interface CommerceCapability {capabilityId:string;state:string;evidenceRef:string;testedAt:string;coverage:Record<string,unknown>;revision:number}
+export interface CommerceCapabilityConnection {connectionId:string;provider:string;sourceAccountId:string;resourceType:string;connectionState:string;capabilities:CommerceCapability[]}
 export interface CommerceConnection {id:string;provider:string;sourceAccountId:string;resourceType:'orders'|'inventory'|'settlements';state:string;revision:number}
 export interface CommerceBuild {normalizationId:string;receiptId:string;state:string;reasonCode:string|null;recordCount:number;contentHash:string;createdAt:string}
 export interface CommerceReceipt {receiptId:string;state:string;connectionId:string;normalizedRevision:string|null;publishedVersion:string|null}

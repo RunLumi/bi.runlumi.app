@@ -12,6 +12,7 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | 02 | Typed interchange normalizer, exact arithmetic, quarantine and staging identities | [02](02-normalization.md) |
 | 03 | Reviewed cross-source publication, money/stock UI, observed findings, decision history and private exports | [03](03-reviewed-publication-and-decisions.md) |
 | 04 | Versioned commerce metric catalog and bounded publication-backed query contract | [04](04-governed-commerce-query.md) |
+| 05 | Owner-reviewed per-resource capability and coverage matrix with publication gates | [05](05-capability-coverage-review.md) |
 
 ## Complete specification inventory
 
@@ -19,13 +20,13 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 |---|---|---|
 | C00 | Product and commercial tests specified | Paid merchant demand/ROI and acquisition evidence |
 | C01 | Authenticated memberships, route identity, control/data cells | Lifecycle provisioning, fleet migration, scoped job admission |
-| C02 | Owner-authorized export scope, source revision and immutable raw metadata | OAuth installation, secret broker, provider capability certification |
+| C02 | Owner-authorized export scope, source revision, immutable raw metadata and reviewed capability/coverage states | OAuth/PKCE installation, secret broker, provider capability certification |
 | C03 | Nhanh source labels in checked interchange | Actual Nhanh transport, incremental sync and installation tests |
 | C04 | Haravan source labels in checked interchange | Actual Haravan transport, auth/event certification |
 | C05 | Shopee source labels in checked interchange | Authorized app/region/scopes, official protocol certification and adapter |
 | C06 | Raw/outbox, manual bounded consumer, quarantine, immutable publication and CAS | Chunked runs, Queue leases/consumer, dead letters, outage/orphan recovery |
 | C07 | Opaque source identity, reviewed aliases/priorities, stock gauges | Full line/bundle/payment/refund/fulfillment/event model and source authority packs |
-| C08 | Independent declared counts/totals fail closed; report lineage | Authenticated control evidence, provider completeness/reconciliation certification |
+| C08 | Independent declared counts/totals fail closed; report lineage; capability gaps downgrade dependent metrics | Authenticated control evidence, provider completeness/reconciliation certification |
 | C09 | Exact order-cohort money, cost/fee/income nulls, statement cash, physical units; versioned bounded catalog | Full metric registry, line/event-time/FX semantics, compatible release lifecycle |
 | C10 | Operations typed/batched queries; bounded owner-reviewed commerce query over published reports | Dimensions, field/row scope, async jobs, admission/fair-share budgets and viewer finance policy |
 | C11 | Bounded merchandise/cost/contribution review with provenance | Channel/SKU/line analysis, restatement coverage, ads and complete source certification |

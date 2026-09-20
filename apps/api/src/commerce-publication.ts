@@ -6,8 +6,8 @@ import type {TenantContext} from './tenant.ts';
 const database=(ctx:TenantContext)=>ctx.db.withSession?ctx.db.withSession('first-primary'):ctx.db;
 interface Head {active_publication_id:string|null;revision:number}
 interface StoredReport {id:string;mapping_id:string|null;content_hash:string;report_json:string;created_at:string}
-interface InputRow {id:string;receipt_id:string;content_hash:string;raw_content_hash:string;payload_json:string}
-const currentInputs=`SELECT n.id,n.receipt_id,n.content_hash,n.raw_content_hash,n.payload_json FROM commerce_normalizations n
+interface InputRow {id:string;receipt_id:string;connection_id:string;content_hash:string;raw_content_hash:string;payload_json:string}
+const currentInputs=`SELECT n.id,n.receipt_id,r.connection_id,n.content_hash,n.raw_content_hash,n.payload_json FROM commerce_normalizations n
  JOIN commerce_receipts r ON r.tenant_id=n.tenant_id AND r.id=n.receipt_id
  JOIN commerce_connections c ON c.tenant_id=r.tenant_id AND c.id=r.connection_id
  JOIN tenant_identity t ON t.tenant_id=n.tenant_id
@@ -41,16 +41,28 @@ async function candidate(ctx:TenantContext,input:unknown){
  const rows=await db.batch([
   db.prepare(currentInputs).bind(ctx.id,JSON.stringify(b.ids),NORMALIZER_VERSION,ctx.routeEpoch),
   db.prepare('SELECT active_publication_id,revision FROM commerce_heads WHERE tenant_id=?').bind(ctx.id),
-  db.prepare('SELECT p.* FROM commerce_publications p JOIN commerce_heads h ON h.tenant_id=p.tenant_id AND h.active_publication_id=p.id WHERE p.tenant_id=?').bind(ctx.id),
-  db.prepare('SELECT payload_json,content_hash FROM commerce_mappings WHERE tenant_id=? AND id=?').bind(ctx.id,b.mappingId)
+   db.prepare('SELECT p.* FROM commerce_publications p JOIN commerce_heads h ON h.tenant_id=p.tenant_id AND h.active_publication_id=p.id WHERE p.tenant_id=?').bind(ctx.id),
+   db.prepare('SELECT payload_json,content_hash FROM commerce_mappings WHERE tenant_id=? AND id=?').bind(ctx.id,b.mappingId),
+   db.prepare('SELECT connection_id,capability_id,state,coverage_json FROM commerce_capabilities WHERE tenant_id=?').bind(ctx.id)
  ]);
  if(rows.some(r=>!r.success)||rows[0]!.results.length!==b.ids.length)throw new AppError(409,'NORMALIZATION_SCOPE_CHANGED');
  let mapping:IdentityMapping|null=null;
  if(b.mappingId!==null){const r=rows[3]!.results[0];if(!r||typeof r.payload_json!=='string'||new TextEncoder().encode(r.payload_json).byteLength>48_000||await sha256(r.payload_json)!==r.content_hash)throw new AppError(503,'MAPPING_INTEGRITY');mapping=parseIdentityMapping(JSON.parse(r.payload_json));}
  const inputs=[];
- for(const raw of rows[0]!.results){const r=raw as unknown as InputRow;if(await sha256(r.payload_json)!==r.content_hash)throw new AppError(503,'NORMALIZATION_INTEGRITY');const data=JSON.parse(r.payload_json) as NormalizedExport;if(data.tenantId!==ctx.id||data.normalizerVersion!==NORMALIZER_VERSION)throw new AppError(503,'NORMALIZATION_IDENTITY_MISMATCH');inputs.push({normalizationId:r.id,receiptId:r.receipt_id,contentHash:r.content_hash,rawContentHash:r.raw_content_hash,data});}
+  for(const raw of rows[0]!.results){const r=raw as unknown as InputRow;if(await sha256(r.payload_json)!==r.content_hash)throw new AppError(503,'NORMALIZATION_INTEGRITY');const data=JSON.parse(r.payload_json) as NormalizedExport;if(data.tenantId!==ctx.id||data.normalizerVersion!==NORMALIZER_VERSION)throw new AppError(503,'NORMALIZATION_IDENTITY_MISMATCH');inputs.push({normalizationId:r.id,receiptId:r.receipt_id,contentHash:r.content_hash,rawContentHash:r.raw_content_hash,connectionId:r.connection_id,data});}
  inputs.sort((a,b)=>a.normalizationId<b.normalizationId?-1:1);
- const report=assembleCommerceReport(inputs,mapping,b.controls),serialized=JSON.stringify(report);
+  const report=assembleCommerceReport(inputs,mapping,b.controls);
+  const capabilities=rows[4]!.results as unknown as {connection_id:string;capability_id:string;state:string;coverage_json:string}[];
+   const sourceConnections=new Set(inputs.map(input=>input.connectionId));
+  const warnings=new Set(report.warnings);
+  for(const capability of capabilities){
+   if(!sourceConnections.has(capability.connection_id)||capability.state==='UNKNOWN'||capability.state==='SUPPORTED')continue;
+   warnings.add(`CAPABILITY_${capability.state}_${capability.capability_id}`);
+   if(capability.capability_id==='fees'&&capability.state!=='SUPPORTED')report.metrics.contribution_pre_ads=null;
+   if(capability.capability_id==='warehouse_scope'&&capability.state!=='SUPPORTED')report.metrics.available_units=null;
+  }
+  report.warnings=[...warnings];
+  const serialized=JSON.stringify(report);
  if(new TextEncoder().encode(serialized).byteLength>512_000)throw new AppError(422,'PUBLICATION_BUDGET_EXCEEDED');
  const hash=await sha256(serialized),previewHash=await sha256(JSON.stringify([ctx.id,ctx.routeEpoch,b.ids,b.mappingId,b.controls,b.expectedRevision,b.expectedPublicationId,hash])),publicationId='cp_'+previewHash.slice(0,48);
  const head=(rows[1]!.results[0] as unknown as Head|undefined)??{active_publication_id:null,revision:0};

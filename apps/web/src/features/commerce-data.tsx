@@ -2,7 +2,7 @@ import {useState,type FormEvent} from 'react';
 import {useQuery,useMutation,useQueryClient} from '@tanstack/react-query';
 import {Link} from 'react-router-dom';
 import {api,ApiError,type Tenant} from '@/lib/api';
-import {commercePermitted,localInstant,type CommerceConnection,type CommerceBuild,type CommerceReceipt,type Candidate,type Preview} from '@/lib/commerce';
+import {commercePermitted,localInstant,type CommerceConnection,type CommerceBuild,type CommerceReceipt,type Candidate,type Preview,type CommerceCapabilityConnection} from '@/lib/commerce';
 import {commerceSchemaFingerprint} from '../../../../packages/core/commerce-model.ts';
 import {Card,CardHeader,CardTitle,CardContent} from '@/components/ui/card';import {Button} from '@/components/ui/button';
 import {Loading,ErrorState,Empty} from '@/components/states';import {ReportMetrics,ReportEvidence} from './commerce-report';
@@ -13,7 +13,8 @@ export function CommerceDataPage(props:{tenant:Tenant;identity:string}){
 }
 function AuthorizedDataPage({tenant,identity}:{tenant:Tenant;identity:string}){
  const base=`/api/tenants/${tenant.id}`,client=useQueryClient();
- const connections=useQuery({queryKey:['commerce-connections',identity,tenant.id],queryFn:({signal})=>api<{connections:CommerceConnection[]}>(base+'/commerce-connections',identity,{signal})});
+  const connections=useQuery({queryKey:['commerce-connections',identity,tenant.id],queryFn:({signal})=>api<{connections:CommerceConnection[]}>(base+'/commerce-connections',identity,{signal})});
+  const capabilities=useQuery({queryKey:['commerce-capabilities',identity,tenant.id],queryFn:({signal})=>api<{connections:CommerceCapabilityConnection[]}>(base+'/commerce-capabilities',identity,{signal})});
  const receipts=useQuery({queryKey:['commerce-receipts',identity,tenant.id],queryFn:({signal})=>api<{receipts:CommerceReceipt[]}>(base+'/commerce-receipts',identity,{signal})});
  const builds=useQuery({queryKey:['commerce-builds',identity,tenant.id],queryFn:({signal})=>api<{normalizations:CommerceBuild[]}>(base+'/commerce-normalizations',identity,{signal})});
  const head=useQuery({queryKey:['commerce-head',identity,tenant.id],queryFn:({signal})=>api<{activePublicationId:string|null;revision:number}>(base+'/commerce-publications/status',identity,{signal})});
@@ -21,7 +22,7 @@ function AuthorizedDataPage({tenant,identity}:{tenant:Tenant;identity:string}){
  const [connectionId,setConnectionId]=useState(''),[file,setFile]=useState<File|null>(null),[deliveryId,setDeliveryId]=useState('');
  const [selected,setSelected]=useState<string[]>([]),[controls,setControls]=useState('[]'),[mappingJson,setMappingJson]=useState('{"evidenceRef":"","entries":[]}'),[mappingId,setMappingId]=useState('');
  const [preview,setPreview]=useState<(Preview&{candidate:Candidate})|null>(null),[reason,setReason]=useState(''),[notice,setNotice]=useState('');
- const refresh=async()=>{await Promise.all(['commerce-connections','commerce-receipts','commerce-builds','commerce-head','commerce-report','commerce-decisions'].map(key=>client.invalidateQueries({queryKey:[key,identity,tenant.id]})));};
+  const refresh=async()=>{await Promise.all(['commerce-connections','commerce-capabilities','commerce-receipts','commerce-builds','commerce-head','commerce-report','commerce-decisions'].map(key=>client.invalidateQueries({queryKey:[key,identity,tenant.id]})));};
  const mutation=useMutation({mutationFn:async(action:'source'|'upload'|'mapping'|'preview'|'publish'|{normalize:string}|{connection:CommerceConnection;state:string;reason:string})=>{
   setNotice('');
   if(action==='source'){
@@ -51,8 +52,8 @@ function AuthorizedDataPage({tenant,identity}:{tenant:Tenant;identity:string}){
  }});
  const changeSelection=(id:string,checked:boolean)=>{setSelected(ids=>checked?[...ids,id]:ids.filter(x=>x!==id));setPreview(null);};
  const busy=mutation.isPending;
- if(connections.isPending||receipts.isPending||builds.isPending||head.isPending)return <Loading/>;
- const failure=connections.error??receipts.error??builds.error??head.error;
+  if(connections.isPending||capabilities.isPending||receipts.isPending||builds.isPending||head.isPending)return <Loading/>;
+  const failure=connections.error??capabilities.error??receipts.error??builds.error??head.error;
  if(failure)return <ErrorState error={failure} retry={()=>{void refresh();}}/>;
  return <>
  <div className="page-title"><div><p className="eyebrow">TỪ BẰNG CHỨNG ĐẾN BẢN CÔNG BỐ</p><h1>Nhập có kiểm tra. Công bố có chủ đích.</h1><p>Bản xuất theo hợp đồng Lumi, tối đa 100 bản ghi và 48 KB mỗi tệp. Đây chưa phải trình nhập tệp gốc bất kỳ từ sàn hoặc một kết nối API.</p></div><Link className="inline-link" to="/money">Xem bản thương mại →</Link></div>
@@ -82,12 +83,18 @@ function AuthorizedDataPage({tenant,identity}:{tenant:Tenant;identity:string}){
  </div>
  {preview&&<div className="mt-6"><div className="quality-note">Bản xem trước, chưa công bố. Các cảnh báo vẫn được giữ khi duyệt.</div><ReportMetrics report={preview.report}/><ReportEvidence report={preview.report}/><form className="commerce-form mt-6" onSubmit={(e:FormEvent)=>{e.preventDefault();mutation.mutate('publish');}}><label>Lý do duyệt và phạm vi đã kiểm tra<input required maxLength={200} value={reason} onChange={e=>setReason(e.target.value)}/></label><Button type="submit" disabled={busy}>Công bố bản đã duyệt</Button><small>Việc công bố không chứng nhận độ đầy đủ nguồn và không gửi lệnh sang hệ thống bán hàng.</small></form></div>}
  </CardContent></Card>
- <Card className="mt-6"><CardHeader><CardTitle>Kiểm soát quyền dùng nguồn</CardTitle></CardHeader><CardContent><div className="source-controls">{connections.data!.connections.map(c=><SourceState key={`${c.id}:${c.revision}`} connection={c} busy={busy} onChange={(state,reason)=>mutation.mutate({connection:c,state,reason})}/>)}</div><p className="muted">Dừng hoặc thu hồi quyền sẽ chặn bản công bố phụ thuộc quyền cũ. Thu hồi là trạng thái cuối, không thể bật lại kết nối đó.</p></CardContent></Card>
+  <Card className="mt-6"><CardHeader><CardTitle>Kiểm soát quyền dùng nguồn</CardTitle></CardHeader><CardContent><div className="source-controls">{connections.data!.connections.map(c=><SourceState key={`${c.id}:${c.revision}`} connection={c} busy={busy} onChange={(state,reason)=>mutation.mutate({connection:c,state,reason})}/>)}</div><p className="muted">Dừng hoặc thu hồi quyền sẽ chặn bản công bố phụ thuộc quyền cũ. Thu hồi là trạng thái cuối, không thể bật lại kết nối đó.</p></CardContent></Card>
+  <Card className="mt-6"><CardHeader><CardTitle>Phạm vi dữ liệu và khả năng theo nguồn</CardTitle></CardHeader><CardContent><div className="source-controls">{capabilities.data!.connections.map(c=><CapabilityState key={c.connectionId} connection={c} busy={busy} onReview={async capability=>{await api(base+'/commerce-capabilities',identity,{method:'POST',body:capability});await refresh();}}/>)}</div><p className="muted">Đây là bằng chứng phạm vi do chủ nguồn duyệt, không phải xác minh API trực tiếp hay chứng nhận đầy đủ dữ liệu.</p></CardContent></Card>
  </>;
 }
 function SourceState({connection:c,busy,onChange}:{connection:CommerceConnection;busy:boolean;onChange:(state:string,reason:string)=>void}){
  const [state,setState]=useState(c.state==='active'?'paused':'active'),[reason,setReason]=useState('');
  return <details><summary>{c.id} · {c.sourceAccountId} · {c.state}</summary>{c.state!=='revoked'&&<form className="commerce-form compact" onSubmit={e=>{e.preventDefault();onChange(state,reason);}}><label>Đổi quyền nguồn<select value={state} onChange={e=>setState(e.target.value)}>{c.state!=='active'&&<option value="active">Cho phép lại, yêu cầu nhập mới</option>}{c.state==='active'&&<option value="paused">Tạm dừng</option>}<option value="revoked">Thu hồi vĩnh viễn kết nối</option></select></label><label>Lý do thay đổi<input required maxLength={200} value={reason} onChange={e=>setReason(e.target.value)}/></label><Button type="submit" variant="outline" disabled={busy}>Xác nhận đổi quyền</Button></form>}</details>;
+}
+function CapabilityState({connection:c,busy,onReview}:{connection:CommerceCapabilityConnection;busy:boolean;onReview:(value:unknown)=>Promise<void>}){
+ const [capabilityId,setCapabilityId]=useState(c.capabilities[0]?.capabilityId||'orders'),[state,setState]=useState(c.capabilities[0]?.state||'UNKNOWN'),[evidence,setEvidence]=useState(c.capabilities[0]?.evidenceRef||''),[error,setError]=useState('');
+ const current=c.capabilities.find(x=>x.capabilityId===capabilityId);
+ return <details><summary>{c.connectionId} · {current?.capabilityId??'chưa đánh giá'} · {current?.state??'UNKNOWN'}</summary><form className="commerce-form compact" onSubmit={async e=>{e.preventDefault();setError('');try{await onReview({connectionId:c.connectionId,capabilityId,state,evidenceRef:evidence,testedAt:new Date().toISOString().slice(0,10),coverage:{requestedWindow:null,fetchedWindow:null,sourceConfirmedWindow:null,publishedWindow:null,shops:[c.sourceAccountId],warehouses:[],fieldsMasked:[]},...(current?{expectedRevision:current.revision}:{})});}catch(error){setError(error instanceof Error?error.message:'Không thể lưu');}}}><label>Tài nguyên<select value={capabilityId} onChange={e=>{setCapabilityId(e.target.value);setState(c.capabilities.find(x=>x.capabilityId===e.target.value)?.state||'UNKNOWN')}}>{['orders','settlements','inventory','fees','historical_cost','warehouse_scope','returns'].map(x=><option key={x}>{x}</option>)}</select></label><label>Trạng thái<select value={state} onChange={e=>setState(e.target.value)}>{['UNKNOWN','SUPPORTED','MISSING_SCOPE','UNSUPPORTED','BLOCKED_APPROVAL','DEGRADED'].map(x=><option key={x}>{x}</option>)}</select></label><label>Bằng chứng<input required maxLength={128} value={evidence} onChange={e=>setEvidence(e.target.value)} placeholder="mã biên bản hoặc kiểm tra"/></label><Button type="submit" variant="outline" disabled={busy}>Lưu đánh giá phạm vi</Button>{error&&<small role="alert">{error}</small>}</form></details>;
 }
 
 function StagingPreview({base,identity,normalizationId}:{base:string;identity:string;normalizationId:string}){
