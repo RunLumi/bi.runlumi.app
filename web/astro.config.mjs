@@ -1,12 +1,11 @@
 import { defineConfig } from 'astro/config';
 
-// The marketing site is a static Pages project, not the authenticated BI app.
-// No Cloudflare SSR adapter, API binding, tenant data, or runtime secret is needed.
+// Marketing is a static, separately deployed surface; never bind it to tenant data.
 export default defineConfig({
   site: 'https://bi.runlumi.app',
   output: 'static',
   trailingSlash: 'always',
-  devToolbar: { enabled: false },
   build: { inlineStylesheets: 'never' },
   vite: { build: { assetsInlineLimit: 0 } },
+  devToolbar: { enabled: false },
 });

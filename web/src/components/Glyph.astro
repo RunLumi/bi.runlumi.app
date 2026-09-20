@@ -1,0 +1,17 @@
+---
+// The only utility donor boundary. Arrow/check/chevron adapted from Tabler (MIT).
+// Product evidence, money, stock and exception forms are Lumi-owned geometry.
+interface Props { name: 'arrow' | 'chevron' | 'check' | 'menu' | 'evidence' | 'money' | 'stock' | 'exception'; class?: string; }
+const { name, class: className } = Astro.props;
+const paths: Record<Props['name'], string> = {
+  arrow: 'M4 10h12m-5-5 5 5-5 5',
+  chevron: 'm5 8 5 5 5-5',
+  check: 'm4 10 4 4 8-8',
+  menu: 'M3 5h14M3 10h14M3 15h14',
+  evidence: 'M4 2h8l4 4v12H4V2Zm8 0v5h4M7 10h6M7 14h4',
+  money: 'M3 3v14h14M6 13l4-4 3 2 4-7M13 4h4v4',
+  stock: 'm3 6 7-4 7 4v8l-7 4-7-4V6Zm0 0 7 4 7-4M10 10v8M6.5 4l7 4',
+  exception: 'M4 2h12v16H4V2ZM10 6v5M10 14h.01',
+};
+---
+<svg class:list={['glyph', className]} viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d={paths[name]}/></svg>
