@@ -10,6 +10,7 @@ import {controlRequest} from './control-client.ts';
 import { AppError, id, object, parseSnapshot, sha256, type Principal } from '../../../packages/core/contracts.ts';
 import { metrics, parseQuery, parseDashboard } from '../../../packages/core/semantics.ts';
 import { commerceMetricCatalog, parseCommerceQuery, queryCommerceReport } from '../../../packages/core/commerce-query.ts';
+import { readCommerceCapabilities, reviewCommerceCapability } from './commerce-capabilities.ts';
 import { authorizeTenant, canEdit } from './tenant.ts';
 import { importSnapshot } from './ingest.ts';
 import type { Env } from './bindings.ts';
@@ -56,10 +57,10 @@ export function createApi(authenticate:Authenticate, demo=false) {
         const body=request.method==='GET'?undefined:await readJson(request);
         return secure(await controlRequest(env,request,url.pathname.replace('/api/control/','/control/admin/'),body,demo),requestId);
       }
-      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|commerce-metrics|commerce-query|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
+      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|commerce-metrics|commerce-query|commerce-capabilities|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
       if(!match)throw new AppError(404,'NOT_FOUND');
       const tenantId=id(match[1]);const route=match[2];const resource=match[3];
-      const feature=['commerce-receipts','commerce-normalizations','commerce-mappings','commerce-publications','commerce-connections','commerce-insights','commerce-decisions','commerce-exports','commerce-staging'].includes(route??'')?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
+      const feature=['commerce-receipts','commerce-normalizations','commerce-mappings','commerce-publications','commerce-connections','commerce-capabilities','commerce-insights','commerce-decisions','commerce-exports','commerce-staging'].includes(route??'')?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
       const ctx=await authorizeTenant(env,principal,tenantId,request,feature,demo);
       const active=ctx.active;
       if(route==='configuration'&&request.method==='GET'&&!resource)return secure(json({active:active?{releaseId:active.releaseId,revision:active.revision,sourceCommit:active.sourceCommit,provenance:active.provenance,attestationVerified:active.attestationVerified,name:active.pack.name,queries:active.pack.queries,ai:{enabled:active.pack.ai.enabled,providerInstanceRef:active.pack.ai.providerInstanceRef,modelRef:active.pack.ai.modelRef,dailyBudgetUsd:active.pack.ai.dailyBudgetUsd,inferenceImplemented:false}}:null}),requestId);
@@ -72,6 +73,7 @@ export function createApi(authenticate:Authenticate, demo=false) {
         const contextHash=await sha256(JSON.stringify([ctx.id,ctx.routeEpoch,publication.publication.id,ctx.principal.subject]));
         return secure(json({queryId:crypto.randomUUID(),contract:query.contract,semanticRelease:'commerce-cohort-v1.0.0',dataVersion:publication.publication.id,contextHash,metrics:queryCommerceReport(publication.publication.report,query),quality:{state:publication.publication.report.qualityState,warnings:publication.publication.report.warnings,sourceCompletenessCertified:publication.publication.report.sourceCompletenessCertified},scope:{tenantId:ctx.id,description:'current authorized tenant scope'},lineage:{publicationId:publication.publication.id,contentHash:publication.publication.contentHash,sourceCount:publication.publication.report.sources.length}}),requestId);
       }
+      if(route==='commerce-capabilities'&&request.method==='GET'&&!resource)return secure(json(await readCommerceCapabilities(ctx)),requestId);
       let response:Response;
       if(route==='commerce-staging'&&request.method==='GET'&&resource){
         response=json(await readCommerceStaging(ctx,resource));
@@ -92,6 +94,8 @@ export function createApi(authenticate:Authenticate, demo=false) {
         response=json(await createCommerceConnection(ctx,await readJson(request)),201);
       }else if(route==='commerce-connections'&&request.method==='PUT'&&resource){
         response=json(await changeCommerceConnection(ctx,resource,await readJson(request),requireRevision(request)));
+      }else if(route==='commerce-capabilities'&&request.method==='POST'&&!resource){
+        response=json(await reviewCommerceCapability(ctx,await readJson(request)),201);
       }else if(route==='commerce-mappings'&&request.method==='POST'&&!resource){
         response=json(await registerCommerceMapping(ctx,await readJson(request)));
       }else if(route==='commerce-publications'&&request.method==='POST'&&resource==='preview'){

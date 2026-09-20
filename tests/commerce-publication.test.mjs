@@ -68,6 +68,10 @@ test('C07 snapshot reconnection is not a second source and cannot overlap in one
 test('C09 missing cost/fees stay unavailable through published report',async t=>{
  const f=await commerceFixture(t),n=await build(f,exportBody('orders',[order({cogs:null,cogsEvidenceRef:null,variableFees:null})]));await publish(f,bodyFor([n.normalizationId]));const r=(await(await f.call('commerce-publications')).json()).publication.report;assert.equal(r.metrics.net_merchandise_sales,'720000');assert.equal(r.metrics.gross_profit,null);assert.equal(r.metrics.contribution_pre_ads,null);
 });
+test('C02/C08 reviewed missing fee capability downgrades contribution but preserves sales',async t=>{
+ const f=await commerceFixture(t),n=await build(f),cap={connectionId:'orders-export',capabilityId:'fees',state:'MISSING_SCOPE',evidenceRef:'reviewed-fee-gap',testedAt:'2026-09-20',coverage:{requestedWindow:null,fetchedWindow:null,sourceConfirmedWindow:null,publishedWindow:null,shops:['shop-A'],warehouses:[],fieldsMasked:[]}};
+ assert.equal((await f.call('commerce-capabilities',cap)).status,201);const p=await preview(f,bodyFor([n.normalizationId]));assert.equal(p.report.metrics.net_merchandise_sales,'720000');assert.equal(p.report.metrics.contribution_pre_ads,null);assert(p.report.warnings.includes('CAPABILITY_MISSING_SCOPE_fees'));
+});
 test('C09-A08 historical correction creates new version; old manifest retains old cost and money',async t=>{
  const f=await commerceFixture(t),n=await build(f),one=await publish(f,bodyFor([n.normalizationId]));const next=await build(f,exportBody('orders',[order({cogs:'450000',cogsEvidenceRef:'reviewed-restatement'})],{observedAt:'2026-09-19T01:00:00.000Z'}),'orders-export','corrected');
  const two=await publish(f,bodyFor([next.normalizationId],{expectedRevision:1,expectedPublicationId:one.publicationId}));assert.notEqual(one.publicationId,two.publicationId);
