@@ -1,8 +1,10 @@
 # Lumi BI — public marketing site
 
-Vietnamese Astro landing page for **https://bi.runlumi.app**. Independent from the
+Vietnamese Astro landing page for **https://about.bi.runlumi.app**. Independent from the
 React tenant application in `../apps/web`: separate package/lock, static output,
 no API calls, no auth, no tenant bindings, no tracking and no customer data.
+The platform remains at **https://bi.runlumi.app**. See [GEO.md](GEO.md) for public
+identity, JSON-LD, llms.txt, regression gates and post-deployment acceptance.
 
 ## Develop and verify
 
@@ -16,7 +18,7 @@ npx --no-install playwright install chromium
 npm run test:e2e
 ```
 
-Node 22.16.0 is pinned in `.nvmrc`. `npm run build` checks Astro/TypeScript, emits
+Node 24.21.0 is pinned in `.nvmrc`. `npm run build` checks Astro/TypeScript, emits
 HTML/CSS/local fonts and verifies routes, SEO, security constraints, JS budget,
 image dimensions and distribution notices. Tests use a loopback-only server with
 the common production CSP from `_headers`, not Astro's permissive dev server.
@@ -39,14 +41,14 @@ Create a **Pages** project, not another tenant Worker:
 | Framework preset | Astro |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| Environment variable | `NODE_VERSION=22.16.0` |
+| Environment variable | `NODE_VERSION=24.21.0` |
 
 The output is `dist`, **not `web/dist` when the root is already `web`**. No adapter,
 SSR, Pages Functions, API keys, D1, R2 or Node compatibility flag is required.
 `wrangler.toml` declares the same output for an optional reviewed CLI workflow;
 it does not create a project, attach a domain or configure Git integration.
 
-In Pages → Custom domains, add **bi.runlumi.app** to this project first. Follow the
+In Pages → Custom domains, add **about.bi.runlumi.app** to this project first. Follow the
 provided DNS instructions; use the actual assigned Pages target, not an assumed
 hostname. Check existing records/Worker routes before changing DNS. Confirm the
 custom domain and TLS are active and open it from an external browser.
@@ -77,6 +79,7 @@ Live Nhanh/Haravan/Shopee integration, Ask Lumi and commerce calculations are no
 advertised as shipped. Connector names are roadmap targets, not partner badges.
 
 - `src/data/site.ts`: positioning, navigation, contact, connector statuses, FAQ.
+- `src/lib/geo.ts`: shared JSON-LD graph, safe serialization and llms.txt content.
 - `src/data/demo.ts`: isolated synthetic scenarios and definitions; no API.
 - `src/components/Demo.astro`: source, limit and missing-cost evidence adjacent to metrics.
 - `src/pages/index.astro`: the edited marketing narrative.

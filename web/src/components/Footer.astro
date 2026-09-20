@@ -4,8 +4,8 @@ import { site } from '../data/site';
 ---
 <footer class="site-footer">
   <div class="container footer-top">
-    <div><a href="/" class="brand-link" aria-label="Lumi BI — Trang chủ"><Brand /></a><p>Rõ dữ liệu. Vững quyết định.</p></div>
-    <div class="footer-links"><a href="mailto:hello@runlumi.app">{site.email}</a><a href="/quyen-rieng-tu/">Quyền riêng tư</a><a href="https://runlumi.app" rel="noopener">Hệ sinh thái Lumi ↗</a></div>
+    <div><a href="/" class="brand-link" aria-label="Lumi BI — Trang chủ"><Brand /></a><p>Rõ dữ liệu. Vững quyết định.</p><p>Nội dung: <a href={`mailto:${site.email}`} rel="author">{site.name}</a> · Rà soát <time datetime={site.reviewedAtISO}>{site.reviewedAt}</time>.</p></div>
+    <div class="footer-links"><a href={`mailto:${site.email}`}>{site.email}</a><a href="/quyen-rieng-tu/">Quyền riêng tư</a><a href="/llms.txt">Thông tin cho AI</a><a href="https://runlumi.app" rel="noopener">Hệ sinh thái Lumi ↗</a></div>
   </div>
   <div class="container footer-bottom"><span>© {new Date().getUTCFullYear()} Lumi. Bảo lưu mọi quyền.</span><span>Bản giới thiệu sản phẩm · Không phải ứng dụng BI trực tiếp.</span></div>
 </footer>

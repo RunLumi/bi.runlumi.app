@@ -1,8 +1,9 @@
 import { defineConfig } from 'astro/config';
+import { site } from './src/data/site.ts';
 
 // Marketing is a static, separately deployed surface; never bind it to tenant data.
 export default defineConfig({
-  site: 'https://bi.runlumi.app',
+  site: site.origin,
   output: 'static',
   trailingSlash: 'always',
   build: { inlineStylesheets: 'never' },
