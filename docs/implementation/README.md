@@ -11,6 +11,7 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | 01 | Private raw receipts and durable outbox adapter | [01](01-durable-export-receipts.md) |
 | 02 | Typed interchange normalizer, exact arithmetic, quarantine and staging identities | [02](02-normalization.md) |
 | 03 | Reviewed cross-source publication, money/stock UI, observed findings, decision history and private exports | [03](03-reviewed-publication-and-decisions.md) |
+| 04 | Versioned commerce metric catalog and bounded publication-backed query contract | [04](04-governed-commerce-query.md) |
 
 ## Complete specification inventory
 
@@ -25,8 +26,8 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | C06 | Raw/outbox, manual bounded consumer, quarantine, immutable publication and CAS | Chunked runs, Queue leases/consumer, dead letters, outage/orphan recovery |
 | C07 | Opaque source identity, reviewed aliases/priorities, stock gauges | Full line/bundle/payment/refund/fulfillment/event model and source authority packs |
 | C08 | Independent declared counts/totals fail closed; report lineage | Authenticated control evidence, provider completeness/reconciliation certification |
-| C09 | Exact order-cohort money, cost/fee/income nulls, statement cash, physical units | Full metric registry, line/event-time/FX semantics, compatible release lifecycle |
-| C10 | Operations typed/batched queries; bounded owner-reviewed commerce reports | General commerce typed queries, field/row scope, admission/fair-share budgets |
+| C09 | Exact order-cohort money, cost/fee/income nulls, statement cash, physical units; versioned bounded catalog | Full metric registry, line/event-time/FX semantics, compatible release lifecycle |
+| C10 | Operations typed/batched queries; bounded owner-reviewed commerce query over published reports | Dimensions, field/row scope, async jobs, admission/fair-share budgets and viewer finance policy |
 | C11 | Bounded merchandise/cost/contribution review with provenance | Channel/SKU/line analysis, restatement coverage, ads and complete source certification |
 | C12 | Signed final/provisional statements, explicit cash allocations, residuals | COD/carrier/bank imports, automated matching proposals and aging |
 | C13 | Physical pool/variant latest gauges; missing/negative availability | Movements, stock aging, demand/censoring/forecast/replenishment policies |
@@ -47,8 +48,9 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 
 ## Next dependency order
 
-1. General commerce metric catalog and authorized typed queries with shared answer
-   evidence; exact metric/time/scope contracts before an LLM plans queries.
+1. Reviewed metric releases and permission-scoped commerce typed queries with
+   shared answer evidence; exact metric/time/scope contracts before an LLM plans
+   queries.
 2. Source/field permissions, scoped credentials and durable job admission; then
    the first real provider transport, certified against an authorized installation.
 3. Chunked full-source publication, line/event facts and reconciliation; preserve
