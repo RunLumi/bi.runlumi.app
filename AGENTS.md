@@ -49,8 +49,14 @@ not authority to weaken these constraints.
 ## Tenancy is a system, not a WHERE clause
 
 One shared codebase, reusable vertical packs, tenant configuration and versioned
-releases. Do not fork the app for a customer. A private overlay may hold mappings
-and acceptance fixtures, not a second platform.
+releases. Shared-core changes always land upstream in `packages/*` and ship as a new
+core release; do not fork or patch core internals inside a customer repository.
+
+Customer applications are separate, generated repositories (`npm run customer:new`)
+consuming exact released core artifacts (ADR 0010). That is not a fork of the
+platform: a customer repository holds only composition, configuration, namespaced
+extensions, deployment inventory and docs. `scripts/check-boundaries.mjs` enforces
+the dependency direction (customer -> public core interfaces); do not weaken it.
 
 The current design uses one central control Worker/D1 for metadata and current
 authority, and one serving D1 per tenant in bounded data cells. Cells access control

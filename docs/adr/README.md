@@ -11,6 +11,7 @@
 | [0007](0007-durable-commerce-jobs.md) | Durable bounded tenant jobs before authenticated Queue deployment |
 | [0008](0008-tenant-lifecycle-fence.md) | Canonical audited tenant lifecycle and fail-closed access fence |
 | [0009](0009-source-available-licensing.md) | ELv2 product, explicit future Apache integration scopes and commercial rights boundary |
+| [0010](0010-customer-application-repositories.md) | Customer application repositories on a versioned product core |
 
 Status is selected for this bootstrap. Accepted does not mean every implementation
 or cloud-specific behavior has been verified. Revisit by measured evidence.

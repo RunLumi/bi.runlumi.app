@@ -16,6 +16,7 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | 06 | Role-scoped commerce metric catalog and publication-backed query denial for sensitive fields | [06](06-field-scoped-commerce-query.md) |
 | 07 | Tenant-scoped durable normalization jobs with transactional admission and lease fencing | [07](07-durable-commerce-jobs.md) |
 | 08 | Canonical audited tenant lifecycle with fail-closed control-plane fencing | [08](08-tenant-lifecycle-fence.md) |
+| 10 | Versioned core packages, generated customer repositories, enforced boundaries, reproducible packaging and reviewed upgrades | [10](10-customer-application-base.md) |
 
 ## Complete specification inventory
 

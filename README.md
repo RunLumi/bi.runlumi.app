@@ -96,21 +96,36 @@ npm --prefix apps/web run test:e2e
 ## Architecture
 
 ```text
-Browser -> Cell Worker -> private CONTROL service binding
-                            -> Access re-verification
-                            -> central control D1: current membership, license, route
-                            -> private PACKS R2: immutable active bundle
-           |
-           -> allowlisted binding + tenant identity + route epoch
-           -> tenant D1: facts, snapshots, UI dashboards, local audit
-           -> private SOURCES R2: tenant-prefixed source evidence
+Browser -> Customer application Worker -> private CONTROL service binding
+   |                                       -> Access re-verification
+   |                                       -> central control D1: membership, license, route
+   |                                       -> private PACKS R2: immutable active bundle
+   |  (dedicated deployment: fixed CUSTOMER_ID, hostname, Access audience, SERVING D1)
+   -> SERVING D1: facts, snapshots, UI dashboards, local audit
+   -> private SOURCES R2: customer-prefixed source evidence
 ```
 
-One product repo; isolated data and versioned configuration. A cell compromise
-still exposes its bound resources. Sensitive deployments can use dedicated cells;
-this is not a claim of PostgreSQL RLS or complete per-tenant compute isolation.
+One versioned product core (`packages/core`, `packages/cloudflare`, `packages/ui`).
+One generated, private customer repository per customer, consuming exact released
+core artifacts and customizing through public interfaces. A dedicated customer
+deployment has its own Worker, hostname, Access audience, serving D1, R2 resources
+and secrets, with no binding to another customer's data. Shared-core changes always
+land upstream; customer applications never patch core internals.
 
-[Architecture](docs/architecture.md) · [API](docs/api.md) ·
+A cell compromise still exposes its bound resources. Dedicated Workers are not
+complete account/IAM isolation, and this is not a claim of PostgreSQL RLS or
+complete per-tenant compute isolation.
+
+```bash
+npm run core:pack                     # deterministic tarballs + provenance manifest
+npm run customer:new -- --customer acme --name "ACME" --dest ../acme-lumi
+npm run check:boundaries              # enforce customer -> public core direction
+npm run check:workerd                 # packaged Worker under real local workerd
+npm run acceptance:two-customers      # two-customer install/build/upgrade proof
+```
+
+[Architecture](docs/architecture.md) · [Customer base (ADR 0010)](docs/adr/0010-customer-application-repositories.md) ·
+[Customization](CUSTOMIZATION.md) · [Upgrading](UPGRADING.md) · [API](docs/api.md) ·
 [Tenant packs](docs/tenant-packs.md) · [Deployment](docs/deployment.md) ·
 [Security](SECURITY.md) · [Design](DESIGN.md) · [Icons](ICON.md)
 

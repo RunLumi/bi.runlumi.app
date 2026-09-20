@@ -7,7 +7,13 @@ listed in [README](../README.md); the diagram includes clearly marked future sta
 
 Build one BI product repository. Reuse its code for every deployment. Tenant
 variation belongs in source mappings, metric models and dashboard definitions.
-An enterprise deployment may be dedicated without a software fork.
+
+The shared implementation lives in versioned packages (`packages/core`,
+`packages/cloudflare`, `packages/ui`). A customer application is a separate,
+generated repository consuming exact released core artifacts; it customizes
+navigation, pages, metrics, adapters and AI profiles through public interfaces and
+never patches core internals. An enterprise deployment may be dedicated without a
+software fork of the platform (see [ADR 0010](adr/0010-customer-application-repositories.md)).
 
 The first useful workload is RunLumi's own operational-cost evidence, not a
 universal lakehouse. Prove that two organizations can use the same dashboard
