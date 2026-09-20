@@ -102,3 +102,4 @@ export async function verifyGeoBuild(root) {
   for (const [, location] of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) assert.equal(new URL(location).origin, site.origin);
   assert(!sitemap.includes('/404') && !sitemap.includes('/llms.txt'));
   console.log(`GEO verified: ${files.length} HTML pages; shared entity identity, ${faqs.length} exact FAQ answers, llms.txt and public-domain consistency.`);
+}
