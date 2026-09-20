@@ -1,0 +1,15 @@
+/* Chart text uses a 540-unit SVG viewBox, so its rendered size shrinks with
+   the graphic. Compensate at each layout transition instead of shrinking labels. */
+.chart-labels { font-size: 15px; }
+@media (max-width: 1100px) { .chart-labels { font-size: 20px; } }
+@media (max-width: 900px) { .chart-labels { font-size: 17px; } }
+@media (max-width: 760px) {
+  /* Hiding <br> does not insert a space. Preserve authored sentence boundaries. */
+  .hero-lede br,
+  .decision-note h4 br,
+  .faq-section h2 br { display: initial; }
+  .metric { grid-template-columns: minmax(0, 1fr) auto; }
+  .chart-labels { font-size: 22px; }
+}
+@media (max-width: 400px) { .chart-labels { font-size: 24px; } }
+@media (max-width: 360px) { .chart-labels { font-size: 28px; } }
