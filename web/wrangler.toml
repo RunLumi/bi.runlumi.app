@@ -1,0 +1,6 @@
+# Optional Wrangler Pages configuration. Git integration settings are in README.md.
+# This is NOT the Workers / tenant application in apps/web.
+name = "lumi-bi-web"
+pages_build_output_dir = "./dist"
+compatibility_date = "2026-09-20"
+# No secrets, account IDs, Functions, D1 or R2 bindings belong on this public site.

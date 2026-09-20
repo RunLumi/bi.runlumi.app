@@ -1,0 +1,50 @@
+---
+import Brand from './Brand.astro';
+import Glyph from './Glyph.astro';
+import { scenarios, chartPoints } from '../data/demo';
+---
+<section class="demo-section container" id="minh-hoa" aria-labelledby="demo-label">
+  <div class="demo-caption"><h2 id="demo-label">Một góc nhìn. Ba nhóm quyết định.</h2><span><span class="annotation-dot"></span> Khám phá bản minh họa</span></div>
+  <div class="demo-frame" data-demo>
+    <aside class="demo-sidebar">
+      <Brand compact />
+      <p class="eyebrow">TÌNH HUỐNG</p>
+      <nav class="demo-tabs" aria-label="Chọn tình huống minh họa" data-demo-tabs>
+        {scenarios.map(item => <a id={`tab-${item.id}`} href={`#demo-${item.id}`} data-demo-tab={item.id}><span class="tab-number">{item.number}</span><span>{item.tab}</span><Glyph name="arrow" /></a>)}
+      </nav>
+      <div class="sidebar-note"><Glyph name="evidence" /><p>Hiểu cơ sở.<br />Rồi mới quyết định.</p></div>
+      <span class="sidebar-edition">COMMERCE INTELLIGENCE<br />PRODUCT PREVIEW / 01</span>
+    </aside>
+    <div class="demo-workspace">
+      <div class="demo-notice" id="demo-disclaimer"><strong>Dữ liệu giả lập</strong><span>Minh họa hướng sản phẩm, không phải tính năng thương mại đã phát hành.</span></div>
+      {scenarios.map(item => (
+        <section class="demo-panel" id={`demo-${item.id}`} data-demo-panel={item.id} aria-label={item.tab} aria-describedby="demo-disclaimer">
+          <div class="demo-title-row"><div><span class="eyebrow">GÓC NHÌN ĐIỀU HÀNH / {item.number}</span><h3>{item.title}</h3></div><span class="date-chip">01–07.09.2026<br /><span>GMT+7 · kỳ mẫu</span></span></div>
+          <p class="demo-subtitle">{item.subtitle}</p>
+          <div class="metric-grid">{item.metrics.map(metric => <div class:list={['metric', { 'metric-unknown': metric.unknown }]}><span class="metric-label">{metric.label}</span><p class:list={['metric-value', { 'metric-text': metric.unknown }]}>{metric.value}{metric.unit && <span>{metric.unit}</span>}</p><span class="metric-note">{metric.unknown && <span class="attention-dot"></span>}{metric.note}</span></div>)}</div>
+          <div class="demo-analysis">
+            <figure class="chart-sheet">
+              <figcaption><strong>{item.chartTitle}</strong><span>{item.chartUnit} · dữ liệu mẫu</span></figcaption>
+              <svg class="trend-chart" viewBox="0 0 600 232" role="img" aria-labelledby={`chart-title-${item.id} chart-desc-${item.id}`}>
+                <title id={`chart-title-${item.id}`}>{item.chartTitle}</title><desc id={`chart-desc-${item.id}`}>Từ ngày 1 đến ngày 7: {item.series.join(', ')} {item.chartUnit}. Có bảng số liệu bên dưới.</desc>
+                {[0, item.ceiling / 2, item.ceiling].map(value => <g><line x1="48" x2="566" y1={188 - value / item.ceiling * 148} y2={188 - value / item.ceiling * 148} class="chart-grid" /><text x="30" y={192 - value / item.ceiling * 148} text-anchor="end" class="chart-axis">{value}</text></g>)}
+                <polygon points={`48,188 ${chartPoints(item.series, item.ceiling)} 552,188`} class="chart-area" />
+                <polyline points={chartPoints(item.series, item.ceiling)} class="chart-line" />
+                {item.series.map((value, index) => <g><circle cx={48 + index * 84} cy={188 - value / item.ceiling * 148} r="4" class="chart-point" /><text x={48 + index * 84} y="218" text-anchor="middle" class="chart-axis">0{index + 1}.09</text></g>)}
+              </svg>
+              <details class="chart-data"><summary>Xem bảng số liệu <Glyph name="chevron" /></summary><div class="table-scroll" tabindex="0" role="region" aria-label={`Bảng ${item.chartTitle.toLowerCase()}`}><table><caption>{item.chartTitle} ({item.chartUnit})</caption><thead><tr><th scope="col">Ngày</th><th scope="col">Giá trị mẫu</th></tr></thead><tbody>{item.series.map((value, index) => <tr><th scope="row">0{index + 1}.09.2026</th><td>{value}</td></tr>)}</tbody></table></div></details>
+            </figure>
+            <aside class="insight-sheet" aria-label="Nhận định minh họa">
+              <span class="insight-label"><Glyph name="evidence" /> GÓC NHÌN LUMI <span>Mô phỏng</span></span>
+              <h4>{item.insightTitle}</h4><p>{item.insight}</p>
+              <div class="insight-next"><span>BƯỚC KIỂM TRA TIẾP</span><p>{item.next}</p></div>
+              <small>{item.caveat}</small>
+            </aside>
+          </div>
+          <details class="evidence-disclosure"><summary><span><Glyph name="evidence" /> Xem nguồn & cơ sở tính</span><Glyph name="chevron" /></summary><dl><dt>Nguồn</dt><dd>{item.source}</dd><dt>Định nghĩa</dt><dd>{item.definition}</dd><dt>Giới hạn</dt><dd>{item.limit}</dd><dt>Thời điểm mẫu</dt><dd>Chốt 07.09.2026, 23:59 (Asia/Ho_Chi_Minh). Không đồng bộ trực tiếp.</dd></dl></details>
+        </section>
+      ))}
+    </div>
+  </div>
+  <p class="demo-footnote">Chọn một tình huống để khám phá. Mọi con số đều là ví dụ; phần còn thiếu được giữ nguyên là “chưa biết”.</p>
+</section>
