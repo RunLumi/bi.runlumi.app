@@ -1,0 +1,9 @@
+{
+  "customerPages": [
+    {"path": "/channels", "label": "Kênh bán Beta"},
+    {"path": "/channels/notes", "label": "Ghi chú kênh"}
+  ],
+  "extensions": [
+    {"namespace": "customer", "version": "1.2.0"}
+  ]
+}

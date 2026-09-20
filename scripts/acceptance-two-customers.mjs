@@ -33,6 +33,11 @@ const generate=async(customer,name)=>{
  run(process.execPath,[path.join(root,'scripts/customer-new.mjs'),'--customer',customer,'--name',name,'--dest',dest],root);
  // Apply the checked-in synthetic overlay (custom pages, metrics, navigation).
  await cp(path.join(root,'examples/customers',customer,'customer'),path.join(dest,'customer'),{recursive:true});
+ // Merge the fixture's declared routes/extensions into the lock for validation.
+ const fragment=JSON.parse(await readFile(path.join(root,'examples/customers',customer,'lock-fragment.json'),'utf8'));
+ const lock=JSON.parse(await readFile(path.join(dest,'lumi.lock.json'),'utf8'));
+ Object.assign(lock,fragment);
+ await writeFile(path.join(dest,'lumi.lock.json'),JSON.stringify(lock,null,2));
  run(npm,['install','--ignore-scripts','--save-exact'],dest,{expectFail:false});
  return dest;
 };
@@ -59,6 +64,12 @@ try{
    assert(!bundle.includes('packages/core/src'),'bundle must not reference upstream source paths');
   }
  });
+ await step('A5 each customer runs its own independent acceptance tests',async()=>{
+  for(const dir of [alpha,beta]){
+   const out=run(npm,['test'],dir);
+   assert(/pass [1-9]/.test(out.stdout),`${dir} must run passing customer tests`);
+  }
+ });
  // ---- C. custom pages and extensions exist and are customer-owned ----
  await step('C1 alpha has a custom page and namespaced metric',async()=>{
   const pages=await customerFile(alpha,'customer/ui/pages.tsx');
@@ -76,11 +87,12 @@ try{
  // ---- G. incompatible extension/migration rejected with a diagnostic ----
  await step('G1 reserved-route collision is rejected before deployment',async()=>{
   const lock=JSON.parse(await customerFile(beta,'lumi.lock.json'));
-  lock.customerPages=[{path:'/money',label:'Hijack core route'}];
+  const original=lock.customerPages;
+  lock.customerPages=[...original,{path:'/money',label:'Hijack core route'}];
   await writeFile(path.join(beta,'lumi.lock.json'),JSON.stringify(lock,null,2));
   const out=run(npm,['run','validate'],beta,{expectFail:true});
   assert(/reserved core route/.test(out.stdout+out.stderr),'diagnostic must name the reserved route collision');
-  lock.customerPages=[];await writeFile(path.join(beta,'lumi.lock.json'),JSON.stringify(lock,null,2));
+  lock.customerPages=original;await writeFile(path.join(beta,'lumi.lock.json'),JSON.stringify(lock,null,2));
  });
  await step('G2 bad customer id is rejected with a diagnostic',async()=>{
   const lock=JSON.parse(await customerFile(beta,'lumi.lock.json'));

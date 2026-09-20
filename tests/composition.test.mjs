@@ -24,3 +24,8 @@ test('the reference app is thin composition, not a second core',async()=>{
  assert.match(source,/createApp\(config\)/,'reference app composes via the public API');
  assert(!/createApi|new QueryClient|verifyAccessToken/.test(source),'the browser app must not reimplement server/core behavior');
 });
+test('reference and starter Vite consumers dedupe React peer dependencies',async()=>{
+ const reference=await readFile(new URL('../apps/web/vite.config.ts',import.meta.url),'utf8');
+ const starter=await readFile(new URL('../starter/customer/apps/web/vite.config.ts',import.meta.url),'utf8');
+ for(const source of [reference,starter])assert.match(source,/dedupe:\s*\['react','react-dom'\]/,'Vite must resolve one React runtime');
+});
