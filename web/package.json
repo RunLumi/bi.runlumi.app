@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "astro dev --host 127.0.0.1",
-    "check": "astro check && node --check public/scripts/site.js && node --test tests/demo.test.ts",
+    "check": "astro check && node --check public/scripts/site.js && node --test tests/demo.test.ts tests/contact.test.ts",
     "build": "astro check && astro build && node scripts/verify-build.mjs",
     "preview": "astro preview --host 127.0.0.1",
     "test:e2e": "playwright test"

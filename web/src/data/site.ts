@@ -1,7 +1,5 @@
-const contactEmail = (import.meta.env.PUBLIC_CONTACT_EMAIL || 'hello@runlumi.app').trim();
-if (!/^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(contactEmail)) {
-  throw new Error('PUBLIC_CONTACT_EMAIL must be a single valid mailbox, without headers or whitespace.');
-}
+import { publicContactEmail } from './contact';
+const contactEmail = publicContactEmail(import.meta.env.PUBLIC_CONTACT_EMAIL || 'hello@runlumi.app');
 
 export const site = {
   name: 'Lumi BI',
