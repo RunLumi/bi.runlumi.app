@@ -13,6 +13,7 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | 03 | Reviewed cross-source publication, money/stock UI, observed findings, decision history and private exports | [03](03-reviewed-publication-and-decisions.md) |
 | 04 | Versioned commerce metric catalog and bounded publication-backed query contract | [04](04-governed-commerce-query.md) |
 | 05 | Owner-reviewed per-resource capability and coverage matrix with publication gates | [05](05-capability-coverage-review.md) |
+| 06 | Role-scoped commerce metric catalog and publication-backed query denial for sensitive fields | [06](06-field-scoped-commerce-query.md) |
 
 ## Complete specification inventory
 
@@ -28,7 +29,7 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | C07 | Opaque source identity, reviewed aliases/priorities, stock gauges | Full line/bundle/payment/refund/fulfillment/event model and source authority packs |
 | C08 | Independent declared counts/totals fail closed; report lineage; capability gaps downgrade dependent metrics | Authenticated control evidence, provider completeness/reconciliation certification |
 | C09 | Exact order-cohort money, cost/fee/income nulls, statement cash, physical units; versioned bounded catalog | Full metric registry, line/event-time/FX semantics, compatible release lifecycle |
-| C10 | Operations typed/batched queries; bounded owner-reviewed commerce query over published reports | Dimensions, field/row scope, async jobs, admission/fair-share budgets and viewer finance policy |
+| C10 | Operations typed/batched queries; bounded owner-reviewed and role-scoped commerce query over published reports | Dimensions, row scope, async jobs, admission/fair-share budgets and broader viewer policy |
 | C11 | Bounded merchandise/cost/contribution review with provenance | Channel/SKU/line analysis, restatement coverage, ads and complete source certification |
 | C12 | Signed final/provisional statements, explicit cash allocations, residuals | COD/carrier/bank imports, automated matching proposals and aging |
 | C13 | Physical pool/variant latest gauges; missing/negative availability | Movements, stock aging, demand/censoring/forecast/replenishment policies |
@@ -40,7 +41,7 @@ spec exists. Code in this record is tested with synthetic data unless stated oth
 | C19 | Authenticated snapshot CSV/JSON, current revocation and formula defenses | Scheduled briefs, recipient authority, delivery dedup, XLSX/PDF/embeds |
 | C20 | Operator-asserted immutable packs and activation/rollback | Verified GitHub/OIDC source attestation, tenant-local pointer migration and compatibility DAG |
 | C21 | Decisions explicitly execute nothing | Approved action proposal, Lumi Agents handoff, scoped retries and outcome receipts |
-| C22 | Server tenant/role checks, private storage contract and source revocation | Field policies, full privacy deletion/replay tombstones, security assessment |
+| C22 | Server tenant/role checks, private storage contract, source revocation and reviewed commerce field denial | Row/column policy system, privacy deletion/replay tombstones, support access and security assessment |
 | C23 | Cloudflare cell configuration/runbooks, bounded synchronous paths | Workerd/staging, restore/load/tenant fairness, async OLAP exit evidence |
 | C24 | License feature/time/grace checks | Metering/admission accounting, seats, billing/payment/partner operations |
 | C25 | Versioned internal response contracts and bounded API endpoints | Public SDK/OpenAPI, compatibility/deprecation and signed extension events |

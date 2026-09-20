@@ -16,6 +16,7 @@ export const commerceMetrics:readonly CommerceMetricDefinition[]=[
  {id:'available_units',version:1,label:'Số lượng khả dụng',unit:'units',definition:'Gauge khả dụng mới nhất của physical stock pools.',availability:'null when any selected pool lacks available quantity'},
  {id:'physical_pool_variant_count',version:1,label:'Số pool và biến thể vật lý',unit:'count',definition:'Số gauge physical pool/variant.',availability:'scope count only'}
 ];
+export const commerceViewerMetricIds= new Set(['net_merchandise_sales','recognized_order_count','available_units','physical_pool_variant_count']);
 const metricMap=new Map(commerceMetrics.map(metric=>[metric.id,metric]));
 export interface CommerceQuery {contract:typeof COMMERCE_QUERY_CONTRACT;metrics:{id:string;version:1}[];dimensions:[];filters:{field:'business_date';op:'range';value:[string,string]}[];limit:1;consistency:'published';dataVersion:string}
 export function parseCommerceQuery(value:unknown):CommerceQuery {
@@ -29,7 +30,10 @@ export function parseCommerceQuery(value:unknown):CommerceQuery {
  if(integer(b.limit)!==1)throw new AppError(400,'COMMERCE_QUERY_LIMIT');if(b.consistency!=='published')throw new AppError(400,'COMMERCE_CONSISTENCY_REQUIRED');const dataVersion=text(b.dataVersion,128);
  return {contract:COMMERCE_QUERY_CONTRACT,metrics,dimensions:[],filters,limit:1,consistency:'published',dataVersion};
 }
-export function commerceMetricCatalog(){return commerceMetrics;}
+export function commerceMetricCatalog(includeSensitive=true){return commerceMetrics.filter(metric=>includeSensitive||commerceViewerMetricIds.has(metric.id));}
+export function assertCommerceMetricScope(role:'viewer'|'editor'|'owner',metrics:readonly {id:string}[]){
+ if(role!=='owner'&&metrics.some(metric=>!commerceViewerMetricIds.has(metric.id)))throw new AppError(403,'COMMERCE_FIELD_DENIED');
+}
 export function queryCommerceReport(report:Record<string,unknown>,query:CommerceQuery){
  const values=report.metrics;if(!values||typeof values!=='object'||Array.isArray(values))throw new AppError(503,'COMMERCE_REPORT_INVALID');const row:Record<string,{value:string|null;unit:CommerceMetricUnit;metricVersion:1}>={};
  for(const requested of query.metrics){const definition=metricMap.get(requested.id)!;const value=(values as Record<string,unknown>)[requested.id];if(value!==null&&typeof value!=='string')throw new AppError(503,'COMMERCE_METRIC_VALUE_INVALID');row[requested.id]={value:value as string|null,unit:definition.unit,metricVersion:1};}return row;

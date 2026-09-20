@@ -49,3 +49,10 @@ test('API query never falls back to raw or old data when publication is absent',
  assert.equal(response.status,404);
  const catalog=await ok(await f.api(new Request('http://localhost:8787/api/tenants/alpha/commerce-metrics',{headers:{'x-demo-user':'alpha-owner'}}),f.env));assert.equal(catalog.contract,'lumi.query.v1');
 });
+
+test('viewer receives non-sensitive commerce metrics but cannot recover cost or fee fields',async t=>{
+ const f=await commerceFixture(t),publication=await publish(f),body=query(publication.publicationId);
+ const viewer=await f.api(new Request('http://localhost:8787/api/tenants/alpha/commerce-query',{method:'POST',headers:{'content-type':'application/json','x-demo-user':'alpha-viewer'},body:JSON.stringify(body)}),f.env);
+ assert.equal(viewer.status,200);const result=await viewer.json();assert.equal(result.metrics.net_merchandise_sales.value,'720000');assert.equal(result.scope.role,'viewer');
+ const denied=await f.api(new Request('http://localhost:8787/api/tenants/alpha/commerce-query',{method:'POST',headers:{'content-type':'application/json','x-demo-user':'alpha-viewer'},body:JSON.stringify(query(publication.publicationId,[{id:'gross_profit',version:1}]))}),f.env);assert.equal(denied.status,403);
+});
