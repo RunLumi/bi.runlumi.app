@@ -4,12 +4,19 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@runlumi/core/*": ["./packages/core/src/*"],
+      "@runlumi/cloudflare/*": ["./packages/cloudflare/src/*"],
+      "@runlumi/ui/*": ["./packages/ui/src/*"]
+    }
   },
-  "include": ["apps/api/src/**/*.ts", "packages/core/**/*.ts", "apps/control/src/**/*.ts"]
+  "include": ["apps/api/src/**/*.ts", "apps/control/src/**/*.ts", "packages/*/src/**/*.ts", "packages/*/src/**/*.tsx"]
 }

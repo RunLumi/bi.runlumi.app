@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {commerceMetricCatalog,parseCommerceQuery,queryCommerceReport} from '../packages/core/commerce-query.ts';
+import {commerceMetricCatalog,parseCommerceQuery,queryCommerceReport} from '@runlumi/core/commerce-query.ts';
 import {commerceFixture,exportBody,order} from './commerce-helpers.mjs';
 
 const query=(dataVersion,metrics=[{id:'net_merchandise_sales',version:1}],extra={})=>({contract:'lumi.query.v1',metrics,dimensions:[],filters:[],limit:1,consistency:'published',dataVersion,...extra});

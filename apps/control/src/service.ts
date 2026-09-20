@@ -1,9 +1,9 @@
-import {AppError,id,object,text,sha256,type Principal,type Role} from '../../../packages/core/contracts.ts';
-import {features,effectiveFeatures,requireFeature,parseLicense,type Feature,type License} from '../../../packages/core/licensing.ts';
-import {parseTenantPack,type ActivePack,type TenantPack} from '../../../packages/core/tenant-pack.ts';
-import {readJson,json,revision} from '../../../packages/core/http.ts';
-import type {Database} from '../../api/src/bindings.ts';
-import type {ControlEnv} from './bindings.ts';
+import {AppError,id,object,text,sha256,type Principal,type Role} from '@runlumi/core/contracts.ts';
+import {features,effectiveFeatures,requireFeature,parseLicense,type Feature,type License} from '@runlumi/core/licensing.ts';
+import {parseTenantPack,type ActivePack,type TenantPack} from '@runlumi/core/tenant-pack.ts';
+import {readJson,json,revision} from '@runlumi/core/http.ts';
+import type {Database} from '@runlumi/core/ports.ts';
+import type {ControlEnv} from './control-bindings.ts';
 type Auth=(request:Request,env:ControlEnv)=>Promise<Principal>;
 type Member={id:string;name:string;binding_name:string;cell_id:string;route_epoch:number;role:Role};
 type LifecycleState='PROVISIONING'|'VALIDATING'|'ACTIVE'|'SUSPENDED'|'EXPORT_PENDING'|'DELETING'|'DELETED'|'FAILED';

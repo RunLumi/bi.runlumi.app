@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {assembleCommerceReport} from '../packages/core/commerce-report.ts';
-import {normalizeCommerceExport} from '../packages/core/commerce-model.ts';
-import {publishCommerce} from '../apps/api/src/commerce-publication.ts';
+import {assembleCommerceReport} from '@runlumi/core/commerce-report.ts';
+import {normalizeCommerceExport} from '@runlumi/core/commerce-model.ts';
+import {publishCommerce} from '@runlumi/core/commerce-publication.ts';
 import {commerceFixture,envelope,exportBody,order,stock,settlement} from './commerce-helpers.mjs';
 import {request} from '../scripts/local-adapters.mjs';
 async function build(f,raw=exportBody(),connection='orders-export',delivery='delivery-1'){

@@ -1,5 +1,5 @@
 import {fixture,request} from '../scripts/local-adapters.mjs';
-import {COMMERCE_CONTRACT,commerceSchemaFingerprint} from '../packages/core/commerce-model.ts';
+import {COMMERCE_CONTRACT,commerceSchemaFingerprint} from '@runlumi/core/commerce-model.ts';
 export function order(overrides={}) {return {id:'9007199254740993',orderedAt:'2026-09-01T17:00:00.000Z',recognizedAt:'2026-09-03T00:00:00.000Z',state:'accepted',merchandise:'1000000',sellerDiscount:'100000',merchandiseReversal:'180000',cogs:'400000',cogsEvidenceRef:'cost-at-sale-1',variableFees:'80000',shippingIncome:'0',earnedSubsidy:'0',...overrides};}
 export function settlement(overrides={}) {return {id:'statement-1',economicAt:'2026-09-10T00:00:00.000Z',dueAt:null,finality:'final',components:[{id:'entitlement',kind:'entitlement',amount:'700000'},{id:'fees',kind:'fee',amount:'-70000'},{id:'reserve',kind:'reserve_addition',amount:'-100000'},{id:'release',kind:'reserve_release',amount:'20000'},{id:'withholding',kind:'withholding',amount:'-30000'}],receipts:[{id:'bank-1',observedAt:'2026-09-11T00:00:00.000Z',amount:'500000',evidenceRef:'bank-statement-1'}],...overrides};}
 export function stock(overrides={}) {return {id:'stock-1',poolId:'warehouse-1',variantId:'variant-1',kind:'physical',observedAt:'2026-09-18T00:00:00.000Z',onHand:'13',reserved:'3',available:'10',...overrides};}

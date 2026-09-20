@@ -1,6 +1,6 @@
 import {readFile,realpath,lstat,mkdir,writeFile} from 'node:fs/promises';
 import path from 'node:path';import {pathToFileURL} from 'node:url';
-import {parseTenantPack} from '../packages/core/tenant-pack.ts';
+import {parseTenantPack} from '@runlumi/core/tenant-pack.ts';
 /** Compile declarative JSON + a referenced UTF-8 prompt. Never execute tenant code. */
 export async function compilePack(directory){
  const root=await realpath(directory);

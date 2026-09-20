@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compileCell } from '../scripts/cloudflare-config.mjs';
 import { fixture, request } from '../scripts/local-adapters.mjs';
-import { parseSnapshot } from '../packages/core/contracts.ts';
+import { parseSnapshot } from '@runlumi/core/contracts.ts';
 const inventory=()=>({schemaVersion:1,cellId:'test-01',accountId:'a'.repeat(32),workerName:'lumi-bi-test',hostname:'bi.runlumi.app',accessTeam:'test-team',accessAudience:'b'.repeat(64),control:{workerName:'lumi-bi-control',packsBucket:'lumi-bi-packs',databaseName:'control',databaseId:'11111111-1111-1111-1111-111111111111'},r2Bucket:'lumi-bi-test',tenants:[{id:'alpha',name:"Customer's tenant",binding:'TENANT_A',databaseName:'tenant-alpha',databaseId:'22222222-2222-2222-2222-222222222222',ownerSubject:'subject-opaque',sources:[{id:'operations',name:'Reviewed source'}]}]});
 test('cell config separates databases, disables public development URLs, safely quotes SQL',()=>{const {config,control,controlConfig}=compileCell(inventory());assert.equal(config.workers_dev,false);assert.equal(config.preview_urls,false);assert.equal(config.d1_databases.length,1);assert.equal(controlConfig.d1_databases.length,1);assert.equal(controlConfig.d1_databases[0].binding,'CONTROL_DB');assert.equal(config.services[0].binding,'CONTROL');assert.equal(controlConfig.routes.length,0);assert.equal(config.vars.TENANT_BINDINGS,'["TENANT_A"]');assert(control[0].includes("Customer''s tenant"));});
 test('cell config refuses missing account, bad database, duplicate bindings/databases, placeholder hostname',()=>{for(const mutate of [i=>i.accountId=null,i=>i.tenants[0].databaseId=i.control.databaseId,i=>i.tenants.push({...i.tenants[0]}),i=>i.hostname='bi.example.com',i=>i.accessAudience=null,i=>i.tenants[0].binding='CONTROL_DB']){const i=inventory();mutate(i);assert.throws(()=>compileCell(i));}});
@@ -17,7 +17,7 @@ test('concurrent same-key imports converge to one published snapshot',async()=>{
 test('dashboard revision uses strong ETags and rejects unquoted versions',async()=>{const f=await fixture();try{const url='/api/tenants/alpha/dashboards/operations-cost';const get=await f.api(request(url),f.env);assert.equal(get.headers.get('etag'),'"1"');const bad=await f.api(request(url,{method:'PUT',body:f.dashboard,headers:{'if-match':'1'}}),f.env);assert.equal(bad.status,428);const good=await f.api(request(url,{method:'PUT',body:f.dashboard,headers:{'if-match':'"1"'}}),f.env);assert.equal(good.status,200);assert.equal(good.headers.get('etag'),'"2"');}finally{f.close();}});
 
 test('generated provisioning SQL creates separate control and data planes, with no default license',async()=>{
- const {LocalDatabase,LocalObjects}=await import('../scripts/local-adapters.mjs');const {createApi}=await import('../apps/api/src/api.ts');const {createControl}=await import('../apps/control/src/service.ts');const {readFile}=await import('node:fs/promises');
+ const {LocalDatabase,LocalObjects}=await import('../scripts/local-adapters.mjs');const {createApi}=await import('@runlumi/core/api.ts');const {createControl}=await import('../apps/control/src/service.ts');const {readFile}=await import('node:fs/promises');
  const plan=compileCell(inventory()),control=new LocalDatabase(),tenant=new LocalDatabase();
  try{
   for(const file of ['0001_initial.sql','0002_control_plane.sql','0003_release_safety.sql','0004_tenant_lifecycle.sql'])control.db.exec(await readFile(new URL('../migrations/control/'+file,import.meta.url),'utf8'));

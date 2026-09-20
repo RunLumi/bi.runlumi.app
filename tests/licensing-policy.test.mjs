@@ -10,7 +10,8 @@ const root = new URL('../', import.meta.url);
 const files = ['LICENSE', 'NOTICE', 'licensing-policy.json', 'THIRD_PARTY_NOTICES.md',
   'README.md', 'LICENSING.md', 'CONTRIBUTING.md', 'web/README.md',
   'scripts/web-notices.mjs', 'web/scripts/verify-build.mjs',
-  ...['', 'apps/web/', 'web/'].flatMap(prefix => [prefix + 'package.json', prefix + 'package-lock.json'])];
+  ...['', 'apps/web/', 'web/'].flatMap(prefix => [prefix + 'package.json', prefix + 'package-lock.json']),
+  ...['packages/cloudflare/', 'packages/core/', 'packages/ui/'].map(prefix => prefix + 'package.json')];
 async function fixture(t) {
   const dir = await mkdtemp(join(tmpdir(), 'lumi-license-'));
   t.after(() => rm(dir, {recursive: true, force: true}));
@@ -26,7 +27,7 @@ async function mutateJson(dir, path, mutate) {
   await writeFile(join(dir, path), JSON.stringify(value));
 }
 test('license inventory validates the actual repository without network or dependencies', async () => {
-  assert.deepEqual(await checkLicensing(), {packages: 3, defaultLicense: 'Elastic-2.0', apacheScopes: 0});
+  assert.deepEqual(await checkLicensing(), {packages: 6, defaultLicense: 'Elastic-2.0', apacheScopes: 0});
 });
 const corruptions = [
   ['permissive core metadata', 'package.json', v => {v.license = 'Apache-2.0';}],
@@ -48,11 +49,11 @@ test('license text cannot be replaced by a summary or extra legal conditions', a
   await assert.rejects(checkLicensing(dir), /Standard ELv2 text changed/);
 });
 test('new package and nested license do not acquire unreviewed permissive scope', async t => {
-  const dir = await fixture(t); await mkdir(join(dir, 'packages/core'), {recursive: true});
-  await writeFile(join(dir, 'packages/core/package.json'), '{"license":"Apache-2.0"}');
+  const dir = await fixture(t); await mkdir(join(dir, 'packages/unreviewed'), {recursive: true});
+  await writeFile(join(dir, 'packages/unreviewed/package.json'), '{"license":"Apache-2.0"}');
   await assert.rejects(checkLicensing(dir), /Every source package/);
-  await rm(join(dir, 'packages/core/package.json'));
-  await writeFile(join(dir, 'packages/core/LICENSE'), 'Apache License');
+  await rm(join(dir, 'packages/unreviewed/package.json'));
+  await writeFile(join(dir, 'packages/unreviewed/LICENSE'), 'Apache License');
   await assert.rejects(checkLicensing(dir), /Unreviewed nested license/);
 });
 test('missing attribution and stale marketing claims fail the licensing gate', async t => {

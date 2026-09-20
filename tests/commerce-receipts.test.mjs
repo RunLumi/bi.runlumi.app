@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,request} from '../scripts/local-adapters.mjs';
-import {sha256} from '../packages/core/contracts.ts';
-import {parseExportEnvelope} from '../packages/core/commerce-envelope.ts';
-import {dispatchCommerceOutbox} from '../apps/api/src/commerce-receipts.ts';
+import {sha256} from '@runlumi/core/contracts.ts';
+import {parseExportEnvelope} from '@runlumi/core/commerce-envelope.ts';
+import {dispatchCommerceOutbox} from '@runlumi/core/commerce-receipts.ts';
 const path='/api/tenants/alpha/commerce-receipts';
 function body(extra={}){return {connectionId:'orders-export',sourceAccountId:'shop-A',resourceType:'orders',deliveryId:'delivery-1',sourceObjectId:'export-1',sourceRevision:null,sourceEventAt:null,sourceUpdatedAt:null,window:{from:'2026-09-01T00:00:00.000Z',toExclusive:'2026-09-02T00:00:00.000Z'},schemaFingerprint:'sha256:'+'a'.repeat(64),rawJson:'{"orders":[{"id":"synthetic-1","total":"100000"}]}',...extra};}
 async function setup(){const f=await fixture({seed:false});for(const [tenant,binding] of [['alpha','TENANT_A'],['beta','TENANT_B']])f.env[binding].db.prepare("INSERT INTO commerce_connections VALUES (?,'orders-export','nhanh',?,'orders','authorized-export','review-synthetic','active',1)").run(tenant,tenant==='alpha'?'shop-A':'shop-B');return f;}

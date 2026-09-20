@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {allocateMinor,businessDay,commerceSchemaFingerprint,minor,normalizeCommerceExport,orderMetrics,quantity,quantityUnits,formatQuantity,ratio,settlementMetrics,sourceKey} from '../packages/core/commerce-model.ts';
-import {normalizeCommerceReceipt} from '../apps/api/src/commerce-normalization.ts';
+import {allocateMinor,businessDay,commerceSchemaFingerprint,minor,normalizeCommerceExport,orderMetrics,quantity,quantityUnits,formatQuantity,ratio,settlementMetrics,sourceKey} from '@runlumi/core/commerce-model.ts';
+import {normalizeCommerceReceipt} from '@runlumi/core/commerce-normalization.ts';
 import {commerceFixture,envelope,exportBody,order,settlement,stock} from './commerce-helpers.mjs';
 const scope=async(raw)=>({...await envelope(raw),tenantId:'alpha',provider:raw.provider});
 const cases=JSON.parse(await readFile(new URL('../docs/specs/fixtures/commerce-golden-cases.json',import.meta.url),'utf8')).cases;

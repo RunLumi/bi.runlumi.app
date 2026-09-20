@@ -18,6 +18,24 @@
       "private": true
     },
     {
+      "manifest": "packages/cloudflare/package.json",
+      "lock": "package-lock.json",
+      "license": "Elastic-2.0",
+      "private": true
+    },
+    {
+      "manifest": "packages/core/package.json",
+      "lock": "package-lock.json",
+      "license": "Elastic-2.0",
+      "private": true
+    },
+    {
+      "manifest": "packages/ui/package.json",
+      "lock": "package-lock.json",
+      "license": "Elastic-2.0",
+      "private": true
+    },
+    {
       "manifest": "web/package.json",
       "lock": "web/package-lock.json",
       "license": "Elastic-2.0",

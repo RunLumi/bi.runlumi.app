@@ -1,6 +1,6 @@
 import {test,expect,type Page,type APIRequestContext} from '@playwright/test';
 import {readFileSync} from 'node:fs';import {resolve} from 'node:path';
-import {commerceSchemaFingerprint} from '../../../packages/core/commerce-model.ts';
+import {commerceSchemaFingerprint} from '@runlumi/core/commerce-model.ts';
 const raw=JSON.parse(readFileSync(resolve(process.cwd(),'../../examples/commerce/orders-negative.json'),'utf8'));
 const headers={'x-demo-user':'beta-owner'};
 async function asOwner(page:Page){await page.goto('/');await page.getByLabel('Danh tính thử nghiệm').selectOption('beta-owner');await expect(page.locator('.topbar')).toContainText('beta / owner');}

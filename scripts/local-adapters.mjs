@@ -1,39 +1,11 @@
-import { DatabaseSync } from 'node:sqlite';
 import { readFile, readdir } from 'node:fs/promises';
 import { createControl } from '../apps/control/src/service.ts';
-import { createApi } from '../apps/api/src/api.ts';
-import { AppError } from '../packages/core/contracts.ts';
+import { AppError } from '@runlumi/core/contracts.ts';
+import { createApi } from '@runlumi/core/api.ts';
+import { LocalDatabase, LocalObjects } from '@runlumi/cloudflare/testing.ts';
 const root=new URL('../',import.meta.url);
+export {LocalDatabase,LocalObjects};
 /** SQLite semantic test adapter, not a workerd emulator. No network or Cloudflare calls. */
-export class LocalDatabase {
-  constructor(){this.db=new DatabaseSync(':memory:');this.calls=0;this.pending=Promise.resolve();}
-  prepare(sql){
-    const self=this;
-    const wrap=(params=[])=>({
-      bind(...values){return wrap(values);},
-      async first(){const r=await this.all();return r.results[0]??null;},
-      async all(){self.calls++;const stmt=self.db.prepare(sql);const rows=stmt.columns().length?stmt.all(...params):null;
-        if(rows!==null)return {success:true,results:rows,meta:{changes:0}};
-        const result=stmt.run(...params);return {success:true,results:[],meta:{changes:Number(result.changes)}};},
-      async run(){return this.all();}
-    });return wrap();
-  }
-  batch(statements){
-    const run=async()=>{
-      this.db.exec('BEGIN');
-      try{const results=[];for(const statement of statements)results.push(await statement.all());this.db.exec('COMMIT');return results;}
-      catch(error){this.db.exec('ROLLBACK');throw error;}
-    };
-    // D1 serializes per-database work; our local adapter must not overlap BEGINs.
-    const execution=this.pending.then(run);this.pending=execution.catch(()=>{});return execution;
-  }
-  close(){this.db.close();}
-}
-export class LocalObjects {
-  objects=new Map();
-  async put(key,value){this.objects.set(key,value);return {key};}
-  async get(key){const value=this.objects.get(key);return value===undefined?null:{text:async()=>value};}
-}
 export function request(path,{user='alpha-owner',method='GET',body,headers={}}={}){
  return new Request(`http://localhost:8787${path}`,{method,headers:{'x-demo-user':user,...(body!==undefined?{'content-type':'application/json'}:{}),...headers},...(body!==undefined?{body:JSON.stringify(body)}:{})});
 }

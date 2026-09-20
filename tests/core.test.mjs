@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {parseQuery,compileQuery,parseDashboard} from '../packages/core/semantics.ts';
-import {parseSnapshot,cashPayback,day} from '../packages/core/contracts.ts';
+import {parseQuery,compileQuery,parseDashboard} from '@runlumi/core/semantics.ts';
+import {parseSnapshot,cashPayback,day} from '@runlumi/core/contracts.ts';
 import {readFile} from 'node:fs/promises';
 const q={metrics:['cases','released_hours'],from:'2026-09-01',to:'2026-10-01',groupBy:'workflow'};
 const sample=JSON.parse(await readFile(new URL('../fixtures/alpha.json',import.meta.url),'utf8'));

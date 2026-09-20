@@ -15,7 +15,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "baseUrl": ".",
-    "paths": {"@/*": ["./src/*"]}
+    "paths": {"@/*": ["./src/*"], "@runlumi/core/*": ["../../packages/core/dist/*"], "@runlumi/cloudflare/*": ["../../packages/cloudflare/dist/*"], "@runlumi/ui/*": ["../../packages/ui/dist/*"]}
   },
   "include": ["src", "vite.config.ts"]
 }

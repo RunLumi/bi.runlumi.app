@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseExportEnvelope} from '../packages/core/commerce-envelope.ts';
-import {acceptCommerceExport} from '../apps/api/src/commerce-receipts.ts';
+import {parseExportEnvelope} from '@runlumi/core/commerce-envelope.ts';
+import {acceptCommerceExport} from '@runlumi/core/commerce-receipts.ts';
 import {fixture} from '../scripts/local-adapters.mjs';
 const input=()=>({connectionId:'orders',sourceAccountId:'shop-A',resourceType:'orders',deliveryId:'d1',sourceObjectId:'export',sourceRevision:null,sourceEventAt:null,sourceUpdatedAt:null,window:{from:'2026-09-01T00:00:00.000Z',toExclusive:'2026-09-02T00:00:00.000Z'},schemaFingerprint:'sha256:'+'a'.repeat(64),rawJson:'{"orders":[]}'});
 test('export transport assigns explicit snapshot semantics, including legacy-shaped inputs',()=>{

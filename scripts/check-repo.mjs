@@ -2,17 +2,29 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseDashboard } from '../packages/core/semantics.ts';
+import { parseDashboard } from '@runlumi/core/semantics.ts';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const read=p=>readFile(path.join(root,p),'utf8');
 const manifest=JSON.parse(await read('package.json'));
 assert.equal(Object.keys(manifest.dependencies??{}).length,0,'Bootstrap must not gain unreviewed runtime dependencies');
+assert.deepEqual(manifest.workspaces,['packages/*'],'The product core lives in reviewed workspace packages');
 const lock=JSON.parse(await read('package-lock.json'));
-for(const [key,p]of Object.entries(lock.packages)){
- if(!key)continue;
- assert.equal(key,'node_modules/typescript','Review dependency inventory before changing this explicit bootstrap allowlist');
- assert.equal(p.version,manifest.devDependencies.typescript);
- assert.equal(p.license,'Apache-2.0');assert.match(p.integrity,/^sha512-/);
+for(const key of ['node_modules/typescript','node_modules/@types/node']){
+ assert.equal(lock.packages[key].version,manifest.devDependencies[key.replace('node_modules/','')]);
+ assert.match(lock.packages[key].integrity,/^sha512-/);
+}
+// Root install stays tiny: only the reviewed toolchain is declared at the root.
+// UI build/dev dependencies are declared by packages/ui and may hoist to node_modules.
+const rootManifest=lock.packages[''];
+assert.deepEqual(rootManifest.dependencies??{},{} ,'Root package must not declare runtime dependencies');
+assert.deepEqual(Object.keys(rootManifest.devDependencies??{}).sort(),['@types/node','typescript']);
+for(const workspace of ['packages/core','packages/cloudflare','packages/ui']){
+ const pkg=JSON.parse(await read(`${workspace}/package.json`));
+ assert.equal(pkg.private,true,`${workspace} must not be registry-publishable without explicit owner approval`);
+ assert.equal(pkg.license,'Elastic-2.0',`${workspace} must retain the product license`);
+ assert.equal(pkg.version,manifest.version,'Initial core packages share one coordinated release version');
+ assert.ok(pkg.files.includes('dist'),`${workspace} ships only built output`);
+ assert.ok(pkg.exports['./*.ts'],`${workspace} exposes the source-style specifier used by consumers`);
 }
 parseDashboard(JSON.parse(await read('packs/operations-cost/dashboard.json')));
 const production=await read('apps/api/src/index.ts');

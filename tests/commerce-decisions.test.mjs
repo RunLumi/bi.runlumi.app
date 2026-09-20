@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {commerceFixture,exportBody,order,settlement,stock} from './commerce-helpers.mjs';
-import {commerceFindings,csvCell,commerceSummaryCsv} from '../packages/core/commerce-insights.ts';
+import {commerceFindings,csvCell,commerceSummaryCsv} from '@runlumi/core/commerce-insights.ts';
 import {request} from '../scripts/local-adapters.mjs';
 const ok=async(r,status=200)=>{const b=await r.json();assert.equal(r.status,status,JSON.stringify(b));return b;};
 async function publish(f,raw=exportBody('orders',[order({cogs:'800000'})]),delivery='first',previous=null){

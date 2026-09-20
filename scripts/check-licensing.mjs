@@ -45,16 +45,20 @@ export async function checkLicensing(root = ROOT) {
   assert.deepEqual([...declared].sort(), manifests, 'Every source package needs a reviewed license entry');
   for (const entry of policy.packages) {
     assert.match(entry.manifest, /^(?:[a-zA-Z0-9_-]+\/)*package\.json$/, 'Unsafe manifest path');
-    assert.equal(entry.lock, entry.manifest.replace(/package\.json$/, 'package-lock.json'));
+    assert.match(entry.lock, /^(?:[a-zA-Z0-9_-]+\/)*package-lock\.json$/, 'Unsafe lock path');
     assert.equal(entry.license, 'Elastic-2.0', 'No product package is Apache-licensed by default');
     assert.equal(entry.private, true, 'Registry publication requires its own approval');
     const pkg = JSON.parse(await read(entry.manifest));
     const lock = JSON.parse(await read(entry.lock));
     assert.equal(pkg.license, entry.license, `License mismatch: ${entry.manifest}`);
     assert.equal(pkg.private, true, `Accidental registry publication: ${entry.manifest}`);
-    assert.equal(lock.packages?.['']?.license, pkg.license, `Lock-root license mismatch: ${entry.lock}`);
-    assert.equal(lock.packages[''].name, pkg.name, `Lock-root name mismatch: ${entry.lock}`);
-    assert.equal(lock.packages[''].version, pkg.version, `Lock-root version mismatch: ${entry.lock}`);
+    const workspacePath = entry.lock === 'package-lock.json'
+      ? (entry.manifest === 'package.json' ? '' : entry.manifest.replace(/\/package\.json$/, ''))
+      : '';
+    const locked = lock.packages?.[workspacePath];
+    assert.equal(locked?.license, pkg.license, `Lock package license mismatch: ${entry.manifest}`);
+    assert.equal(locked?.name, pkg.name, `Lock package name mismatch: ${entry.manifest}`);
+    assert.equal(locked?.version, pkg.version, `Lock package version mismatch: ${entry.manifest}`);
   }
   for (const file of files) {
     assert(file === 'LICENSE' || !/(^|\/)(?:LICENSE|COPYING)(?:\.[^/]*)?$/i.test(file),

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,request} from '../scripts/local-adapters.mjs';
-import {parseTenantPack} from '../packages/core/tenant-pack.ts';
+import {parseTenantPack} from '@runlumi/core/tenant-pack.ts';
 import {compilePack} from '../scripts/tenant-pack.mjs';
 
 const plan={metrics:['cases','cash_savings_vnd'],groupBy:'none',from:'2026-09-01',to:'2026-10-01'};

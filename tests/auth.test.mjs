@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {verifyAccessToken} from '../apps/api/src/auth.ts';
+import test from 'node:test';import assert from 'node:assert/strict';import {verifyAccessToken} from '@runlumi/cloudflare/auth.ts';
 const pair=await crypto.subtle.generateKey({name:'RSASSA-PKCS1-v1_5',modulusLength:2048,publicExponent:new Uint8Array([1,0,1]),hash:'SHA-256'},true,['sign','verify']);
 const publicKey={...await crypto.subtle.exportKey('jwk',pair.publicKey),kid:'k1',alg:'RS256',use:'sig'};
 const aud='a'.repeat(64),now=2000000000;

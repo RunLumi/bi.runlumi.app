@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,request} from '../scripts/local-adapters.mjs';
-import {effectiveFeatures,parseLicense} from '../packages/core/licensing.ts';
-import {parseTenantPack} from '../packages/core/tenant-pack.ts';
+import {effectiveFeatures,parseLicense} from '@runlumi/core/licensing.ts';
+import {parseTenantPack} from '@runlumi/core/tenant-pack.ts';
 const now=Date.parse('2026-09-20T00:00:00.000Z');
 const license=(extra={})=>({plan_id:'pilot',state:'active',starts_at:'2026-01-01T00:00:00.000Z',ends_at:'2026-10-01T00:00:00.000Z',grace_ends_at:null,features:JSON.stringify(['bi.read','dashboard.edit','git.publish']),...extra});
 const pack=(dashboard,name='Tenant pack')=>({schemaVersion:1,semanticVersion:'operations-v1',name,allowedMetrics:['cases','released_hours','cash_savings_vnd','net_cash_benefit_vnd','runtime_cost_vnd','baseline_hours','human_hours'],dashboards:[{id:'operations-cost',definition:dashboard}],queries:[{id:'hours',metrics:['released_hours'],groupBy:'workflow'}],ai:{enabled:false,providerInstanceRef:'primary',modelRef:'analyst-v1',credentialRef:'opaque-ref',dailyBudgetUsd:5,contextMode:'authorized-results-only',prompt:'Interpret only authorized metric results. Capacity is not cash.'}});
