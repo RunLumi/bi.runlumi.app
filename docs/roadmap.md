@@ -38,5 +38,15 @@ reason to narrow the offer before adding infrastructure.
 [Implementation 01: durable authorized-export receipts](implementation/01-durable-export-receipts.md)
 adds owner-authorized raw acceptance, tenant receipts/outbox and a tested at-least-once
 dispatch adapter. It does not certify live connectors, normalize business entities or
-publish commerce metrics. Next: C07 staged canonical normalization/source authority,
-then C08 reconciliation and C09 money semantics before a Money Truth UI is populated.
+publish commerce metrics by itself. Increments 02–03 below implement the next bounded
+normalization, reviewed publication and source-backed Money Truth steps.
+
+
+## Implemented increments 02–03
+
+The bounded source-to-decision workflow now includes typed normalization/quarantine,
+reviewed identity mappings, declared control checks, immutable preview/publication,
+money/stock views, positive observed-outcome decisions and private CSV/JSON. This
+does not imply live connectors or a source-complete production finance platform.
+The current complete status and next code dependency are in the
+[implementation record](implementation/README.md).

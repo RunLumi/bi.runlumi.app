@@ -7,7 +7,7 @@ export interface Statement {
   run(): Promise<DbResult>;
 }
 export interface Database { withSession?(constraint: string): Database; prepare(sql: string): Statement; batch(statements: Statement[]): Promise<DbResult[]> }
-export interface ObjectStore { put(key: string, value: string, options?: {httpMetadata?: {contentType:string}}): Promise<unknown> }
+export interface ObjectStore { get(key:string): Promise<{text():Promise<string>;size?:number}|null>; put(key: string, value: string, options?: {httpMetadata?: {contentType:string}}): Promise<unknown> }
 export interface Env {
   CONTROL: {fetch(request:Request): Promise<Response>};
   SOURCES: ObjectStore;
