@@ -35,6 +35,15 @@ test('query report preserves exact strings and null availability',()=>{
  assert.throws(()=>queryCommerceReport({metrics:{gross_profit:0}},parseCommerceQuery(query('cp_1',[{id:'gross_profit',version:1}]))));
 });
 
+test('source breakdown is bounded, filtered and uses the same exact order metrics',()=>{
+ const report={orders:[
+  {sourceKey:'so_a',recognizedAt:'2026-09-03T00:00:00.000Z',merchandise:'1000000',sellerDiscount:'0',merchandiseReversal:'0',cogs:null,variableFees:null,shippingIncome:null,earnedSubsidy:null},
+  {sourceKey:'so_b',recognizedAt:'2026-09-03T00:00:00.000Z',merchandise:'2000000',sellerDiscount:'0',merchandiseReversal:'0',cogs:null,variableFees:null,shippingIncome:null,earnedSubsidy:null}
+ ],metrics:{}};
+ const result=queryCommerceReport(report,parseCommerceQuery(query('cp_1',[{id:'net_merchandise_sales',version:1}],{dimensions:['source'],filters:[{field:'business_date',op:'range',value:['2026-09-01','2026-10-01']}],limit:10})));
+ assert.deepEqual(result.map(row=>[row.dimension,row.metrics.net_merchandise_sales.value]),[['so_a','1000000'],['so_b','2000000']]);
+});
+
 test('API serves one published context and denies cross-tenant or stale publication access',async t=>{
  const f=await commerceFixture(t),publication=await publish(f);
  const body=query(publication.publicationId);

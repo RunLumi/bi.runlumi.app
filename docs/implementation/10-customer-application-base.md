@@ -77,6 +77,11 @@ Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md)
   cells. Reload returns the artifact and all runs; refresh appends a new run under an
   optimistic revision check instead of rewriting history. This is the deterministic
   publication-backed path, not model inference or a general report language.
+- **Bounded source breakdown.** `commerce-query` now accepts the reviewed `source`
+  dimension with a bounded limit and date range, and computes exact sales/order
+  metrics from canonical published orders. Unsupported dimensions, sensitive metric
+  combinations and unbounded limits remain rejected; aggregate and breakdown results
+  retain the same publication pin and authorization scope.
 
 ## Verified environments
 
