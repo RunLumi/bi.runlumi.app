@@ -35,6 +35,8 @@ jobs:
         with:
           node-version: 22.16.0
           package-manager-cache: false
+      - name: Install and build shared packages before the standalone web graph
+        run: npm ci --ignore-scripts && npm run build:packages
       - name: Install exact reviewed graph without package lifecycle scripts
         run: npm --prefix apps/web ci --ignore-scripts
       - run: npm run check:web-deps

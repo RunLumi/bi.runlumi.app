@@ -19,7 +19,7 @@ import process from 'node:process';
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
-const npm=process.env.LUMI_NPM_BIN??'/opt/homebrew/bin/npm';
+const npm=process.env.npm_execpath??process.env.LUMI_NPM_BIN??'npm';
 const work=await mkdtemp(path.join(tmpdir(),'lumi-acceptance-'));
 const results=[];
 const step=async(name,fn)=>{try{const value=await fn();results.push(`PASS ${name}`);return value;}catch(error){results.push(`FAIL ${name}: ${error.message}`);throw error;}};

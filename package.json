@@ -36,6 +36,7 @@
   "description": "Cloudflare-first tenant-isolated BI with a central control plane and Git configuration releases.",
   "devDependencies": {
     "@types/node": "22.18.6",
+    "wrangler": "4.123.0",
     "typescript": "5.8.3"
   }
 }

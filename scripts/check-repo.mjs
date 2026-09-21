@@ -9,15 +9,27 @@ const manifest=JSON.parse(await read('package.json'));
 assert.equal(Object.keys(manifest.dependencies??{}).length,0,'Bootstrap must not gain unreviewed runtime dependencies');
 assert.deepEqual(manifest.workspaces,['packages/*'],'The product core lives in reviewed workspace packages');
 const lock=JSON.parse(await read('package-lock.json'));
-for(const key of ['node_modules/typescript','node_modules/@types/node']){
+for(const key of ['node_modules/typescript','node_modules/@types/node','node_modules/wrangler']){
  assert.equal(lock.packages[key].version,manifest.devDependencies[key.replace('node_modules/','')]);
  assert.match(lock.packages[key].integrity,/^sha512-/);
 }
-// Root install stays tiny: only the reviewed toolchain is declared at the root.
-// UI build/dev dependencies are declared by packages/ui and may hoist to node_modules.
+// Root direct dependencies stay a reviewed toolchain: types, TypeScript and the
+// pinned local workerd driver. Nothing here ships in a Worker or browser bundle.
 const rootManifest=lock.packages[''];
 assert.deepEqual(rootManifest.dependencies??{},{} ,'Root package must not declare runtime dependencies');
-assert.deepEqual(Object.keys(rootManifest.devDependencies??{}).sort(),['@types/node','typescript']);
+assert.deepEqual(Object.keys(rootManifest.devDependencies??{}).sort(),['@types/node','typescript','wrangler']);
+// Every locked root entry (except workspace links) must come from the registry
+// with SHA-512 integrity, and carry a reviewed license. Wrangler's optional
+// native image binaries are LGPL-licensed, optional, dev-only and never installed
+// into a distributed artifact; they are admitted here by name, not by waiver.
+for(const [key,p]of Object.entries(lock.packages)){
+ if(!key||key.startsWith('node_modules/@runlumi/')||key.startsWith('packages/'))continue;
+ assert.match(p.resolved??'',/^https:\/\/registry\.npmjs\.org\//,`Unreviewed origin: ${key}`);
+ assert.match(p.integrity??'',/^sha512-/,`Missing integrity: ${key}`);
+ const optionalLgpl=p.optional===true&&p.dev===true&&/^node_modules\/@img\/sharp-/.test(key);
+ const common=['MIT','Apache-2.0','ISC','BSD-3-Clause','BSD-2-Clause','0BSD','CC0-1.0','CC-BY-4.0','MIT OR Apache-2.0','Apache-2.0 AND MIT'].includes(p.license);
+ assert(common||optionalLgpl,`Unreviewed license/package: ${key} (${p.license})`);
+}
 for(const workspace of ['packages/core','packages/cloudflare','packages/ui']){
  const pkg=JSON.parse(await read(`${workspace}/package.json`));
  assert.equal(pkg.private,true,`${workspace} must not be registry-publishable without explicit owner approval`);

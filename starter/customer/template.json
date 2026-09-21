@@ -7,6 +7,7 @@
     "apps/web/tsconfig.json",
     "apps/web/vite.config.ts",
     "apps/worker/wrangler.jsonc",
+    "tsconfig.json",
     "lumi.lock.json",
     ".github/workflows/verify.yml"
   ],

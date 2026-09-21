@@ -34,9 +34,10 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
-    "validate": "node scripts/validate.mjs",
-    "upgrade": "node scripts/upgrade.mjs",
-    "deploy:plan": "node scripts/deploy-plan.mjs",
+    "validate": "node --experimental-strip-types scripts/validate.mjs",
+    "upgrade": "node --experimental-strip-types scripts/upgrade.mjs",
+    "deploy:plan": "node --experimental-strip-types scripts/deploy-plan.mjs",
+    "dev": "node --experimental-strip-types scripts/dev.mjs",
     "test": "node --experimental-strip-types --test customer/tests/*.test.mjs"
   }
 }

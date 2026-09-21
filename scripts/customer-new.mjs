@@ -1,11 +1,13 @@
 import {cp, mkdir, readFile, writeFile, readdir, stat} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 // Generate a customer application repository from the minimal starter plus real
-// packaged core artifacts. Local and side-effect-free: no repository, no billable
-// resource, no registry contact. Packaging must have run first (npm run core:pack).
+// packaged core artifacts. No repository or billable resource is created. The
+// generated lockfile is resolved immediately from the exact tarballs and reviewed
+// package graph; no lifecycle scripts run. Packaging must have run first.
 const root=fileURLToPath(new URL('../',import.meta.url));
 const starter=path.join(root,'starter/customer');
 const artifacts=path.join(root,'artifacts/core');
@@ -67,5 +69,15 @@ await copyTemplate(starter,target);
 await mkdir(path.join(target,'vendor'),{recursive:true});
 for(const info of Object.values(manifest.packages))await cp(path.join(artifacts,info.file),path.join(target,'vendor',info.file));
 await writeFile(path.join(target,'vendor','lumi-core-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+// Resolve and emit the complete customer lockfile now. This is deliberately an
+// explicit bootstrap step, not a hidden postinstall download. Registry credentials
+// are not needed for the local core tarballs; third-party packages retain their
+// normal reviewed registry provenance and are checked by npm's lock integrity.
+const npmCommand=process.env.LUMI_NPM_BIN??'npm';
+const npmArgs=['install','--package-lock-only','--ignore-scripts','--no-audit','--no-fund'];
+const install=process.env.npm_execpath
+ ? spawnSync(process.env.npm_node_execpath??process.execPath,[process.env.npm_execpath,...npmArgs],{cwd:target,stdio:'inherit'})
+ : spawnSync(npmCommand,npmArgs,{cwd:target,stdio:'inherit'});
+if(install.status!==0)throw new Error('Could not resolve the generated customer dependency graph; no repository was created externally.');
 console.log(`Generated customer application at ${target}`);
-console.log('Next: cd into it, npm install, npm run validate, npm run build. No external repository or Cloudflare resource was created.');
+console.log('Next: cd into it, npm ci, npm run validate, npm run build. No external repository or Cloudflare resource was created.');

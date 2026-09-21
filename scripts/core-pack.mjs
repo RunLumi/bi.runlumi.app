@@ -9,7 +9,7 @@ import {fileURLToPath} from 'node:url';
 // This never publishes to a registry and never downloads from one.
 const root=fileURLToPath(new URL('../',import.meta.url));
 const outDir=path.join(root,'artifacts','core');
-const npmBin=process.env.LUMI_NPM_BIN??'/opt/homebrew/bin/npm';
+const npmBin=process.env.npm_execpath??process.env.LUMI_NPM_BIN??'npm';
 const git=args=>spawnSync('git',args,{cwd:root,encoding:'utf8'}).stdout?.trim()??'';
 const coreVersion=JSON.parse(await readFile(path.join(root,'packages/core/package.json'),'utf8')).version;
 const templateVersion=JSON.parse(await readFile(path.join(root,'starter/customer/template.json'),'utf8')).templateVersion;

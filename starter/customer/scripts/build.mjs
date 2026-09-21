@@ -11,9 +11,9 @@ const run=(command,args,cwd=repoRoot)=>{
  const result=spawnSync(command,args,{cwd,stdio:'inherit'});
  if(result.status!==0)process.exit(result.status??1);
 };
-const resolveNpm=()=>process.env.LUMI_NPM_BIN??'npm';
+const resolveNpm=()=>process.env.npm_execpath??process.env.LUMI_NPM_BIN??'npm';
 // 1. Validate configuration before building anything.
-run(process.execPath,[path.join(root,'validate.mjs')]);
+run(process.execPath,['--experimental-strip-types',path.join(root,'validate.mjs')]);
 // 2. Typecheck the whole application against package declarations.
 run(resolveNpm(),['exec','--no-install','--','tsc','--noEmit'],path.join(repoRoot,'apps/web'));
 // 3. Build the browser bundle.
