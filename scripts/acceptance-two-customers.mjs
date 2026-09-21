@@ -11,7 +11,7 @@
  *   G. An incompatible extension/migration is rejected before deployment, with a diagnostic.
  *   H. One customer's rollback leaves the other unchanged and reports DB compatibility.
  */
-import {mkdtemp, cp, readFile, writeFile, rm, readdir, stat} from 'node:fs/promises';
+import {mkdtemp, cp, readFile, writeFile, rm, readdir, stat, mkdir} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -75,6 +75,10 @@ try{
    const out=run(npm,['test'],dir);
    assert(/pass [1-9]/.test(out.stdout),`${dir} must run passing customer tests`);
   }
+ });
+ await step('A6 promoted report compiles in a fresh customer checkout without embedded results',async()=>{
+  const source=`import type {PageContext} from '@runlumi/ui/app.tsx';\nimport {CommerceReportPage} from '@runlumi/ui/features/commerce-report.tsx';\nexport const reportDefinition={metricIds:['net_merchandise_sales'],from:'2026-09-01',toExclusive:'2026-10-01',dataVersion:'cp_reviewed',blocks:[{id:'sales-card',kind:'metric',metricId:'net_merchandise_sales'}]} as const;\nexport function Report({tenant,identity}:Pick<PageContext,'tenant'|'identity'>){return tenant?<CommerceReportPage tenant={tenant} identity={identity}/>:null;}\n`;
+  for(const dir of [alpha,beta]){await mkdir(path.join(dir,'customer/reports'),{recursive:true});await writeFile(path.join(dir,'customer/reports/weekly-sales.report.tsx'),source);const out=run(npm,['run','typecheck'],dir);assert(out.ok,'promoted report must typecheck in the customer checkout');const report=await customerFile(dir,'customer/reports/weekly-sales.report.tsx');assert(!report.includes('720000'),'promoted source must not embed fixture financial results');run('git',['add','customer/reports/weekly-sales.report.tsx'],dir);run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','-m','reviewed report proposal'],dir);}
  });
  // ---- I. per-environment deployment identity and the operator review gate ----
  await step('I1 production and staging own distinct deployment identities',async()=>{
@@ -167,7 +171,7 @@ try{
   const beforeLockA=await customerFile(alpha,'lumi.lock.json');
   // Stage an N+1 release from a synthetic bump in an isolated copy of the upstream tree.
   const bump=path.join(work,'upstream-n1');
-  await cp(root,bump,{recursive:true,filter:source=>!source.includes('node_modules')&&!source.includes('/.git/')&&!source.includes('artifacts')});
+  await cp(root,bump,{recursive:true,filter:source=>!source.includes('node_modules')&&!source.includes('/.git/')&&!source.includes('/artifacts/')&&!source.endsWith('/artifacts')});
   for(const pkg of ['core','cloudflare','ui']){
    const file=path.join(bump,'packages',pkg,'package.json');const j=JSON.parse(await readFile(file,'utf8'));
    j.version='0.1.1';if(pkg==='cloudflare'||pkg==='ui')j.dependencies['@runlumi/core']='0.1.1';

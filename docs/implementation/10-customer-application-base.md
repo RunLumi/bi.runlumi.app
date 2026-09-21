@@ -86,6 +86,12 @@ Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md)
   the server executes current and comparison windows independently against the same
   publication and returns separate exact cells. Invalid dates and reversed windows
   fail closed; relative labels and implicit period inference are not accepted.
+- **Fresh-checkout promotion proof.** The two-customer acceptance now injects a
+  definition-only promoted TSX report into each generated customer repository,
+  typechecks it, commits it as reviewed customer code, and verifies the report
+  survives a synthetic core upgrade and independent rollback. This remains local
+  compile/upgrade evidence; it is not a protected Cloudflare preview or production
+  deployment certification.
 
 ## Verified environments
 
