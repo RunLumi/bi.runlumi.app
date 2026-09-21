@@ -3,7 +3,7 @@
 The automated evidence for this repository has four layers, all runnable
 locally with no Cloudflare account or billable resource:
 
-1. `npm run check` — typecheck, behavioral tests (89: auth and setup takeover,
+1. `npm run check` — typecheck, behavioral tests (100+: auth and setup takeover,
    role and revocation behavior, the full commerce pipeline with exact
    arithmetic and NULL semantics, jobs with leases and retries, publication
    CAS and revocation closure, insights, exports), repository contract checks

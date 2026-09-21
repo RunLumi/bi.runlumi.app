@@ -143,20 +143,22 @@ correctly (`nosniff`).
 **Gate 1 — BASE_RELEASE_CANDIDATE: conditions and status.**
 A new customer can be generated from checksummed release artifacts, configured
 safely, run the supported authorized-export commerce/report workflow, and
-survive a demonstrated compatible upgrade AND executed rollback without losing
-custom code: exercised by `npm run check`, both Playwright suites,
-`workerd-check`, and `acceptance-two-customers` (A1–I2 including the executed
-rollback). Status conditions are met locally; the formal PASS is declared on
-the release tag after CI runs on the exact candidate.
+survive a demonstrated compatible upgrade AND an executed rollback (updater +
+reinstall + runtime assertions + tests) without losing custom code: exercised
+by `npm run check`, both Playwright suites, `workerd-check`, and
+`acceptance-two-customers` (A1–I2). Status conditions are met locally; the
+formal PASS is declared on the release tag after CI runs on the exact
+candidate.
 
 **Gate 2 — FIRST_CUSTOMER_GO: BLOCKED on external inputs.**
 Missing inputs that no local evidence can substitute: the named pilot's
 identity, authorized source exports and volumes, real credential issuance,
 production Cloudflare authorization, merchant reconciliation sign-off, and an
-explicit product decision on the promised analytics-agent scope (the shipped
-assistant is the curated deterministic path; no LLM is implemented). Do not
-proceed to pilot onboarding until each is provided and tested against
-production.
+explicit product decision on the promised analytics-agent scope. The shipped
+assistant is the curated deterministic path (`mode:"curated-deterministic"`,
+`llmInvolved:false` on every response); no LLM, conversational editing or
+predictions are implemented and none are claimed. Do not proceed to pilot
+onboarding until each input is provided and tested against production.
 
 ## Remaining boundaries (honest)
 
