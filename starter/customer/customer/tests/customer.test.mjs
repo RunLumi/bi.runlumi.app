@@ -56,8 +56,10 @@ function compose(env,modules=manifest.modules){
  return createApi(async request=>({issuer:'local-test',subject:request.headers.get('x-demo-user')??'local-owner'}),true,
   {customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules});
 }
-function call(api,path_,{user='local-owner',method='GET',body}={}){
- return api(new Request(`http://localhost:8787${path_}`,{method,headers:{'x-demo-user':user,...(body!==undefined?{'content-type':'application/json'}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{})}));
+function call(api,env,path_,{user='local-owner',method='GET',body}={}){
+ // The composed API mirrors the real worker entry: fetch(request, env). Omitting
+ // env silently degrades to a 500 on the first tenant fence, so it is explicit.
+ return api(new Request(`http://localhost:8787${path_}`,{method,headers:{'x-demo-user':user,...(body!==undefined?{'content-type':'application/json'}:{})},...(body!==undefined?{body:JSON.stringify(body)}:{})}),env);
 }
 let shared=null;
 async function harness(){if(!shared)shared=await buildEnv();return shared;}
@@ -104,7 +106,7 @@ test('every declared custom metric has one executable server registration',()=>{
 test('connector pull publishes the source envelope (201) with exact metadata',async()=>{
  const {env}=await harness();
  const api=compose(env);
- const response=await call(api,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST'});
+ const response=await call(api,env,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST'});
  assert.equal(response.status,201);
  const body=await response.json();
  assert.equal(body.provider,'ops-demo');
@@ -118,8 +120,8 @@ test('connector pull publishes the source envelope (201) with exact metadata',as
 test('replaying the same pull is idempotent (200, same snapshotId)',async()=>{
  const {env}=await harness();
  const api=compose(env);
- const first=await (await call(api,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST'})).json();
- const secondResponse=await call(api,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST'});
+ const first=await (await call(api,env,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST'})).json();
+ const secondResponse=await call(api,env,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST'});
  assert.equal(secondResponse.status,200);
  const second=await secondResponse.json();
  assert.equal(second.snapshotId,first.snapshotId);
@@ -130,7 +132,7 @@ test('every custom metric returns its derived exact value through HTTP',async()=
  const {env}=await harness();
  const api=compose(env);
  for(const metric of customMetrics){
-  const response=await call(api,`/api/tenants/${manifest.customerId}/custom-metrics/${metric.id}`);
+  const response=await call(api,env,`/api/tenants/${manifest.customerId}/custom-metrics/${metric.id}`);
   assert.equal(response.status,200,`${metric.id} must resolve`);
   const body=await response.json();
   assert.equal(body.id,metric.id);
@@ -145,7 +147,7 @@ test('an empty database returns null, never a fabricated zero',async()=>{
  try{
   const api=compose(fresh.env);
   for(const metric of customMetrics){
-   const response=await call(api,`/api/tenants/${manifest.customerId}/custom-metrics/${metric.id}`);
+   const response=await call(api,fresh.env,`/api/tenants/${manifest.customerId}/custom-metrics/${metric.id}`);
    assert.equal(response.status,200);
    const body=await response.json();
    assert.equal(body.value,null,`${metric.id} on an empty database must be null, not '0'`);
@@ -156,19 +158,19 @@ test('an empty database returns null, never a fabricated zero',async()=>{
 test('unknown custom metrics are rejected (404)',async()=>{
  const {env}=await harness();
  const api=compose(env);
- const response=await call(api,`/api/tenants/${manifest.customerId}/custom-metrics/customer.does_not_exist`);
+ const response=await call(api,env,`/api/tenants/${manifest.customerId}/custom-metrics/customer.does_not_exist`);
  assert.equal(response.status,404);
 });
 
 test('custom rules are a read-only advisory catalog',async()=>{
  const {env}=await harness();
  const api=compose(env);
- const get=await call(api,`/api/tenants/${manifest.customerId}/custom-rules`);
+ const get=await call(api,env,`/api/tenants/${manifest.customerId}/custom-rules`);
  assert.equal(get.status,200);
  const body=await get.json();
  assert.equal(body.version,'operations-v1');
  assert.deepEqual(body.rules.map(r=>r.id),decisionRules.map(r=>r.id));
- const post=await call(api,`/api/tenants/${manifest.customerId}/custom-rules`,{method:'POST',body:{id:'customer.write'}});
+ const post=await call(api,env,`/api/tenants/${manifest.customerId}/custom-rules`,{method:'POST',body:{id:'customer.write'}});
  assert.equal(post.status,404,'no customer rule writer exists');
 });
 
@@ -177,10 +179,10 @@ test('module gating rejects disabled server routes (403) in both directions',asy
  const operationsOnly=compose(env,['operations']);
  const commerceOnly=compose(env,['commerce']);
  const metricId=customMetrics[0]?.id??'customer.example_hours_saved';
- const deniedApi=await call(commerceOnly,`/api/tenants/${manifest.customerId}/custom-metrics/${metricId}`);
+ const deniedApi=await call(commerceOnly,env,`/api/tenants/${manifest.customerId}/custom-metrics/${metricId}`);
  assert.equal(deniedApi.status,403);
  assert.match(await deniedApi.text(),/MODULE_DISABLED/);
- const deniedCommerce=await call(operationsOnly,`/api/tenants/${manifest.customerId}/commerce-metrics`);
+ const deniedCommerce=await call(operationsOnly,env,`/api/tenants/${manifest.customerId}/commerce-metrics`);
  assert.equal(deniedCommerce.status,403);
  assert.match(await deniedCommerce.text(),/MODULE_DISABLED/);
 });
@@ -188,7 +190,7 @@ test('module gating rejects disabled server routes (403) in both directions',asy
 test('a viewer cannot pull connector data (403)',async()=>{
  const {env}=await harness();
  const api=compose(env);
- const response=await call(api,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST',user:'local-viewer'});
+ const response=await call(api,env,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST',user:'local-viewer'});
  assert.equal(response.status,403);
 });
 
