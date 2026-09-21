@@ -13,4 +13,6 @@ test('saved insight reloads and refresh creates an immutable pinned run',async t
  const after=await ok(await f.call('commerce-insights/insight-weekly-sales'));assert.deepEqual(after.insights[0].runs.map(r=>r.revision),[2,1]);
  assert.equal((await f.call('commerce-insights/insight-weekly-sales',{expectedRevision:1},{method:'PUT'})).status,409);
  const proposal=await ok(await f.call('commerce-insights',{action:'promote',insightId:'insight-weekly-sales'}));assert.equal(proposal.path,'customer/reports/insight-weekly-sales.report.tsx');assert.equal(proposal.hardCodedResults,false);assert.match(proposal.source,/reportDefinition/);assert.doesNotMatch(proposal.source,/720000/);assert.equal(proposal.approvalRequired,true);
+ const answer=await ok(await f.call('commerce-insights',{action:'ask',question:'Doanh số hàng hóa là bao nhiêu?',dataVersion:publication.publicationId}));assert.equal(answer.status,'ANSWERED');assert.equal(answer.claims[0].value.value,'720000');
+ const clarify=await ok(await f.call('commerce-insights',{action:'ask',question:'So sánh doanh số tháng trước',dataVersion:publication.publicationId}));assert.equal(clarify.status,'NEEDS_CLARIFICATION');
 });
