@@ -41,7 +41,7 @@ for(const file of (await readdir(path.join(migrationSource,'installation'))).fil
 // produces byte-identical artifacts anywhere, so lock integrity recorded once
 // is valid in every environment (CI repacks and must match the committed lock).
 import {gzipSync} from 'node:zlib';
-function ustarChecksum(header){const sum=header.reduce((acc,byte,i)=>i<148?acc+byte:i<156?acc+32:acc+byte,0);header.write(sum.toString(8).padStart(6,'0')+'\0 ','148');}
+function ustarChecksum(header){let sum=0;for(let i=0;i<512;i++)sum+=i<148||i>=156?header[i]:32;const octal=sum.toString(8).padStart(6,'0');header.write(octal,148,6,'latin1');header[154]=0;header[155]=0x20;}
 function ustarEntry(name,content,mtimeSec=0){
  const data=Buffer.isBuffer(content)?content:Buffer.from(content);
  const header=Buffer.alloc(512);header.write('0',156);
