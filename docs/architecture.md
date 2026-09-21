@@ -23,14 +23,13 @@ pack over separately authorized data and obtain traceable, correct numbers.
 flowchart TD
   U[User] --> A[Access identity and Worker API]
   W[Static Assets: dashboard UI] --> A
-  A --> C[Private control Worker + central D1: membership and route registry]
-  C --> R[Tenant routing and database identity check]
+  A --> R[Local membership, entitlement and database identity check]
   R --> Q[Typed semantic query compiler]
-  Q --> D1[Tenant A serving D1]
-  Q --> D2[Tenant B serving D1]
+  Q --> D1[Customer A serving D1]
+  Q --> D2[Customer B serving D1]
   I[Owner-approved small snapshot import] --> R
-  R --> O[Private R2 source snapshot archive]
-  O --> P[Atomic tenant D1 publication]
+  R --> O[Private customer R2 source snapshot archive]
+  O --> P[Atomic customer D1 publication]
   P --> D1
   P --> D2
   X[Future: Queues and Workflows] -.-> P
@@ -40,12 +39,12 @@ flowchart TD
 
 ## Four boundaries
 
-**Control plane.** A central metadata-only Worker/D1 resolves identities,
-memberships, entitlements and tenant routing. Cells use a private CONTROL service
-binding. Control independently validates JWTs and reads primary authority on every
-request; no authorization lease or KV cache is used. It has private PACKS R2 but
-no commerce D1 bindings. Current metadata release pointers live centrally, not yet
-in C20's target tenant-local deployment metadata.
+**Customer authority.** A generated customer deployment resolves verified identity,
+memberships, entitlements and tenant routing from its own serving D1 and reviewed
+deployment configuration. There is no request-time dependency on a Lumi control
+Worker, control database, service binding, license server or deployment registry.
+Customer-owned Access authenticates users; local authority records and serving-D1
+identity authorize access. A missing or revoked local authority record fails closed.
 
 **Tenant data plane.** Each tenant gets its own serving D1. A registry maps an
 authorized tenant ID to an allowlisted binding. The database also stores its own

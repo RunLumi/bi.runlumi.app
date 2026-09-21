@@ -1,6 +1,6 @@
 # 0010: Customer application repositories on a versioned product core
 
-Status: accepted for the reusable customer-application base. Date: 2026-09-20.
+Status: superseded by the standalone customer authority model. Date: 2026-09-20.
 Supersedes the blanket "no customer app fork" rule of
 [ADR 0001](0001-shared-product-cells.md) and its restatement in
 [ADR 0002](0002-cloudflare-data-roles.md), replaced by the precise distinction
@@ -25,10 +25,10 @@ customer applications.
   its own hostname, Access audience, serving D1 (fixed `SERVING` binding), private
   R2 resources, secrets and enabled Queue/Workflow resources. It has no bindings to
   another customer's data.
-- **Retained managed authority.** The central control plane (`apps/control`) keeps
-  ownership of managed identity/membership, licensing and fleet metadata. Customer
-  deployments call it through a narrow, versioned, fail-closed interface; they do
-  not copy allowlists or acquire all commerce bindings.
+- **Customer-owned authority.** A standalone customer deployment owns identity,
+  memberships, entitlements, deployment configuration and audit records in its
+  own serving resources. Customer Workers do not require a CONTROL binding or a
+  request-time Lumi service.
 - **Server-owned deployment identity.** The control plane owns a `deployments`
   registry. Every dedicated customer/environment and every shared cell scope is a
   registered row with its own reviewed Access team/audience, control interface

@@ -1,6 +1,6 @@
 /** Local synthetic development server. Loopback-only. Uses the same public core
- * interfaces as production with synthetic identity; it never connects to the central
- * control plane and cannot be enabled in a production Worker. */
+ * interfaces as production with synthetic customer-local authority; it never
+ * connects to a central service and cannot be enabled in a production Worker. */
 import {createServer} from 'node:http';
 import {readFile, readdir, access} from 'node:fs/promises';
 import {createRequire} from 'node:module';

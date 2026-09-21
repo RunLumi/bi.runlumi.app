@@ -24,12 +24,9 @@ from a request. The serving D1 must declare the same customer/deployment/environ
    the hostname is unreviewed (`hostnameReviewed: false`), the Access team is a
    scaffold value, audiences are placeholder or reused, or D1 identity is a zero/missing
    UUID. A plan creates no Cloudflare resource.
-5. **Register the deployment at Control** so the control service verifies forwarded
-   end-user JWTs against this deployment's registered Access team/audience and control
-   interface version (never a shared global audience). Customer deployments register
-   through the `POST /control/admin/deployments` operator endpoint; shared cell scopes
-   are registered by the reviewed control-bootstrap SQL. Update the registration state
-   (`registered`/`suspended`/`retired`) when the deployment lifecycle changes.
+5. Configure the customer-owned Access application and seed local membership and
+   entitlement records in the serving D1. No Lumi-operated registration endpoint or
+   runtime control service is required.
 6. Apply core migrations from `node_modules/@runlumi/core/migrations`, then customer
    migrations from `customer/migrations`, to the serving D1.
 7. Deploy the Worker:
@@ -42,8 +39,8 @@ from a request. The serving D1 must declare the same customer/deployment/environ
 
 - Workers.dev and preview URLs are disabled in every environment's configuration.
 - Browser requests are same-origin; mutations use the core origin/CSRF check.
-- Only the packaged Access verifier authenticates a session — against the registered
-  deployment's team and audience, with no email/header shortcut or development identity.
+- Only the packaged Access verifier authenticates a session against this customer's
+  configured team and audience, with no email/header shortcut or development identity.
 - The Worker has a binding only to this customer's serving database and sources
   bucket; it has no binding to another customer's business data. It also refuses to
   proxy fleet-administration endpoints: separate the operator surface from customer
@@ -61,8 +58,6 @@ rollback against the migrated database before deploying it.
 
 ## Incident
 
-If control authority is unavailable the application fails closed: it does not serve
-customer data on an unverified authorization. Suspended or retired registrations deny
-access (`DEPLOYMENT_INACTIVE`); an unknown locator is `AUTH_NOT_CONFIGURED`, never a
-fallback. Investigate the control service, the deployment registration state and the
-serving database identity before restoring access.
+If local authority is unavailable the application fails closed: it does not serve
+customer data on an unverified authorization. Investigate the customer-owned
+membership/entitlement records and serving database identity before restoring access.

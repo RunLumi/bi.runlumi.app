@@ -16,8 +16,9 @@ Start with the [commerce specifications](docs/specs/README.md), then the
 
 **Foundation preview, not merchant-verified or Cloudflare production-certified.**
 
-- Separate central control Worker/D1 for identities, memberships, tenant routes,
-  license entitlements and configuration releases. No commerce D1 bindings there.
+- Each generated customer deployment owns local identity, memberships, entitlements,
+  serving D1, source R2, application config and audit state. Customer Workers do
+  not require a CONTROL binding or Lumi-operated request-time service.
 - Bounded cell API with per-tenant serving D1, primary authorization checks,
   database identity/route fencing, role checks and no browser-selected binding.
 - React/Vite Vietnamese workspace with truthful commerce capability states,
@@ -105,13 +106,10 @@ npm --prefix apps/web run test:e2e
 ## Architecture
 
 ```text
-Browser -> Customer application Worker -> private CONTROL service binding
-   |                                       -> Access re-verification
-   |                                       -> central control D1: membership, license, route
-   |                                       -> private PACKS R2: immutable active bundle
-   |  (dedicated deployment: fixed CUSTOMER_ID, hostname, Access audience, SERVING D1)
-   -> SERVING D1: facts, snapshots, UI dashboards, local audit
-   -> private SOURCES R2: customer-prefixed source evidence
+Browser -> Customer-owned Access -> Customer application Worker
+   |                                  -> local memberships/entitlements in SERVING D1
+   |                                  -> local facts, snapshots, reports and audit
+   |                                  -> private customer SOURCES R2
 ```
 
 One versioned product core (`packages/core`, `packages/cloudflare`, `packages/ui`).
@@ -144,13 +142,11 @@ npm run acceptance:two-customers      # two-customer install/build/upgrade proof
 No deployment or billable Cloudflare resources are created by repository CI.
 Generate an inventory-specific plan with `npm run cf:config -- .local/cell.json`,
 then follow the [runbook](docs/deployment.md): migrate both planes, build assets,
-deploy the private control Worker **before** the cell, and test real bindings.
+deploy the customer Worker with its customer-owned Access and resources, and test real bindings.
 
-The control service has no public route; it verifies every forwarded end-user JWT
-against the registered deployment's own reviewed Access team/audience, control
-interface version and lifecycle state (see the `deployments` registry in
-[docs/deployment.md](docs/deployment.md)). Generated SQL does not invent a
-commercial license or grant operator access.
+Customer-owned Access authenticates users; local serving-D1 memberships and
+entitlements authorize requests. Generated SQL does not invent a commercial license
+or grant operator access.
 
 ## License
 
