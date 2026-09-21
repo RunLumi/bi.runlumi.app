@@ -8,6 +8,7 @@ Read in order:
 2. [Create a customer repository](02-create-customer-repository.md)
 3. [Run the customer E2E workflow](03-customer-e2e.md)
 4. [Deployment handoff](04-deployment-handoff.md)
+5. [Core upgrades](05-upgrading-core.md)
 
 ## Important boundaries
 
