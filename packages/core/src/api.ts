@@ -15,7 +15,7 @@ import { enqueueCommerceJob, executeCommerceJob, readCommerceJob, readCommerceJo
 import { authorizeTenant, canEdit } from './tenant.ts';
 import { importSnapshot } from './ingest.ts';
 import {CORE_MODULES,parseDecisionRules,type CoreModule,type DecisionRule} from './extension-contracts.ts';
-import {createCommerceInsight,readCommerceInsightsArtifacts,refreshCommerceInsight} from './commerce-insight-artifacts.ts';
+import {createCommerceInsight,readCommerceInsightsArtifacts,refreshCommerceInsight,promoteCommerceInsight} from './commerce-insight-artifacts.ts';
 import { LUMI_CORE_VERSION } from './version.ts';
 import type { AppEnv } from './ports.ts';
 export type Authenticate<E extends AppEnv = AppEnv> = (request:Request,env:E)=>Promise<Principal>;
@@ -167,7 +167,8 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
         if(resource) response=json(await readCommerceInsightsArtifacts(ctx,resource));
         else {const findings=await readCommerceInsights(ctx);response=json({...findings,artifacts:[]});}
       }else if(route==='commerce-insights'&&request.method==='POST'&&!resource){
-        response=json(await createCommerceInsight(ctx,await readJson(request)),201);
+        const body=await readJson(request) as Record<string,unknown>;
+        response=json(body.action==='promote'?await promoteCommerceInsight(ctx,String(body.insightId)):await createCommerceInsight(ctx,body),body.action==='promote'?200:201);
       }else if(route==='commerce-insights'&&request.method==='PUT'&&resource){
         response=json(await refreshCommerceInsight(ctx,resource,await readJson(request)));
       }else if(route==='commerce-decisions'&&request.method==='GET'){

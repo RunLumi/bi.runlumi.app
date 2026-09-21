@@ -10,4 +10,5 @@ test('saved insight reloads and refresh creates an immutable pinned run',async t
  const refreshed=await ok(await f.call('commerce-insights/insight-weekly-sales',{expectedRevision:1},{method:'PUT'}));assert.equal(refreshed.revision,2);assert.notEqual(refreshed.runId,created.runId);
  const after=await ok(await f.call('commerce-insights/insight-weekly-sales'));assert.deepEqual(after.insights[0].runs.map(r=>r.revision),[2,1]);
  assert.equal((await f.call('commerce-insights/insight-weekly-sales',{expectedRevision:1},{method:'PUT'})).status,409);
+ const proposal=await ok(await f.call('commerce-insights',{action:'promote',insightId:'insight-weekly-sales'}));assert.equal(proposal.path,'customer/reports/insight-weekly-sales.report.tsx');assert.equal(proposal.hardCodedResults,false);assert.match(proposal.source,/reportDefinition/);assert.doesNotMatch(proposal.source,/720000/);assert.equal(proposal.approvalRequired,true);
 });
