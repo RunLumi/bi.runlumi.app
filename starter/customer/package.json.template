@@ -4,7 +4,9 @@
   "private": true,
   "description": "Lumi BI customer application for __CUSTOMER_ID__. Consumes exact released @runlumi core artifacts at build time.",
   "type": "module",
-  "engines": {"node": ">=22.16.0"},
+  "engines": {
+    "node": ">=22.16.0"
+  },
   "dependencies": {
     "@runlumi/core": "__CORE_TARBALL__",
     "@runlumi/cloudflare": "__CLOUDFLARE_TARBALL__",
@@ -21,19 +23,22 @@
     "@fontsource-variable/geist": "5.2.6"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "5.20260921.1",
+    "@tailwindcss/vite": "4.3.3",
     "@types/node": "22.18.6",
     "@types/react": "19.1.16",
     "@types/react-dom": "19.1.9",
     "@vitejs/plugin-react": "5.1.2",
-    "typescript": "5.8.3",
-    "vite": "7.3.6",
     "tailwindcss": "4.3.3",
-    "@tailwindcss/vite": "4.3.3"
+    "typescript": "5.8.3",
+    "vite": "7.3.6"
   },
-  "overrides": {"esbuild": "0.28.1"},
+  "overrides": {
+    "esbuild": "0.28.1"
+  },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p apps/worker && tsc --noEmit",
     "validate": "node --experimental-strip-types scripts/validate.mjs",
     "upgrade": "node --experimental-strip-types scripts/upgrade.mjs",
     "deploy:plan": "node --experimental-strip-types scripts/deploy-plan.mjs",

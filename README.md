@@ -40,9 +40,17 @@ rollback; a schema downgrade requires restoring a compatible database backup.
 
 The core is split into versioned packages under `packages/*`; installation code,
 React pages, server extensions, mappings, connectors, and tests remain outside
-core internals. See [the user guide](user-guide/README.md),
+core internals. The complete operator journey lives in
+[the user guide](user-guide/README.md) (13 chapters, from requirements to
+troubleshooting). Capability-to-evidence mapping:
+[delivery checklist](docs/delivery-checklist.md). Also see
 [customization](CUSTOMIZATION.md), [deployment](docs/deployment.md), and
 [security](SECURITY.md).
+
+```bash
+node scripts/workerd-check.mjs             # packaged core under real workerd + local D1
+node scripts/acceptance-two-customers.mjs  # two customer repos from one packaged release
+```
 
 ## License
 

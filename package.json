@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "node --experimental-strip-types scripts/dev.mjs",
-    "test": "node --experimental-strip-types --test tests/installation-*.test.mjs tests/auth.test.mjs tests/boundaries.test.mjs tests/composition.test.mjs tests/licensing-policy.test.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "build:packages": "npm run build --workspace @runlumi/core && npm run build --workspace @runlumi/cloudflare && npm run build --workspace @runlumi/ui",
     "check": "npm run build:packages && npm run typecheck && npm test && node --experimental-strip-types scripts/check-repo.mjs && npm run check:boundaries && npm run check:licensing",
