@@ -20,7 +20,7 @@ the dashboard. The local adapter uses synthetic data only.
 ## Deploy
 
 Create a repository from the starter, configure one fixed `DB` D1 binding and one
-private `SOURCES` R2 binding, apply `migrations/installation/0001_initial.sql`,
+private `SOURCES` R2 binding, apply every `migrations/installation/*.sql` in order,
 build the React assets, and deploy the Worker to the installation owner's
 Cloudflare account. Access or another identity provider may authenticate users,
 but no Lumi-operated service is required at request time.

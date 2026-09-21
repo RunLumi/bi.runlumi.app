@@ -41,14 +41,14 @@ export function assembleCommerceReport(inputs:ReportInput[],mapping:IdentityMapp
   });
   if(checks.some(c=>!c.passed))throw new AppError(422,'INDEPENDENT_CONTROL_MISMATCH');
   const exclusions:{resource:string;canonicalId:string;chosenSourceKey:string;excludedSourceKey:string;reason:string}[]=[];
-  function canonical<T extends {sourceKey:string}>(rows:T[],resource:string,key:(r:T)=>string,economic:(r:T)=>unknown):Array<T&{canonicalId:string}> {
+  function canonical<T extends {sourceKey:string}>(rows:Array<{row:T;provider:string;account:string}>,resource:string,key:(r:T)=>string,economic:(r:T)=>unknown):Array<T&{canonicalId:string;sourceProvider:string;sourceAccount:string}> {
     const count=inputs.filter(i=>i.data.resourceType===resource).length;
-    const groups=new Map<string,{row:T;priority:number;sourceKey:string}[]>();
-    for(const row of rows){
+    const groups=new Map<string,{row:T;priority:number;sourceKey:string;provider:string;account:string}[]>();
+    for(const {row,provider,account} of rows){
       const source=key(row),link=linkMap.get(source);
       // Multiple sources require reviewed links for EVERY object, even those believed unrelated.
       if(count>1&&!link)throw new AppError(422,'CROSS_SOURCE_IDENTITY_REVIEW_REQUIRED');
-      const canonicalId=link?.canonicalId??source,group=groups.get(canonicalId)??[];group.push({row,priority:link?.priority??0,sourceKey:source});groups.set(canonicalId,group);
+      const canonicalId=link?.canonicalId??source,group=groups.get(canonicalId)??[];group.push({row,priority:link?.priority??0,sourceKey:source,provider,account});groups.set(canonicalId,group);
     }
     return [...groups.entries()].sort(([a],[b])=>a<b?-1:1).map(([canonicalId,group])=>{
       group.sort((a,b)=>a.priority-b.priority||(a.sourceKey<b.sourceKey?-1:1));const chosen=group[0]!;
@@ -57,11 +57,11 @@ export function assembleCommerceReport(inputs:ReportInput[],mapping:IdentityMapp
         if(other.priority===chosen.priority&&!equal)throw new AppError(422,'UNRESOLVED_SOURCE_AUTHORITY');
         exclusions.push({resource,canonicalId,chosenSourceKey:chosen.row.sourceKey,excludedSourceKey:other.row.sourceKey,reason:equal?'MIRRORED_OBSERVATION':'REVIEWED_SOURCE_PRIORITY'});
       }
-      return {...chosen.row,canonicalId};
+      return {...chosen.row,canonicalId,sourceProvider:chosen.provider,sourceAccount:chosen.account};
     });
   }
-  const orders=canonical(inputs.flatMap(i=>i.data.orders),'orders',r=>r.sourceKey,r=>({orderedAt:r.orderedAt,recognizedAt:r.recognizedAt,state:r.state,merchandise:r.merchandise,sellerDiscount:r.sellerDiscount,merchandiseReversal:r.merchandiseReversal,cogs:r.cogs,variableFees:r.variableFees,shippingIncome:r.shippingIncome,earnedSubsidy:r.earnedSubsidy}));
-  const settlements=canonical(inputs.flatMap(i=>i.data.settlements),'settlements',r=>r.sourceKey,r=>({economicAt:r.economicAt,finality:r.finality,components:r.components.map(c=>[c.kind,c.amount]),receipts:r.receipts.map(c=>[c.id,c.amount,c.evidenceRef])}));
+  const orders=canonical(inputs.flatMap(i=>i.data.orders.map(row=>({row,provider:i.data.provider,account:i.data.sourceAccountId}))),'orders',r=>r.sourceKey,r=>({orderedAt:r.orderedAt,recognizedAt:r.recognizedAt,state:r.state,merchandise:r.merchandise,sellerDiscount:r.sellerDiscount,merchandiseReversal:r.merchandiseReversal,cogs:r.cogs,variableFees:r.variableFees,shippingIncome:r.shippingIncome,earnedSubsidy:r.earnedSubsidy}));
+  const settlements=canonical(inputs.flatMap(i=>i.data.settlements.map(row=>({row,provider:i.data.provider,account:i.data.sourceAccountId}))),'settlements',r=>r.sourceKey,r=>({economicAt:r.economicAt,finality:r.finality,components:r.components.map(c=>[c.kind,c.amount]),receipts:r.receipts.map(c=>[c.id,c.amount,c.evidenceRef])}));
   const bankReceipts=new Set<string>();for(const s of settlements)for(const r of s.receipts){const k=JSON.stringify([r.evidenceRef,r.id]);if(bankReceipts.has(k))throw new AppError(422,'CASH_RECEIPT_REUSED');bankReceipts.add(k);}
   // First select a gauge at the latest observed instant within each source pool. Never sum time.
   const latest=new Map<string,InventoryObservation>();let advertised=0;
@@ -71,7 +71,7 @@ export function assembleCommerceReport(inputs:ReportInput[],mapping:IdentityMapp
     if(previous&&previous.observedAt===r.observedAt&&JSON.stringify([previous.onHand,previous.reserved,previous.available])!==JSON.stringify([r.onHand,r.reserved,r.available]))throw new AppError(422,'CONFLICTING_STOCK_GAUGE');
     if(!previous||r.observedAt>previous.observedAt||r.observedAt===previous.observedAt&&r.sourceKey<previous.sourceKey)latest.set(r.poolKey,r);
   }
-  const inventory=canonical([...latest.values()],'inventory',r=>r.poolKey,r=>({observedAt:r.observedAt,onHand:r.onHand,reserved:r.reserved,available:r.available}));
+  const inventory=canonical([...latest.values()].map(row=>{const input=inputs.find(i=>(i.data.inventory as unknown[]).includes(row))!;return {row,provider:input.data.provider,account:input.data.sourceAccountId};}),'inventory',r=>r.poolKey,r=>({observedAt:r.observedAt,onHand:r.onHand,reserved:r.reserved,available:r.available}));
   const money=orderMetrics(orders),cash=settlementMetrics(settlements);
   const missingStock=inventory.filter(r=>r.available===null).length;
   const stockTotal=inventory.length&&!missingStock?formatQuantity(inventory.reduce((sum,r)=>sum+quantityUnits(r.available!),0n)):null;

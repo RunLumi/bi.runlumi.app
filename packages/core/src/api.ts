@@ -11,7 +11,7 @@ import {acceptCommerceExport,readCommerceReceipts} from './commerce-receipts.ts'
 import {normalizeCommerceReceipt,readCommerceNormalizations,readCommerceStaging} from './commerce-normalization.ts';
 import {registerCommerceMapping,previewCommercePublication,publishCommerce,readCommercePublication,readCommercePublicationStatus,readCommerceQueryPublication} from './commerce-publication.ts';
 import {enqueueCommerceJob,executeCommerceJob,readCommerceJobs,readCommerceJob} from './commerce-jobs.ts';
-import {commerceMetrics,parseCommerceQuery,queryCommerceReport} from './commerce-query.ts';
+import {commerceMetrics,parseCommerceQuery,queryCommerceReport,assertCommerceMetricScope,commerceViewerMetricIds as COMMERCE_VIEWER_METRIC_IDS} from './commerce-query.ts';
 import {answerCommerceQuestion} from './commerce-analyst.ts';
 import {readCommerceInsightFindings,createCommerceDecision,updateCommerceDecision,readCommerceDecisions,exportCommerceReport} from './commerce-decisions.ts';
 import {createCommerceInsight,readCommerceInsightsArtifacts,refreshCommerceInsight,promoteCommerceInsight} from './commerce-insight-artifacts.ts';
@@ -60,6 +60,11 @@ export function createApi<E extends AppEnv=AppEnv>(authenticate:Authenticate<E>,
    if(url.pathname==='/api/auth/login'&&request.method==='POST'){const body=object(await readJson(request),['login','password']);const session=await loginInstallation(db,{login:body.login,password:body.password});const response=secure(json({user:session.user,expiresAt:session.expiresAt}),requestId);response.headers.set('Set-Cookie',session.cookie);return response}
    if(url.pathname==='/api/setup'&&request.method==='POST'){
     if(initialized)throw new AppError(409,'INSTALLATION_ALREADY_INITIALIZED');
+    // A publicly reachable production deployment must not expose an open setup
+    // race: without a configured operator secret, initialization is blocked.
+    const environment=typeof env.ENVIRONMENT==='string'?env.ENVIRONMENT:'';
+    const setupConfigured=SETUPS.some(([,binding])=>typeof env[binding]==='string'&&env[binding].length>0);
+    if(environment==='production'&&!setupConfigured)throw new AppError(503,'SETUP_PROTECTION_REQUIRED');
     const body=object(await readJson(request),['name','displayName','login','password','setupToken']);
     await assertSetupAllowed(env,body);
     const user=await initializeInstallation(db,{name:body.name,displayName:body.displayName,login:body.login,password:body.password,coreRelease:LUMI_CORE_VERSION});
@@ -85,14 +90,16 @@ export function createApi<E extends AppEnv=AppEnv>(authenticate:Authenticate<E>,
     if(body.login!==undefined){resolved={...body,issuer:'local',subject:body.login};delete resolved.login;}
     const normalized=object(resolved,['issuer','subject','displayName','role','state','password']);
     if(normalized.issuer==='local'&&normalized.password===undefined)throw new AppError(422,'PASSWORD_REQUIRED');
-    const user=await upsertInstallationUser(db,normalized as {issuer:unknown;subject:unknown;displayName:unknown;role:unknown;state?:unknown;password?:unknown});return secure(json({user},201),requestId)
+    const user=await upsertInstallationUser(db,normalized as {issuer:unknown;subject:unknown;displayName:unknown;role:unknown;state?:unknown;password?:unknown},actor);return secure(json({user},201),requestId)
    }
    const userMutation=/^\/api\/users\/([a-f0-9-]{20,80})$/.exec(url.pathname);
    if(userMutation&&request.method==='PUT'){
     requireInstallationRole(actor,'owner');const userId=userMutation[1]!;const body=object(await readJson(request),['state','role','password']);
-    if(body.state!==undefined){const state=String(body.state);if(state!=='active'&&state!=='disabled')throw new AppError(422,'INVALID_USER_STATE');if(!await db.prepare('SELECT id FROM users WHERE id=?').bind(userId).first())throw new AppError(404,'USER_NOT_FOUND');await setInstallationUserState(db,userId,state);return secure(json({id:userId,state}),requestId)}
-    if(body.role!==undefined){const user=await setInstallationUserRole(db,userId,String(body.role) as Role);return secure(json({id:userId,role:user.role}),requestId)}
-    if(body.password!==undefined){await setInstallationCredential(db,userId,body.password);return secure(json({id:userId,passwordReset:true}),requestId)}
+    // One action per mutation: an ambiguous request is rejected, never guessed.
+    if(['state','role','password'].filter(field=>body[field]!==undefined).length>1)throw new AppError(422,'AMBIGUOUS_USER_MUTATION');
+    if(body.state!==undefined){const state=String(body.state);if(state!=='active'&&state!=='disabled')throw new AppError(422,'INVALID_USER_STATE');if(!await db.prepare('SELECT id FROM users WHERE id=?').bind(userId).first())throw new AppError(404,'USER_NOT_FOUND');await setInstallationUserState(db,userId,state,actor);return secure(json({id:userId,state}),requestId)}
+    if(body.role!==undefined){const user=await setInstallationUserRole(db,userId,String(body.role) as Role,actor);return secure(json({id:userId,role:user.role}),requestId)}
+    if(body.password!==undefined){await setInstallationCredential(db,userId,body.password);return secure(json({id:userId,passwordReset:true,sessionsRevoked:true}),requestId)}
     throw new AppError(400,'UNKNOWN_FIELD');
    }
    if(url.pathname==='/api/sources'){
@@ -132,7 +139,7 @@ async function commerceApi<E extends AppEnv>(request:Request,args:CommerceArgs<E
  }
  if(path==='/normalizations'){
   if(request.method==='GET')return respond(await readCommerceNormalizations(db,actor,new URL(request.url).searchParams.get('normalizationId')??undefined));
-  requireInstallationRole(actor,'owner');const result=await normalizeCommerceReceipt(db,store,actor,await postBody());return respond(result,result.replayed?200:201);
+  requireInstallationRole(actor,'owner');const result=await normalizeCommerceReceipt(db,store,{kind:'owner',actor},await postBody());return respond(result,result.replayed?200:201);
  }
  const staging=/^\/staging\/([a-z0-9][a-z0-9_-]{0,63})$/.exec(path);
  if(staging&&request.method==='GET')return respond(await readCommerceStaging(db,actor,staging[1]!));
@@ -146,15 +153,23 @@ async function commerceApi<E extends AppEnv>(request:Request,args:CommerceArgs<E
  const exportMatch=/^\/publications\/([a-z0-9][a-z0-9_-]{0,63})\/export$/.exec(path);
  if(exportMatch&&request.method==='GET')return secure(await exportCommerceReport(db,actor,exportMatch[1]!,new URL(request.url).searchParams.get('format')??'csv'),requestId);
  if(path==='/jobs'){
-  if(request.method==='GET')return respond(await readCommerceJobs(db,actor));
-  requireInstallationRole(actor,'owner');return respond(await enqueueCommerceJob(db,actor,await postBody()),202);
+  const ownerAuthority={kind:'owner' as const,actor};
+  if(request.method==='GET')return respond(await readCommerceJobs(db,ownerAuthority));
+  requireInstallationRole(actor,'owner');return respond(await enqueueCommerceJob(db,ownerAuthority,await postBody()),202);
  }
  const jobRun=/^\/jobs\/([a-z0-9][a-z0-9_-]{0,63})\/run$/.exec(path);
- if(jobRun&&request.method==='POST'){requireInstallationRole(actor,'owner');return respond(await executeCommerceJob(db,actor,jobRun[1]!,store));}
+ if(jobRun&&request.method==='POST'){requireInstallationRole(actor,'owner');return respond(await executeCommerceJob(db,{kind:'owner',actor},jobRun[1]!,store));}
  const job=/^\/jobs\/([a-z0-9][a-z0-9_-]{0,63})$/.exec(path);
- if(job&&request.method==='GET')return respond(await readCommerceJob(db,actor,job[1]!));
- if(path==='/metrics'&&request.method==='GET')return respond({version:'commerce-v1',metrics:commerceMetrics});
- if(path==='/queries'&&request.method==='POST')return respond(await answerCommerceQuery(db,actor,await postBody()));
+ if(job&&request.method==='GET')return respond(await readCommerceJob(db,{kind:'owner',actor},job[1]!));
+ if(path==='/metrics'&&request.method==='GET'){
+  const visible=actor.role==='owner'?commerceMetrics:commerceMetrics.filter(metric=>COMMERCE_VIEWER_METRIC_IDS.has(metric.id));
+  return respond({version:'commerce-v1',role:actor.role,metrics:visible});
+ }
+ if(path==='/queries'&&request.method==='POST'){
+  const query=parseCommerceQuery(await postBody());
+  assertCommerceMetricScope(actor.role,query.metrics);
+  return respond(await answerCommerceQuery(db,actor,query));
+ }
  if(path==='/findings'&&request.method==='GET')return respond(await readCommerceInsightFindings(db,actor));
  if(path==='/decisions'){
   if(request.method==='GET')return respond(await readCommerceDecisions(db,actor,new URL(request.url).searchParams.get('decisionId')??undefined));
@@ -175,9 +190,10 @@ async function commerceApi<E extends AppEnv>(request:Request,args:CommerceArgs<E
  if(path==='/ask'&&request.method==='POST')return respond(await answerCommerceQuestion(db,actor,await postBody()));
  throw new AppError(404,'NOT_FOUND');
 }
-/** Published-only, role-scoped commerce metric query over the active publication. */
-async function answerCommerceQuery(db:Database,actor:InstallationUser,body:Record<string,unknown>){
- const query=parseCommerceQuery(body);
+/** Published-only commerce metric query over a pinned publication.
+ * Metric scope is enforced by the route before this runs; actor is retained
+ * for response attribution. */
+async function answerCommerceQuery(db:Database,actor:InstallationUser,query:ReturnType<typeof parseCommerceQuery>){
  const publication=await readCommerceQueryPublication(db,query.dataVersion);
  return {publicationId:publication.id,contentHash:publication.contentHash,consistency:'published',result:queryCommerceReport(publication.report as unknown as Record<string,unknown>,query),warnings:publication.report.warnings,semanticVersion:publication.report.semanticVersion};
 }

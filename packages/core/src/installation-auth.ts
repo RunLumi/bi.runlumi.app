@@ -10,6 +10,9 @@ export const SESSION_COOKIE='lumi_session';
 const cookieName=SESSION_COOKIE;
 const LOCAL_ISSUER='local';
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Bounded durable login budget: 5 failures per login id per 15-minute window. */
+const LOGIN_MAX_FAILURES=5;
+const LOGIN_WINDOW_MS=15*60_000;
 const role=(value:unknown):Role=>{
   if(value==='viewer'||value==='editor'||value==='owner')return value;
   throw new AppError(422,'INVALID_ROLE');
@@ -24,6 +27,11 @@ export function normalizeLogin(value:unknown):string{
   const login=value.trim().toLowerCase();
   if(!login||login.length>200||!EMAIL.test(login))throw new AppError(422,'INVALID_LOGIN');
   return login;
+}
+function validatePasswordValue(value:unknown):string{
+  if(typeof value!=='string'||value.length<10||value.length>200)throw new AppError(422,'PASSWORD_LENGTH');
+  if(/^\s|\s$/.test(value))throw new AppError(422,'PASSWORD_SPACES');
+  return value;
 }
 async function digest(value:string):Promise<string>{
   const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
@@ -41,29 +49,22 @@ export async function installationInitialized(db:Database):Promise<boolean>{
   return row!==null;
 }
 
-/** Count of enabled owner accounts. The last active owner can never be
- * disabled or demoted; recovery of a lost administrator requires restoring a
- * database backup, so accidental loss is prevented here. */
-async function activeOwnerCount(db:Database,excludeUserId?:string):Promise<number>{
-  const row=await db.prepare("SELECT COUNT(*) AS n FROM users WHERE role='owner' AND state='active' AND (? IS NULL OR id!=?)").bind(excludeUserId??null,excludeUserId??null).first<{n:number}>();
-  return row?.n??0;
+/** True when changing this user to the requested role/state would remove the
+ * installation's last active owner. Enforced atomically by the guarded UPDATEs
+ * below — this helper only shapes the guard parameter. */
+function losesLastOwner(current:{role:string;state:string},next:{role?:Role;state?:'active'|'disabled'}):boolean{
+  if(current.role!=='owner')return false;
+  return (next.role!==undefined&&next.role!=='owner')||next.state==='disabled';
 }
-export async function assertNotLastActiveOwner(db:Database,userId:string,next:{role?:Role;state?:'active'|'disabled'}):Promise<void>{
-  const row=await db.prepare('SELECT role,state FROM users WHERE id=?').bind(userId).first<{role:string;state:string}>();
-  if(!row)throw new AppError(404,'USER_NOT_FOUND');
-  const losesOwner=(next.role!==undefined&&next.role!=='owner'&&row.role==='owner')||(next.state==='disabled'&&row.state==='active');
-  if(losesOwner&&await activeOwnerCount(db,userId)<1)throw new AppError(409,'LAST_ACTIVE_OWNER');
-}
-
 /** First-run initialization. Open only while the installation row is absent;
  * the singleton primary key makes concurrent initialization choose one winner
  * and permanent closure follows from the same constraint. */
 export async function initializeInstallation(db:Database,input:{name:unknown;coreRelease:unknown;login:unknown;displayName:unknown;password:unknown}):Promise<InstallationUser>{
   const name=text(input.name,160,'INSTALLATION_NAME');
   const coreRelease=text(input.coreRelease,80,'CORE_RELEASE');
-  const displayName=text(input.displayName,160,'DISPLAY_NAME');
+  const displayName=input.displayName===undefined||input.displayName===null||input.displayName===''?'':text(input.displayName,160,'DISPLAY_NAME');
   const login=normalizeLogin(input.login);
-  const password=validatePassword(input.password);
+  const password=validatePasswordValue(input.password);
   const now=new Date().toISOString();
   const id=crypto.randomUUID();
   const passwordHash=await hashPassword(password);
@@ -84,23 +85,42 @@ export async function initializeInstallation(db:Database,input:{name:unknown;cor
 }
 function userDisplayName(displayName:string,login:string):string{return displayName||(login.split('@')[0]??login);}
 
-function validatePassword(value:unknown):string{
-  if(typeof value!=='string'||value.length<10||value.length>200)throw new AppError(422,'PASSWORD_LENGTH');
-  if(/^\s|\s$/.test(value))throw new AppError(422,'PASSWORD_SPACES');
-  return value;
+/** Durable login throttling. Admission is denied before any credential work
+ * when the budget for this login id is exhausted; a success clears the count. */
+async function loginAdmitted(db:Database,login:string,now:number):Promise<void>{
+  const row=await db.prepare('SELECT failures,window_until FROM login_throttle WHERE login=?').bind(login).first<{failures:number;window_until:string}>();
+  if(!row)return;
+  if(row.window_until>new Date(now).toISOString()&&row.failures>=LOGIN_MAX_FAILURES)throw new AppError(429,'LOGIN_THROTTLED');
+}
+async function recordLoginFailure(db:Database,login:string,now:number):Promise<void>{
+  const nowIso=new Date(now).toISOString();
+  const row=await db.prepare('SELECT failures,window_until FROM login_throttle WHERE login=?').bind(login).first<{failures:number;window_until:string}>();
+  const expired=!row||row.window_until<=nowIso;
+  const failures=expired?1:row!.failures+1;
+  const windowUntil=new Date((expired?now:Date.parse(row!.window_until))+LOGIN_WINDOW_MS).toISOString();
+  await db.prepare("INSERT INTO login_throttle(login,failures,window_until) VALUES (?,?,?) ON CONFLICT(login) DO UPDATE SET failures=excluded.failures,window_until=excluded.window_until").bind(login,failures,windowUntil).run();
+}
+async function clearLoginFailures(db:Database,login:string):Promise<void>{
+  await db.prepare('DELETE FROM login_throttle WHERE login=?').bind(login).run();
 }
 
 /** Direct password sign-in. Only local credentials authenticate here; an
- * external identity principal never guesses a local password. */
-export async function loginInstallation(db:Database,input:{login:unknown;password:unknown}):Promise<InstallationSession>{
+ * external identity principal never guesses a local password. Failures are
+ * generic and budgeted. */
+export async function loginInstallation(db:Database,input:{login:unknown;password:unknown},now:number=Date.now()):Promise<InstallationSession>{
   const login=normalizeLogin(input.login);
-  if(typeof input.password!=='string'||!input.password.length||input.password.length>200)throw new AppError(401,'INVALID_CREDENTIALS');
+  await loginAdmitted(db,login,now);
+  if(typeof input.password!=='string'||!input.password.length||input.password.length>200){
+    await recordLoginFailure(db,login,now);
+    throw new AppError(401,'INVALID_CREDENTIALS');
+  }
   const row=await db.prepare("SELECT id,issuer,subject,display_name,role,state FROM users WHERE issuer='local' AND subject=?").bind(login).first();
-  if(!row)throw new AppError(401,'INVALID_CREDENTIALS');
+  if(!row){await recordLoginFailure(db,login,now);throw new AppError(401,'INVALID_CREDENTIALS');}
   const user=userFrom(row);
   const credential=await db.prepare('SELECT password_hash FROM user_credentials WHERE user_id=?').bind(user.id).first<{password_hash:string}>();
-  if(!credential||!await verifyPassword(input.password,credential.password_hash))throw new AppError(401,'INVALID_CREDENTIALS');
+  if(!credential||!await verifyPassword(input.password,credential.password_hash)){await recordLoginFailure(db,login,now);throw new AppError(401,'INVALID_CREDENTIALS');}
   if(user.state!=='active')throw new AppError(403,'USER_DISABLED');
+  await clearLoginFailures(db,login);
   return createInstallationSession(db,{issuer:user.issuer,subject:user.subject},user);
 }
 
@@ -126,57 +146,112 @@ export function requireInstallationRole(user:InstallationUser,minimum:Role):void
   if(rank[user.role]<rank[minimum])throw new AppError(403,minimum==='owner'?'OWNER_REQUIRED':'EDITOR_REQUIRED');
 }
 
-/** Owner-only user management. A newly created local user receives a credential
- * so direct sign-in works immediately. */
-export async function upsertInstallationUser(db:Database,input:{id?:unknown;issuer:unknown;subject:unknown;displayName:unknown;role:unknown;state?:unknown;password?:unknown}):Promise<InstallationUser>{
-  const issuer=text(input.issuer,200,'ISSUER'),subject=input.issuer===LOCAL_ISSUER?normalizeLogin(input.subject):text(input.subject,200,'SUBJECT');
-  const displayName=input.displayName===undefined||input.displayName===null||input.displayName===''?'':text(input.displayName,160,'DISPLAY_NAME');
-  const userRole=role(input.role);const state=input.state===undefined?'active':input.state;
+/** Owner-only user management over one coherent path.
+ * Creation requires an initial credential for local users. Updates go through
+ * a guarded atomic UPDATE that refuses to remove the last active owner, and a
+ * failed validation never leaves a partly written account. */
+export async function upsertInstallationUser(db:Database,input:{id?:unknown;issuer:unknown;subject:unknown;displayName?:unknown;role:unknown;state?:unknown;password?:unknown},actor?:InstallationUser):Promise<InstallationUser>{
+  const issuer=text(input.issuer,200,'ISSUER');
+  const subject=issuer===LOCAL_ISSUER?normalizeLogin(input.subject):text(input.subject,200,'SUBJECT');
+  const userRole=role(input.role);
+  const state=input.state===undefined?'active':input.state;
   if(state!=='active'&&state!=='disabled')throw new AppError(422,'INVALID_USER_STATE');
-  const idValue=input.id===undefined?crypto.randomUUID():text(input.id,80,'USER_ID');const now=new Date().toISOString();
+  // Validate the password BEFORE any write so a failure cannot half-update.
+  const password=input.password===undefined||input.password===null||input.password===''?undefined:validatePasswordValue(input.password);
+  const displayName=input.displayName===undefined||input.displayName===null||input.displayName===''?'':text(input.displayName,160,'DISPLAY_NAME');
+  const now=new Date().toISOString();
+  const existing=await db.prepare('SELECT id,role,state FROM users WHERE issuer=? AND subject=?').bind(issuer,subject).first<{id:string;role:string;state:string}>();
+  if(existing&&input.id!==undefined&&String(input.id)!==existing.id)throw new AppError(409,'USER_IDENTITY_CONFLICT');
+  if(!existing&&issuer===LOCAL_ISSUER&&password===undefined)throw new AppError(422,'PASSWORD_REQUIRED');
+  const idValue=existing?.id??crypto.randomUUID();
   const storedName=displayName||(subject.split('@')[0]??subject);
-  await db.prepare("INSERT INTO users(id,issuer,subject,display_name,role,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(issuer,subject) DO UPDATE SET display_name=excluded.display_name,role=excluded.role,state=excluded.state,updated_at=excluded.updated_at").bind(idValue,issuer,subject,storedName,userRole,state,now,now).run();
-  const row=await db.prepare('SELECT id,issuer,subject,display_name,role,state FROM users WHERE issuer=? AND subject=?').bind(issuer,subject).first();
-  if(!row)throw new AppError(503,'USER_WRITE_FAILED');
-  const user=userFrom(row);
-  if(issuer===LOCAL_ISSUER){
-    if(input.password!==undefined)await setInstallationCredential(db,user.id,validatePassword(input.password));
-    else if(!await db.prepare('SELECT user_id FROM user_credentials WHERE user_id=?').bind(user.id).first())await setInstallationCredential(db,user.id,`reset-${randomToken()}`);
+  const actorId=actor?.id??'system';
+  let result;
+  if(existing){
+    // Guarded update: the last-active-owner condition lives inside the UPDATE,
+    // so a concurrent administrator cannot race the check and the write.
+    const guard=losesLastOwner(existing,{role:userRole,state});
+    result=await db.batch([
+      db.prepare(`UPDATE users SET display_name=?,role=?,state=?,updated_at=? WHERE id=? AND (${guard?'?':'1'}) AND (${guard?"EXISTS (SELECT 1 FROM users u WHERE u.role='owner' AND u.state='active' AND u.id!=users.id)":"1"})`).bind(...(guard?[storedName,userRole,state,now,idValue,1]:[storedName,userRole,state,now,idValue])),
+      db.prepare("INSERT INTO audit_events(id,actor,event_type,resource_id,occurred_at) SELECT ?,?,?,?,? WHERE changes()=1").bind(crypto.randomUUID(),actorId,'user.updated',idValue,now)
+    ]);
+    if(result[0]!.meta.changes!==1)throw new AppError(409,'LAST_ACTIVE_OWNER');
+  }else{
+    // A newly created user can never remove an existing owner.
+    result=await db.batch([
+      db.prepare("INSERT INTO users(id,issuer,subject,display_name,role,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)").bind(idValue,issuer,subject,storedName,userRole,state,now,now),
+      db.prepare("INSERT INTO audit_events(id,actor,event_type,resource_id,occurred_at) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(),actorId,'user.created',idValue,now)
+    ]);
+    if(result[0]!.meta.changes!==1)throw new AppError(409,'USER_EXISTS');
   }
-  if(state==='disabled')await revokeInstallationSessions(db,user.id);
-  return user;
+  if(password!==undefined)await setInstallationCredential(db,idValue,password);
+  if(state==='disabled'||(existing&&losesLastOwner(existing,{role:userRole})))await revokeInstallationSessions(db,idValue);
+  const row=await db.prepare('SELECT id,issuer,subject,display_name,role,state FROM users WHERE id=?').bind(idValue).first();
+  if(!row)throw new AppError(503,'USER_WRITE_FAILED');
+  return userFrom(row);
 }
 
-export async function setInstallationCredential(db:Database,userId:string,password:unknown):Promise<void>{
-  const validated=validatePassword(password);
+export async function setInstallationCredential(db:Database,userId:string,password:unknown,options:{revokeSessions:boolean}= {revokeSessions:true}):Promise<void>{
+  const validated=validatePasswordValue(password);
   const user=await db.prepare('SELECT id,issuer FROM users WHERE id=?').bind(userId).first<{id:string;issuer:string}>();
   if(!user)throw new AppError(404,'USER_NOT_FOUND');
   if(user.issuer!==LOCAL_ISSUER)throw new AppError(422,'EXTERNAL_IDENTITY_HAS_NO_LOCAL_PASSWORD');
   const hash=await hashPassword(validated);
-  await db.prepare("INSERT INTO user_credentials(user_id,password_hash,updated_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET password_hash=excluded.password_hash,updated_at=excluded.updated_at").bind(userId,hash,new Date().toISOString()).run();
+  const nowIso=new Date().toISOString();
+  if(options.revokeSessions){
+    await db.batch([
+      db.prepare("INSERT INTO user_credentials(user_id,password_hash,updated_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET password_hash=excluded.password_hash,updated_at=excluded.updated_at").bind(userId,hash,nowIso),
+      db.prepare('DELETE FROM sessions WHERE user_id=?').bind(userId)
+    ]);
+  }else{
+    await db.prepare("INSERT INTO user_credentials(user_id,password_hash,updated_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET password_hash=excluded.password_hash,updated_at=excluded.updated_at").bind(userId,hash,nowIso).run();
+  }
 }
 
-/** Session-authenticated self password change: requires the current password. */
+/** Session-authenticated self password change: requires the current password,
+ * and revokes all sessions (including this one) after a successful change. */
 export async function changeOwnPassword(db:Database,user:InstallationUser,input:{currentPassword:unknown;newPassword:unknown}):Promise<void>{
   if(user.issuer!==LOCAL_ISSUER)throw new AppError(422,'EXTERNAL_IDENTITY_HAS_NO_LOCAL_PASSWORD');
+  const newPassword=validatePasswordValue(input.newPassword);
   const credential=await db.prepare('SELECT password_hash FROM user_credentials WHERE user_id=?').bind(user.id).first<{password_hash:string}>();
   if(!credential||typeof input.currentPassword!=='string'||!await verifyPassword(input.currentPassword,credential.password_hash))throw new AppError(403,'INVALID_CREDENTIALS');
-  await setInstallationCredential(db,user.id,validatePassword(input.newPassword));
+  await setInstallationCredential(db,user.id,newPassword);
 }
 
-export async function setInstallationUserState(db:Database,userId:string,state:'active'|'disabled'):Promise<void>{
-  await assertNotLastActiveOwner(db,userId,{state});
-  const result=await db.prepare('UPDATE users SET state=?,updated_at=? WHERE id=?').bind(state,new Date().toISOString(),userId).run();
-  if((result.meta.changes??0)!==1)throw new AppError(404,'USER_NOT_FOUND');
+/** Atomic, audited disable/enable. The last active owner cannot be disabled:
+ * the guard lives inside the UPDATE, so concurrent administrators cannot race it. */
+export async function setInstallationUserState(db:Database,userId:string,state:'active'|'disabled',actor?:InstallationUser):Promise<void>{
+  const row=await db.prepare('SELECT role,state FROM users WHERE id=?').bind(userId).first<{role:string;state:string}>();
+  if(!row)throw new AppError(404,'USER_NOT_FOUND');
+  if(row.state===state)return;
+  const nowIso=new Date().toISOString();
+  const guard=losesLastOwner(row,{state});
+  const statements=[
+    db.prepare(`UPDATE users SET state=?,updated_at=? WHERE id=? AND (${guard?'?':'1'}) AND (${guard?"EXISTS (SELECT 1 FROM users u WHERE u.role='owner' AND u.state='active' AND u.id!=users.id)":"1"})`).bind(...(guard?[state,nowIso,userId,1]:[state,nowIso,userId])),
+    db.prepare("INSERT INTO audit_events(id,actor,event_type,resource_id,occurred_at) SELECT ?,?,?,?,? WHERE changes()=1").bind(crypto.randomUUID(),actor?.id??'system','user.'+state,userId,nowIso)
+  ];
+  const result=await db.batch(statements);
+  if(result[0]!.meta.changes!==1)throw new AppError(409,'LAST_ACTIVE_OWNER');
   if(state==='disabled')await revokeInstallationSessions(db,userId);
 }
-export async function setInstallationUserRole(db:Database,userId:string,userRole:Role):Promise<InstallationUser>{
-  await assertNotLastActiveOwner(db,userId,{role:userRole});
-  const result=await db.prepare('UPDATE users SET role=?,updated_at=? WHERE id=?').bind(userRole,new Date().toISOString(),userId).run();
-  if((result.meta.changes??0)!==1)throw new AppError(404,'USER_NOT_FOUND');
-  const row=await db.prepare('SELECT id,issuer,subject,display_name,role,state FROM users WHERE id=?').bind(userId).first();
-  if(!row)throw new AppError(404,'USER_NOT_FOUND');return userFrom(row);
+
+/** Atomic, audited role change; a privilege drop revokes existing sessions. */
+export async function setInstallationUserRole(db:Database,userId:string,userRole:Role,actor?:InstallationUser):Promise<InstallationUser>{
+  const row=await db.prepare('SELECT role,state FROM users WHERE id=?').bind(userId).first<{role:string;state:string}>();
+  if(!row)throw new AppError(404,'USER_NOT_FOUND');
+  if(row.role===userRole){const current=await db.prepare('SELECT id,issuer,subject,display_name,role,state FROM users WHERE id=?').bind(userId).first();return userFrom(current!);}
+  const nowIso=new Date().toISOString();
+  const guard=losesLastOwner(row,{role:userRole});
+  const result=await db.batch([
+    db.prepare(`UPDATE users SET role=?,updated_at=? WHERE id=? AND (${guard?'?':'1'}) AND (${guard?"EXISTS (SELECT 1 FROM users u WHERE u.role='owner' AND u.state='active' AND u.id!=users.id)":"1"})`).bind(...(guard?[userRole,nowIso,userId,1]:[userRole,nowIso,userId])),
+    db.prepare("INSERT INTO audit_events(id,actor,event_type,resource_id,occurred_at) SELECT ?,?,?,?,? WHERE changes()=1").bind(crypto.randomUUID(),actor?.id??'system','user.role-'+userRole,userId,nowIso)
+  ]);
+  if(result[0]!.meta.changes!==1)throw new AppError(409,'LAST_ACTIVE_OWNER');
+  if(rankOf(row.role)>rankOf(userRole))await revokeInstallationSessions(db,userId);
+  const updated=await db.prepare('SELECT id,issuer,subject,display_name,role,state FROM users WHERE id=?').bind(userId).first();
+  return userFrom(updated!);
 }
+function rankOf(role:string):number{return role==='owner'?3:role==='editor'?2:1;}
 
 export async function authenticateInstallationSession(db:Database,token:string,now=new Date()):Promise<InstallationUser>{
   if(!token||token.length>256)throw new AppError(401,'UNAUTHENTICATED');

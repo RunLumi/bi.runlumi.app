@@ -1,4 +1,4 @@
-import {readFile} from 'node:fs/promises';
+import {readFile,readdir} from 'node:fs/promises';
 import {LocalDatabase,LocalObjects,request} from '../scripts/local-adapters.mjs';
 import {createApi} from '../packages/core/src/api.ts';
 
@@ -12,12 +12,13 @@ export const fixturePasswords={owner:'owner-password-1',staff:'staff-password-1'
 /** Body for direct sign-in endpoints. */
 export const creds=(login,value)=>({login,[SECRET_FIELD]:value});
 
-const MIGRATIONS=['0001_initial.sql','0002_credentials_and_commerce.sql'];
+const MIGRATION_DIR=new URL('../migrations/installation/',import.meta.url);
 
-/** Empty installation with both migrations applied and no users. */
+/** Empty installation with ALL installation migrations applied and no users. */
 export async function emptyInstallation(){
   const db=new LocalDatabase();
-  for(const file of MIGRATIONS)db.db.exec(await readFile(new URL(`../migrations/installation/${file}`,import.meta.url),'utf8'));
+  const files=(await readdir(MIGRATION_DIR)).filter(f=>f.endsWith('.sql')).sort();
+  for(const file of files)db.db.exec(await readFile(new URL(`../migrations/installation/${file}`,import.meta.url),'utf8'));
   return db;
 }
 

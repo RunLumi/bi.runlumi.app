@@ -6,6 +6,12 @@
 | --- | --- | --- |
 | `INSTALLATION_ALREADY_INITIALIZED` | setup | Setup closed permanently. Sign in instead. |
 | `SETUP_TOKEN_REQUIRED` | setup | Deployment expects the `SETUP_TOKEN` secret; supply it or clear the secret if intentional. |
+| `SETUP_PROTECTION_REQUIRED` | setup (production) | `ENVIRONMENT=production` requires the `SETUP_TOKEN` secret before initialization. Configure it, then retry. |
+| `LOGIN_THROTTLED` | sign-in | Too many failed attempts for this login. Wait about 15 minutes; the budget clears automatically. |
+| `AMBIGUOUS_USER_MUTATION` | user management | One change per request: send `state`, `role` or `password` separately. |
+| `COMMERCE_FIELD_DENIED` | commerce queries | Viewers may query sales/count/stock metrics only; COGS and derived profit need editor+ approval policy (owner by default). |
+| `INSIGHT_DEFINITION_CONFLICT` | saved reports | A saved report with this id already has a different definition. Use another id or open the existing report. |
+| `INSIGHT_REFRESH_NOT_LATEST` | saved reports | The requested publication is not the active head. Refresh on the active publication or keep a pinned rerun. |
 | `INSTALLATION_DATABASE_UNAVAILABLE` | all | `DB` binding missing at runtime. Check `wrangler.jsonc` and deployment target. |
 | `INSTALLATION_STORAGE_UNAVAILABLE` | all | `SOURCES` R2 binding missing. Check binding names — they are fixed. |
 | `UNAUTHENTICATED` / `SESSION_EXPIRED` | any | No/old session cookie. Sign in again. |

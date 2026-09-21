@@ -2,7 +2,6 @@ import {createApi} from '@runlumi/core/api.ts';
 import {authenticateInstallation} from '@runlumi/cloudflare/request-auth.ts';
 import {executeCommerceJob,readCommerceJobs} from '@runlumi/core/commerce-jobs.ts';
 import type {AppEnv,Database,ObjectStore} from '@runlumi/core/ports.ts';
-import type {InstallationUser} from '@runlumi/core/installation-auth.ts';
 import {customMetricExtensions} from '../../../customer/data/server-metrics.ts';
 import {exampleAdapter} from '../../../customer/data/connectors.ts';
 import {decisionRules} from '../../../customer/workflows/decisions.ts';
@@ -18,18 +17,17 @@ interface InstallationEnv extends AppEnv {
 }
 const api=createApi<InstallationEnv>(authenticateInstallation,false,{customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules:manifest.modules,standalone:true});
 
-/** Server-owned runner identity for scheduled job execution. It exists only
- * inside the Worker runtime; it cannot sign in and owns no session. */
-const jobRunner:InstallationUser={id:'job-runner',issuer:'system',subject:'job-runner',displayName:'Job runner',role:'owner',state:'active'};
-
 export default {async fetch(request:Request,env:InstallationEnv):Promise<Response>{
   const path=new URL(request.url).pathname;
   if(path.startsWith('/api/')||path==='/healthz')return api(request,env);
   return env.ASSETS.fetch(request);
 },async scheduled(event:ScheduledController,env:InstallationEnv,ctx:ExecutionContext){
   ctx.waitUntil((async()=>{
-    const {jobs}=await readCommerceJobs(env.DB,jobRunner);
+    // The scheduled runner is server-owned authority, not a user: it cannot
+    // sign in, holds no session and is recorded as 'system:job-runner' in audit.
+    const authority={kind:'system' as const};
+    const {jobs}=await readCommerceJobs(env.DB,authority);
     for(const job of jobs.filter(j=>j.state==='QUEUED'||j.state==='RETRY_PENDING').slice(0,10)){
-      try{await executeCommerceJob(env.DB,jobRunner,job.jobId,env.SOURCES);}catch{/* job recorded its own failure state */}}
+      try{await executeCommerceJob(env.DB,authority,job.jobId,env.SOURCES);}catch{/* job recorded its own failure state */}}
   })());
 }};

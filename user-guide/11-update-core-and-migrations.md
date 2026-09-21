@@ -42,15 +42,18 @@ git add -A && git commit -m "core upgrade N -> N+1"
 ## Apply migrations after an update
 
 The upgrade reports the installation migrations the new release carries. Apply
-any new ones explicitly, in order:
+them explicitly with the ledger runner:
 
 ```bash
 # working directory: the generated customer repository
-npx wrangler d1 execute DB --remote --config apps/worker/wrangler.jsonc \
-  --file node_modules/@runlumi/core/migrations/installation/<new>.sql
+npm run migrate -- --remote
 ```
 
-Migrations are additive; the updater never touches your database.
+The ledger (`schema_migrations`) stores each applied file's checksum. Applied
+migrations are immutable: a file changed on disk is refused with a diagnostic
+instead of being re-run or skipped. For an installation that predates the
+ledger, adopt it once with `npm run migrate -- --remote --adopt`. Migrations
+are additive; the updater never touches your database.
 
 ## Updater-owned vs customer-owned files
 

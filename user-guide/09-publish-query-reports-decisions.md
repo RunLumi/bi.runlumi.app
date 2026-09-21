@@ -57,6 +57,15 @@ carries a snapshot context hash, provenance and a quality state
 (`NO_PUBLISHED_DATA`, `MISSING_SOURCE`, `BEHIND_REQUESTED_PERIOD`) so a
 dashboard can never mix snapshots silently.
 
+## Questions (curated, deterministic)
+
+`POST /api/commerce/ask` answers a narrow set of questions (recognized sales,
+recognized order count) by matching phrases to reviewed metrics — a
+**deterministic curated path**, explicitly labelled `mode:"curated-deterministic"`,
+`llmInvolved:false` in every response. It is not an LLM, cannot discuss profit
+without cost coverage, and executes nothing. There is no conversational report
+editing; reports are edited in Git by developers.
+
 ## Saved reports
 
 **Báo cáo** saves a query definition bound to a publication; each run stores

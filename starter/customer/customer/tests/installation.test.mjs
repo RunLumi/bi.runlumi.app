@@ -81,7 +81,7 @@ test('full commerce journey: connection -> receipt -> job -> publication -> expo
  const published=await r.json();
  assert.equal(published.replayed,false);
  const query=await (await api(req('/api/commerce/queries',{method:'POST',headers:{cookie},body:{contract:'lumi.query.v1',metrics:[{id:'net_merchandise_sales',version:1}],dimensions:[],filters:[],limit:10,consistency:'published',dataVersion:published.publicationId}}),env)).json();
- assert.equal(query.result.net_merchandise_sales.value,'720000');
+ assert.equal(query.result.metrics.net_merchandise_sales.value,'720000');
  const csv=await api(req(`/api/commerce/publications/${published.publicationId}/export?format=csv`,{headers:{cookie}}),env);
  assert.equal(csv.status,200);
 });
