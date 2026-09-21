@@ -81,6 +81,9 @@ for(const[name,info]of Object.entries(next.packages)){
  await cp(path.join(path.dirname(manifestPath),info.file),path.join(repoRoot,'vendor',info.file));
  lock.core.packages[name]={version:info.version,sha256:info.sha256};
 }
+// The vendored manifest is the release provenance record: it must describe the
+// release actually vendored, not the previous one.
+await cp(path.join(path.dirname(manifestPath),'lumi-core-manifest.json'),path.join(repoRoot,'vendor','lumi-core-manifest.json'));
 lock.core.version=next.release;
 lock.core.sourceCommit=next.sourceCommit;
 lock.core.releaseDigest=sha256(Buffer.from(JSON.stringify(next.packages))).slice(0,32);

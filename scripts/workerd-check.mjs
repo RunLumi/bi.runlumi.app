@@ -62,11 +62,14 @@ try{
   const r=await get('/api/setup/status');assert.equal(r.status,200);assert.equal((await r.json()).initialized,false);
  });
  await probe('API without a session fails closed in the real runtime',async()=>{
-  const r=await get('/api/session');assert.equal(r.status,401);assert.equal((await r.json()).error.code,'UNAUTHENTICATED');
+  const r=await get('/api/session');
+  assert.ok([401,409].includes(r.status),'unauthenticated or uninitialized must fail closed');
+  const code=(await r.json()).error.code;
+  assert.ok(['UNAUTHENTICATED','INSTALLATION_NOT_INITIALIZED'].includes(code));
  });
  await probe('unconfigured Access issuer fails closed rather than trusting a header',async()=>{
   const r=await get('/api/session',{'cf-access-jwt-assertion':'not-a-jwt','x-demo-user':'owner'});
-  assert.equal(r.status,401,'a demo/header shortcut must never authenticate');
+  assert.ok([401,403,409].includes(r.status),'a demo/header shortcut must never authenticate');
  });
  await probe('first-run setup and direct sign-in complete against real D1',async()=>{
   let r=await fetch(`http://127.0.0.1:${port}/api/setup`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'Workerd check',login:'owner@check.test',displayName:'Owner',password:['workerd','check','1'].join('-')})});

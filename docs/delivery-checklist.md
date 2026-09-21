@@ -1,0 +1,118 @@
+# Delivery checklist — standalone customer-deployable Lumi BI
+
+One canonical mapping from each required capability to its implementation,
+behavioral evidence and remaining boundaries. Evidence classes:
+
+- **[T]** behavioral test in this repository (`npm test`)
+- **[B]** real-browser journey (`apps/web` Playwright, demo + strict configs)
+- **[W]** real local workerd + local D1 (`scripts/workerd-check.mjs`)
+- **[A]** two-customer package-consumer acceptance
+  (`scripts/acceptance-two-customers.mjs`)
+- **[CI]** enforced on the delivered commit by `.github/workflows/ci.yml`
+
+## 1. Standalone architecture
+
+| Capability | Implementation | Evidence |
+| --- | --- | --- |
+| One installation, fixed `DB`/`SOURCES` bindings | `packages/core/src/ports.ts`, `api.ts` (`dbFor`/`storeFor`), starter worker | [T] `installation-*`, [W], [A] |
+| No tenant/fleet/registry machinery, incl. no recreation under other ids | repository-wide; forged `tenantId`/`installationId` body fields rejected | [T] `commerce-receipts` forged-field, [A] B1 forged probe |
+| Request/jobs/payloads never select another database | no such surface exists; isolation proof in acceptance | [A] D1 |
+| Operates without Lumi-operated services | no runtime call-out exists; vendor tarballs, offline install | [A] A3/B1, [W] |
+| Licensing and third-party notices preserved | `LICENSING.md`, `NOTICE`, per-build notices | [T] `licensing-policy`, [CI] |
+
+## 2. Secure setup and direct authentication
+
+| Capability | Implementation | Evidence |
+| --- | --- | --- |
+| Direct email+password sign-in/sign-out | `installation-auth.ts` (`loginInstallation`, `logoutInstallation`), `features/auth.tsx` | [T] auth suite, [B] strict journey |
+| Secure credential storage | `password.ts` — salted PBKDF2-SHA256, 210k iterations | [T] hashing test |
+| Bounded sessions, server-side validation | 14-day sessions, per-request revalidation, expiry sweep | [T], [W] |
+| Resource/config validation with clear errors | typed parsers + stable error codes; guide chapter 13 table | [T], guide |
+| One-time setup; permanent closure; concurrency safety | singleton installation row, batch init | [T] setup journey |
+| Setup takeover protection | optional `SETUP_TOKEN` secret, timing-safe compare | [T] |
+| User creation, role change, disablement, recovery | users API + Administration screen | [T] installation-api, [B] strict journey |
+| Last-administrator protection | `assertNotLastActiveOwner` | [T] |
+| Server-side authorization on every data/mutation surface | role checks in API + modules | [T] role matrix, [A] B1/E |
+| Disabled user blocks access incl. saved results/exports | session revocation + export/insight checks | [T] commerce-publication revocation, starter suite |
+| CSRF / cross-site denial | origin + sec-fetch-site checks | [T] auth suite |
+| Demo headers never authenticate production | demo flag only in local demo server; starter uses `authenticateInstallation` | [W] header probe |
+| Access/SSO optional | `authenticateInstallation`: session → optional Access → fail closed | [W], [T] |
+
+## 3. Operational BI features
+
+| Capability | Implementation | Evidence |
+| --- | --- | --- |
+| Source registration, authorization, revocation | sources API, commerce connections | [T] sources + commerce-connections |
+| Immutable evidence, checksums, idempotent replay | R2 content-addressed receipts, snapshot hashes, `RECEIPT_EVIDENCE_IMMUTABLE` triggers | [T] commerce-receipts/data |
+| Normalization, quarantine, recoverable failures | `commerce-normalization.ts`, quarantine reason codes | [T] commerce-normalization |
+| Reviewed mappings, preview, atomic publication, history | `commerce-publication.ts`, CAS head revision | [T] commerce-publication |
+| Typed semantic queries, consistent dashboard context | `query.ts` context hash, `commerce-query.ts` pinned publications | [T] both suites |
+| Sales/margin, settlement/COD, physical stock | `commerce-model.ts`/`commerce-report.ts` exact BigInt arithmetic, NULL-not-zero, latest-gauge stock | [T] model + publication + query |
+| Operational-cost reporting | operations metrics/snapshots/dashboards | [T] installation-data, [B] demo e2e |
+| Saved reports with reproducible evidence | `commerce-insight-artifacts.ts` runs + publication hash | [T] commerce-insights |
+| Findings, investigations, decision records, outcome evidence | `commerce-decisions.ts`, guarded transitions, new-publication proof | [T] commerce-decisions |
+| Authorized exports | owner-checked CSV (BOM, formula-safe)/JSON with content hash | [T] commerce-publication exports |
+| Durable jobs: retries, lease, recovery | `commerce-jobs.ts` 3 attempts, 60 s lease, dead-letter; scheduled runner in starter worker | [T] commerce-jobs |
+| Revoked source or disabled user blocks subsequent access | publication reads/exports/queries fail closed | [T] commerce-publication revocation, [A] B1 |
+| Exact arithmetic / NULL semantics / capacity-vs-cash distinction | BigInt minor units; nulls preserved; released-hours caveat in payloads and UI | [T] model + publication |
+
+Live provider connectors and certifications are **not implemented and not
+claimed**; authorized exports are the supported workflow (guide chapter 1/8).
+
+## 4. Usable application
+
+| Capability | Implementation | Evidence |
+| --- | --- | --- |
+| Setup, sign-in, admin, sources, commerce, decisions, reports screens | `packages/ui/src/features/*` | [B] both suites |
+| Loading/empty/stale/failed/denied states | `states.tsx` + per-feature states; quality banner | [B], [T] |
+| Identity change clears private client data | epoch-scoped QueryClient + `removeQueries` | [B] strict journey (sign-out) |
+| Brand and visual direction preserved | core styles, shadcn-based components, Vietnamese labels | [B] content-containment |
+| Desktop + mobile layout, keyboard access | skip link, focus rings, 320px containment checks | [B] content-containment |
+
+## 5. Customer customization
+
+| Capability | Implementation | Evidence |
+| --- | --- | --- |
+| Custom pages/reports/branding/metrics/connectors/rules/migrations/tests without core edits | `customer/` tree + `@runlumi/ui/app.tsx` composition | [A] C1/C2, A6 |
+| Executable examples | `examples/customers/alpha|beta` (distinct pages + server metrics) | [A] C1/C2 |
+| Reviewed custom code runs with privileges; model output never becomes code | promotion returns reviewed TSX text; boundary checks | [T] commerce-insights promote, [CI] boundaries |
+
+## 6. Installation, updates, backup, recovery
+
+| Capability | Implementation | Evidence |
+| --- | --- | --- |
+| Generate customer repository | `scripts/customer-new.mjs` | [A] A1/A2 |
+| Configure local/staging/production resources | per-env inventories + wrangler config | [A] I1 |
+| Initialize and run locally | `scripts/dev.mjs` (demo + `--strict`), guide ch. 5 | [B] strict journey |
+| Explicit core/customer migrations | shipped SQL + guide commands; never automatic | guide ch. 3/11 |
+| Build, validate, prepare deployment | customer `validate`/`build`/`deploy:plan` | [A] A4/I2 |
+| Check and apply core updates | `scripts/upgrade.mjs` `--check`/apply, sha256 gate, dirty-tree refusal, lockfile-only update, reviewable diff | [A] F1 |
+| Backup/restore | `wrangler d1 export/execute` procedures, R2 guidance | guide ch. 12 |
+| Rollback of actual artifacts | vendor restore + re-deploy; migration limits stated | [A] H1, guide ch. 12 |
+
+## 7. Documentation
+
+- `user-guide/` — 13-chapter operator journey with exact, verified commands.
+- `README.md`, `docs/*`, `SECURITY.md`, `CUSTOMIZATION.md`, `UPGRADING.md`,
+  `VALIDATION.md` — aligned with the standalone architecture; contradictions
+  with retired architectures removed.
+
+## 8. Proof layers summary
+
+- `npm run check` — typecheck + 89 behavioral tests + repo/licensing gates. [T][CI]
+- `npm --prefix apps/web run test:e2e` — demo UI checks + strict first-run
+  browser journey. [B][CI]
+- `node scripts/workerd-check.mjs` — 7 runtime checks under real workerd with
+  local D1. [W][CI]
+- `node scripts/acceptance-two-customers.mjs` — two independent customers from
+  one packaged release: build, tests, commerce journey, isolation, real N+1
+  upgrade with a behavior change, rollback records, deployment-identity gates.
+  [A][CI]
+
+## Remaining boundaries (honest)
+
+- Live staging/production deployment, DNS and Access configuration require the
+  customer's Cloudflare account and authorization — local evidence does not
+  substitute for a real deployment (no billable resources were created).
+- No live vendor connectors or certifications; authorized exports only.
+- Backups are documented operator procedures, not scheduled automation.

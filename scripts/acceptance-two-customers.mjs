@@ -47,7 +47,8 @@ const generate=async(customer,name,envs='production,staging')=>{
  // the reviewed updater (which refuses dirty or non-Git trees) can run on it.
  run('git',['init','-q'],dest);
  run('git',['add','-A'],dest);
- run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','-m',`fixture base: ${customer}`],dest);
+ // --no-verify: the throwaway fixture repo must not inherit operator-side hooks.
+ run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m',`fixture base: ${customer}`],dest);
  return dest;
 };
 const customerFile=async(dir,relative)=>readFile(path.join(dir,relative),'utf8');
@@ -66,23 +67,25 @@ for(const file of ['0001_initial.sql','0002_credentials_and_commerce.sql'])db.db
 const objects=new LocalObjects();
 const env={DB:db,SOURCES:objects};
 const api=createApi(async()=>({issuer:'local',subject:'no-one'}),false,{standalone:true});
-const call=(path,{method='GET',body,headers={}}={})=>api(new Request('http://localhost:8787'+path,{method,headers,...(body!==undefined?{'content-type':'application/json'}:{}),...(body!==undefined?{body:JSON.stringify(body)}:{})}),env);
+const call=(path,{method='GET',body,headers={}}={})=>api(new Request('http://localhost:8787'+path,{method,...(body!==undefined?{body:JSON.stringify(body)}:{}),headers:{...(body!==undefined?{'content-type':'application/json'}:{}),...headers}}),env);
 const cookieOf=r=>(r.headers.get('set-cookie')??'').split(';')[0];
 // Setup + sign-in.
 let r=await call('/api/setup',{method:'POST',body:{name:'Journey',login:'owner@journey.test',displayName:'Owner',password:['journey','owner','1'].join('-')}});
 assert.equal(r.status,201);
+// Sign in once; every later call carries the session cookie.
+const login=await call('/api/auth/login',{method:'POST',body:{login:'owner@journey.test',password:['journey','owner','1'].join('-')}});
+if(login.status!==200)throw new Error('login failed: '+(await login.text()));
+const ownerCookie=cookieOf(login);
 // Forged installation selectors are rejected before anything else.
-r=await call('/api/commerce/receipts',{method:'POST',body:{tenantId:'somewhere-else'}});
+r=await call('/api/commerce/receipts',{method:'POST',headers:{cookie:ownerCookie},body:{tenantId:'somewhere-else'}});
 assert.equal(r.status,400);assert.equal((await r.json()).error.code,'UNKNOWN_FIELD');
 // Register an orders connection and accept one authorized export.
-r=await call('/api/commerce/connections',{method:'POST',headers:{cookie:cookieOf(await call('/api/auth/login',{method:'POST',body:{login:'owner@journey.test',password:['journey','owner','1'].join('-')}}))},body:{id:'orders-export',provider:'generic',sourceAccountId:'shop-A',resourceType:'orders',approvalRef:'reviewed-export'}});
+r=await call('/api/commerce/connections',{method:'POST',headers:{cookie:ownerCookie},body:{id:'orders-export',provider:'generic',sourceAccountId:'shop-A',resourceType:'orders',approvalRef:'reviewed-export'}});
 assert.equal(r.status,201);
 const raw={contract:'lumi.commerce.export.v1',provider:'generic',sourceAccountId:'shop-A',resourceType:'orders',currency:'VND',taxBasis:'net-merchandise-actual-cash-v1',timezone:'Asia/Ho_Chi_Minh',window:{from:'2026-09-01T00:00:00.000Z',toExclusive:'2026-09-20T00:00:00.000Z'},observedAt:'2026-09-19T00:00:00.000Z',records:[{id:'9007199254740993',orderedAt:'2026-09-01T17:00:00.000Z',recognizedAt:'2026-09-03T00:00:00.000Z',state:'accepted',merchandise:'1000000',sellerDiscount:'100000',merchandiseReversal:'180000',cogs:'400000',cogsEvidenceRef:'cost-at-sale-1',variableFees:'80000',shippingIncome:'0',earnedSubsidy:'0'}]};
 const envelope={eventType:'snapshot',connectionId:'orders-export',sourceAccountId:'shop-A',resourceType:'orders',deliveryId:'delivery-1',sourceObjectId:'delivery-1',sourceRevision:null,sourceEventAt:null,sourceUpdatedAt:null,window:raw.window,schemaFingerprint:await commerceSchemaFingerprint(),rawJson:JSON.stringify(raw)};
-const login=await call('/api/auth/login',{method:'POST',body:{login:'owner@journey.test',password:['journey','owner','1'].join('-')}});
-const ownerCookie=cookieOf(login);
 r=await call('/api/commerce/receipts',{method:'POST',headers:{cookie:ownerCookie},body:envelope});
-assert.equal([202,200].includes(r.status),true,await r.text());
+if(![202,200].includes(r.status))throw new Error('receipt failed: '+(await r.text()));
 const receipt=await r.json();
 // Normalize through the durable job path with lease protection.
 r=await call('/api/commerce/jobs',{method:'POST',headers:{cookie:ownerCookie},body:{receiptId:receipt.receiptId}});
@@ -129,6 +132,7 @@ const runJourney=async(dir,customerDbName)=>{
  const file=path.join(scriptDir,'journey.mjs');
   await writeFile(file,journeyScript,'utf8');
  const out=run(process.execPath,[file],dir);
+ await rm(scriptDir,{recursive:true,force:true});
  assert(out.stdout.includes('JOURNEY-OK'),`${customerDbName} journey did not complete: ${out.stdout}${out.stderr}`);
 };
 
@@ -163,7 +167,7 @@ try{
   }
  });
  await step('A6 promoted report compiles in a fresh customer checkout without embedded results',async()=>{
-  const source=`import type {PageContext} from '@runlumi/ui/app.tsx';\nimport {CommerceReportPage} from '@runlumi/ui/features/commerce-report.tsx';\nexport const reportDefinition={metricIds:['net_merchandise_sales'],from:'2026-09-01',toExclusive:'2026-10-01',dataVersion:'cp_reviewed',blocks:[{id:'sales-card',kind:'metric',metricId:'net_merchandise_sales'}]} as const;\nexport function Report(context:PageContext){return <CommerceReportPage {...context}/>;}\n`;
+  const source=`import type {PageContext} from '@runlumi/ui/app.tsx';\nimport {CommerceReportPage} from '@runlumi/ui/features/commerce-report.tsx';\nexport const reportDefinition={metricIds:['net_merchandise_sales'],from:'2026-09-01',toExclusive:'2026-10-01',dataVersion:'cp_reviewed',blocks:[{id:'sales-card',kind:'metric',metricId:'net_merchandise_sales'}]} as const;\nexport function Report(context:PageContext){return context.user?<CommerceReportPage user={context.user} identity={context.identity}/>:null;}\n`;
   for(const dir of [alpha,beta]){
    await mkdir(path.join(dir,'customer/reports'),{recursive:true});
    await writeFile(path.join(dir,'customer/reports/weekly-sales.report.tsx'),source);
@@ -172,7 +176,7 @@ try{
    const report=await customerFile(dir,'customer/reports/weekly-sales.report.tsx');
    assert(!report.includes('720000'),'promoted source must not embed fixture financial results');
    run('git',['add','customer/reports/weekly-sales.report.tsx'],dir);
-   run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','-m','reviewed report proposal'],dir);
+   run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m','reviewed report proposal'],dir);
   }
  });
  // ---- B. package-consumer commerce journey in each checkout ----
@@ -204,6 +208,7 @@ try{
   // that each journey ran on its own LocalDatabase with fresh schema, and by the
   // forged-field rejection: a body carrying foreign installation fields is 400.
   const scriptDir=path.join(beta,'.journey');
+  await mkdir(scriptDir,{recursive:true});
   const file=path.join(scriptDir,'isolation.mjs');
   await writeFile(file,`
 import assert from 'node:assert/strict';
@@ -217,11 +222,13 @@ const env={DB:db,SOURCES:new LocalObjects()};
 const login=await api(new Request('http://localhost/api/setup',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'B',login:'o@b.test',displayName:'O',password:['isolation','owner','1'].join('-')})}),env);
 const cookie=(login.headers.get('set-cookie')??'').split(';')[0];
 // alpha's connection id does not exist here.
-const r=await api(new Request('http://localhost/api/commerce/receipts',{method:'POST',headers:{'content-type':'application/json',cookie},body:JSON.stringify({eventType:'snapshot',connectionId:'orders-export',sourceAccountId:'shop-A',resourceType:'orders',deliveryId:'d1',sourceObjectId:'d1',sourceRevision:null,sourceEventAt:null,sourceUpdatedAt:null,window:{from:'2026-09-01T00:00:00.000Z',toExclusive:'2026-09-20T00:00:00.000Z'},schemaFingerprint:'sha256:'+'a'.repeat(64),rawJson:'{}'}}),env);
+const body=JSON.stringify({eventType:'snapshot',connectionId:'orders-export',sourceAccountId:'shop-A',resourceType:'orders',deliveryId:'d1',sourceObjectId:'d1',sourceRevision:null,sourceEventAt:null,sourceUpdatedAt:null,window:{from:'2026-09-01T00:00:00.000Z',toExclusive:'2026-09-20T00:00:00.000Z'},schemaFingerprint:'sha256:'+'a'.repeat(64),rawJson:'{}'});
+const r=await api(new Request('http://localhost/api/commerce/receipts',{method:'POST',headers:{'content-type':'application/json',cookie},body}),env);
 assert.equal(r.status,404);assert.equal((await r.json()).error.code,'CONNECTION_NOT_FOUND');
 console.log('ISOLATION-OK');
 `,'utf8');
   const out=run(process.execPath,[file],beta);
+  await rm(path.join(beta,'.journey'),{recursive:true,force:true});
   assert(out.stdout.includes('ISOLATION-OK'),`isolation proof failed: ${out.stdout}${out.stderr}`);
  });
  // ---- F. N+1 upgrade preserves customer-owned files ----

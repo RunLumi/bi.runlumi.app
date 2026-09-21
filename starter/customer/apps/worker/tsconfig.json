@@ -4,11 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
+      "ES2022"
     ],
-    "jsx": "react-jsx",
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -19,17 +16,11 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "types": [
-      "node"
+      "node",
+      "@cloudflare/workers-types"
     ]
   },
   "include": [
-    "customer/**/*.ts",
-    "customer/**/*.tsx",
-    "apps/**/*.ts",
-    "apps/**/*.tsx",
-    "scripts/**/*.mjs"
-  ],
-  "exclude": [
-    "apps/worker"
+    "src"
   ]
 }
