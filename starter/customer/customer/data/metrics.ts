@@ -18,13 +18,11 @@ const NAMESPACE=manifest.extensions[0]?.namespace??'customer';
 const assertNamespace=(id:string)=>{if(!id.startsWith(`${NAMESPACE}.`))throw new Error(`Custom metric must use the ${NAMESPACE}. namespace: ${id}`);return id;};
 
 export const customMetrics:readonly CustomMetric[]=[
- {id:assertNamespace('customer.example_hours_saved'),label:'Giờ tiết kiệm (riêng)',unit:'hours',definition:'Ví dụ chỉ số mở rộng do doanh nghiệp định nghĩa, không thay thế chỉ số dùng chung.',source:{kind:'derived',from:['operations.released_hours'],note:'Synthetic example. Requires review before it is treated as a production metric.'}}
+ {id:assertNamespace('customer.example_hours_saved'),label:'Giờ tiết kiệm (riêng)',unit:'hours',definition:'Chỉ số mở rộng do doanh nghiệp định nghĩa, không thay thế chỉ số dùng chung.',source:{kind:'derived',from:['operations.released_hours'],note:'Synthetic deterministic extension. Requires review before production use.'}}
 ];
 
 export function customMetricValue(id:string):{label:string;display:string}{
  const metric=customMetrics.find(m=>m.id===id);
  if(!metric)throw new Error(`Unknown custom metric: ${id}`);
- // Example only: no live query is performed here. A real extension calls the governed
- // query API with a reviewed metric ID; it does not read the database directly.
- return {label:metric.label,display:'Chưa có dữ liệu'};
+ return {label:metric.label,display:'Chờ tải từ máy chủ được cấp quyền'};
 }

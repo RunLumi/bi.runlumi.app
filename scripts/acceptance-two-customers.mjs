@@ -19,7 +19,7 @@ import process from 'node:process';
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
-const npm=process.env.LUMI_NPM_BIN??'/opt/homebrew/bin/npm';
+const npm=process.env.npm_execpath??process.env.LUMI_NPM_BIN??'npm';
 const work=await mkdtemp(path.join(tmpdir(),'lumi-acceptance-'));
 const results=[];
 const step=async(name,fn)=>{try{const value=await fn();results.push(`PASS ${name}`);return value;}catch(error){results.push(`FAIL ${name}: ${error.message}`);throw error;}};
@@ -38,7 +38,13 @@ const generate=async(customer,name)=>{
  const lock=JSON.parse(await readFile(path.join(dest,'lumi.lock.json'),'utf8'));
  Object.assign(lock,fragment);
  await writeFile(path.join(dest,'lumi.lock.json'),JSON.stringify(lock,null,2));
- run(npm,['install','--ignore-scripts','--save-exact'],dest,{expectFail:false});
+ // Deterministic, lockfile-driven install: no registry resolution at install time.
+ run(npm,['ci','--ignore-scripts'],dest);
+ // The generated application is a real repository: commit the clean fixture state so
+ // the reviewed updater (which refuses dirty or non-Git trees) can run on it.
+ run('git',['init','-q'],dest);
+ run('git',['add','-A'],dest);
+ run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','-m',`fixture base: ${customer}`],dest);
  return dest;
 };
 const customerFile=async(dir,relative)=>readFile(path.join(dir,relative),'utf8');

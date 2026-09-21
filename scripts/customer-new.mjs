@@ -1,11 +1,14 @@
-import {cp, mkdir, readFile, writeFile, readdir, stat} from 'node:fs/promises';
+import {cp, mkdir, readFile, writeFile, readdir, stat, access} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 // Generate a customer application repository from the minimal starter plus real
-// packaged core artifacts. Local and side-effect-free: no repository, no billable
-// resource, no registry contact. Packaging must have run first (npm run core:pack).
+// packaged core artifacts. No repository or billable resource is created. The
+// generated lockfile ships with the starter template: generation is a reviewed
+// file copy with no registry contact and no resolution step, so it cannot be
+// perturbed by npm cache state or registry metadata quirks. Packaging must have
+// run first so the starter lock and the artifacts describe the same release.
 const root=fileURLToPath(new URL('../',import.meta.url));
 const starter=path.join(root,'starter/customer');
 const artifacts=path.join(root,'artifacts/core');
@@ -67,5 +70,22 @@ await copyTemplate(starter,target);
 await mkdir(path.join(target,'vendor'),{recursive:true});
 for(const info of Object.values(manifest.packages))await cp(path.join(artifacts,info.file),path.join(target,'vendor',info.file));
 await writeFile(path.join(target,'vendor','lumi-core-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+// Verify the starter lockfile matches the exact artifacts being vendored. The
+// lock is the reviewed, complete dependency graph; a mismatch here would make the
+// documented `npm ci` first-install fail or install the wrong core release.
+const lockText=await readFile(path.join(target,'package-lock.json'),'utf8');
+const generatedLock=JSON.parse(lockText);
+const rootPkg=generatedLock.packages[''];
+if(rootPkg.name!==customerId+'-lumi-app')throw new Error(`Starter lock root name ${rootPkg.name} does not match customer id ${customerId}`);
+if(rootPkg.version!=='0.1.0')throw new Error(`Starter lock root version ${rootPkg.version} is not 0.1.0`);
+if(generatedLock.packages['node_modules/@runlumi/core']?.version!==manifest.release)throw new Error(`Starter lock pins core ${generatedLock.packages['node_modules/@runlumi/core']?.version} but artifacts are release ${manifest.release}. Regenerate the starter lock (npm run refresh:customer-lock) after core:pack.`);
+for(const[name,info]of Object.entries(manifest.packages)){
+ const expected=`file:vendor/${info.file}`;
+ if(rootPkg.dependencies?.[name]!==expected)throw new Error(`Starter lock dependency ${name} is ${rootPkg.dependencies?.[name]} but the release packages ${expected}`);
+ const entry=generatedLock.packages[`node_modules/${name}`];
+ if(entry?.resolved!==expected)throw new Error(`Starter lock resolved for ${name} is ${entry?.resolved} but the release packages ${expected}`);
+ if(!/^sha512-/.test(entry?.integrity??''))throw new Error(`Starter lock entry for ${name} lacks sha512 integrity`);
+ await access(path.join(target,'vendor',info.file));
+}
 console.log(`Generated customer application at ${target}`);
-console.log('Next: cd into it, npm install, npm run validate, npm run build. No external repository or Cloudflare resource was created.');
+console.log('Next: cd into it, npm ci, npm run validate, npm run build. No external repository or Cloudflare resource was created.');

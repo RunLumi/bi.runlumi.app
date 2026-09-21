@@ -2,8 +2,9 @@ import {createApi} from '@runlumi/core/api.ts';
 import {verifyAccessToken} from '@runlumi/cloudflare/auth.ts';
 import {createCellWorker,type Env} from '@runlumi/cloudflare/cell.ts';
 import {validateDeploymentEnv,type DeploymentEnv} from '@runlumi/cloudflare/deployment.ts';
+import {customMetricExtensions} from '../../../customer/data/server-metrics.ts';
 
-const api=createApi<DeploymentEnv>(async(request,env)=>verifyAccessToken(request.headers.get('cf-access-jwt-assertion')??'',env.ACCESS_TEAM,env.ACCESS_AUD));
+const api=createApi<DeploymentEnv>(async(request,env)=>verifyAccessToken(request.headers.get('cf-access-jwt-assertion')??'',env.ACCESS_TEAM,env.ACCESS_AUD),false,{customMetrics:customMetricExtensions});
 
 export default {
  async fetch(request:Request,env:DeploymentEnv):Promise<Response>{

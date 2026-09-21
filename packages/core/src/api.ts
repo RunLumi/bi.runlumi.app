@@ -7,7 +7,7 @@ import {acceptCommerceExport,readCommerceReceipts} from './commerce-receipts.ts'
 import {commerceReadiness} from './commerce-readiness.ts';
 import {assertDashboardScope,parseBatch,executeQueries} from './query.ts';
 import {controlRequest} from './control-client.ts';
-import { AppError, id, object, parseSnapshot, sha256, type Principal } from './contracts.ts';
+import { AppError, id, object, parseSnapshot, sha256, type Principal, type Query } from './contracts.ts';
 import { metrics, parseQuery, parseDashboard } from './semantics.ts';
 import { assertCommerceMetricScope, commerceMetricCatalog, parseCommerceQuery, queryCommerceReport } from './commerce-query.ts';
 import { readCommerceCapabilities, reviewCommerceCapability } from './commerce-capabilities.ts';
@@ -17,6 +17,10 @@ import { importSnapshot } from './ingest.ts';
 import { LUMI_CORE_VERSION } from './version.ts';
 import type { AppEnv } from './ports.ts';
 export type Authenticate<E extends AppEnv = AppEnv> = (request:Request,env:E)=>Promise<Principal>;
+export interface CustomMetricResult { value: string|null; unit: string; evidence: unknown }
+export interface CustomMetricContext { request: Request; tenant: import('./tenant.ts').TenantContext; query: (query: Query)=>ReturnType<typeof executeQueries> }
+export interface CustomMetricExtension { id: string; version: number; execute: (context: CustomMetricContext)=>Promise<CustomMetricResult> }
+export interface ApiOptions { customMetrics?: readonly CustomMetricExtension[] }
 const MAX_BODY=65536;
 async function readJson(request:Request):Promise<unknown> {
   if(request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() !== 'application/json') throw new AppError(415,'JSON_REQUIRED');
@@ -37,7 +41,7 @@ function secure(response:Response,requestId:string):Response {
   r.headers.set('X-Request-ID',requestId);
   return r;
 }
-export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E>, demo=false) {
+export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E>, demo=false, options:ApiOptions={}) {
   return async(request:Request,env:E):Promise<Response>=>{
     const requestId=crypto.randomUUID();
     try {
@@ -60,12 +64,18 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
         const body=request.method==='GET'?undefined:await readJson(request);
         return secure(await controlRequest(env.CONTROL,request,url.pathname.replace('/api/control/','/control/admin/'),body,demo),requestId);
       }
-      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_-]{1,64}))?$/.exec(url.pathname);
+      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|custom-metrics|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname);
       if(!match)throw new AppError(404,'NOT_FOUND');
       const tenantId=id(match[1]);const route=match[2];const resource=match[3];
       const feature=['commerce-receipts','commerce-normalizations','commerce-mappings','commerce-publications','commerce-connections','commerce-capabilities','commerce-jobs','commerce-insights','commerce-decisions','commerce-exports','commerce-staging'].includes(route??'')?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
       const ctx=await authorizeTenant(env,principal,tenantId,request,feature,demo);
       const active=ctx.active;
+      if(route==='custom-metrics'&&request.method==='GET'&&resource){
+        const extension=options.customMetrics?.find(item=>item.id===resource);
+        if(!extension)throw new AppError(404,'CUSTOM_METRIC_NOT_FOUND');
+        const result=await extension.execute({request,tenant:ctx,query:(query)=>executeQueries(ctx,[query])});
+        return secure(json({id:extension.id,version:extension.version,...result,scope:{tenantId:ctx.id,role:ctx.role},coreVersion:LUMI_CORE_VERSION}),requestId);
+      }
       if(route==='configuration'&&request.method==='GET'&&!resource)return secure(json({active:active?{releaseId:active.releaseId,revision:active.revision,sourceCommit:active.sourceCommit,provenance:active.provenance,attestationVerified:active.attestationVerified,name:active.pack.name,queries:active.pack.queries,ai:{enabled:active.pack.ai.enabled,providerInstanceRef:active.pack.ai.providerInstanceRef,modelRef:active.pack.ai.modelRef,dailyBudgetUsd:active.pack.ai.dailyBudgetUsd,inferenceImplemented:false}}:null}),requestId);
       if(route==='readiness'&&request.method==='GET'&&!resource)return secure(json(commerceReadiness),requestId);
       if(route==='commerce-metrics'&&request.method==='GET'&&!resource)return secure(json({contract:'lumi.query.v1',semanticRelease:'commerce-cohort-v1.0.0',metrics:commerceMetricCatalog(ctx.role==='owner')}),requestId);

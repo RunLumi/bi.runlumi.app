@@ -29,6 +29,7 @@
     "check:commerce": "python3 scripts/check-commerce-specs.py --self-test",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "core:pack": "node scripts/core-pack.mjs",
+    "refresh:customer-lock": "node scripts/refresh-customer-lock.mjs",
     "customer:new": "node scripts/customer-new.mjs",
     "check:workerd": "node scripts/workerd-check.mjs",
     "acceptance:two-customers": "node scripts/acceptance-two-customers.mjs"
@@ -36,6 +37,7 @@
   "description": "Cloudflare-first tenant-isolated BI with a central control plane and Git configuration releases.",
   "devDependencies": {
     "@types/node": "22.18.6",
+    "wrangler": "4.123.0",
     "typescript": "5.8.3"
   }
 }
