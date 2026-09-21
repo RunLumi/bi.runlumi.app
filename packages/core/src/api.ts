@@ -6,7 +6,7 @@ import {normalizeCommerceReceipt,readCommerceNormalizations,readCommerceStaging}
 import {acceptCommerceExport,readCommerceReceipts} from './commerce-receipts.ts';
 import {commerceReadiness} from './commerce-readiness.ts';
 import {assertDashboardScope,parseBatch,executeQueries} from './query.ts';
-import {controlRequest} from './control-client.ts';
+import {controlRequest,controlScope} from './control-client.ts';
 import { AppError, id, object, parseSnapshot, sha256, type Principal, type Query } from './contracts.ts';
 import { metrics, parseQuery, parseDashboard } from './semantics.ts';
 import { assertCommerceMetricScope, commerceMetricCatalog, parseCommerceQuery, queryCommerceReport } from './commerce-query.ts';
@@ -55,14 +55,17 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
       }
       const principal=await authenticate(request,env);
       if(url.pathname==='/api/session' && request.method==='GET'){
-        const response=await controlRequest(env.CONTROL,request,'/control/session',undefined,demo);
+        const response=await controlRequest(env.CONTROL,request,'/control/session',controlScope(env),undefined,demo);
         const body=await response.json() as {tenants:{cell_id:string;id:string}[];platformOperator:boolean};
         // Dedicated deployments expose exactly their configured customer; cells filter by cell.
         return secure(json({...body,demo,tenants:body.tenants.filter(t=>t.cell_id===env.CELL_ID&&(!env.CUSTOMER_ID||t.id===env.CUSTOMER_ID))}),requestId);
       }
       if(url.pathname.startsWith('/api/control/')){
+        // Fleet administration is served from the control/cell surface only. A
+        // dedicated customer deployment must not proxy unrestricted admin calls.
+        if(env.CUSTOMER_ID!==undefined)throw new AppError(403,'CONTROL_ADMIN_DENIED');
         const body=request.method==='GET'?undefined:await readJson(request);
-        return secure(await controlRequest(env.CONTROL,request,url.pathname.replace('/api/control/','/control/admin/'),body,demo),requestId);
+        return secure(await controlRequest(env.CONTROL,request,url.pathname.replace('/api/control/','/control/admin/'),controlScope(env),body,demo),requestId);
       }
       const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|custom-metrics|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname);
       if(!match)throw new AppError(404,'NOT_FOUND');

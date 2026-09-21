@@ -29,6 +29,14 @@ customer applications.
   ownership of managed identity/membership, licensing and fleet metadata. Customer
   deployments call it through a narrow, versioned, fail-closed interface; they do
   not copy allowlists or acquire all commerce bindings.
+- **Server-owned deployment identity.** The control plane owns a `deployments`
+  registry. Every dedicated customer/environment and every shared cell scope is a
+  registered row with its own reviewed Access team/audience, control interface
+  version, hostname and lifecycle state (`registered`/`suspended`/`retired`). The
+  `x-lumi-deployment` header is only a bounded locator — the registered row's
+  team/audience and control version are the authority end-user JWTs are verified
+  against, on both the control plane and dedicated customer Workers. Deployment
+  identity never lives in a customer lock or request payload.
 
 ## Precise distinction that replaces "no customer app fork"
 
@@ -60,8 +68,10 @@ not a second platform.
 - **Authentication.** Cloudflare Access is still the browser sign-in; the packaged
   `verifyAccessToken` still validates `Cf-Access-Jwt-Assertion` against the exact
   issuer and audience, requires RS256, checks time claims, bounds JWKS fetching and
-  fails closed. A successful login is not finance, export, configuration or admin
-  permission.
+  fails closed. The exact issuer/audience are resolved from the server-owned
+  deployment registry (`verifyRegisteredAccess`), never from a request header or a
+  shared global audience. A successful login is not finance, export, configuration
+  or admin permission.
 - **Authorization.** Roles, entitlements and field scope remain server-side. A
   dedicated deployment validates the original user identity at the control
   boundary; a service binding is not proof of an end user.

@@ -136,8 +136,10 @@ Generate an inventory-specific plan with `npm run cf:config -- .local/cell.json`
 then follow the [runbook](docs/deployment.md): migrate both planes, build assets,
 deploy the private control Worker **before** the cell, and test real bindings.
 
-The control service has no public route. All attached cells currently share the
-same reviewed Access application audience. Generated SQL does not invent a
+The control service has no public route; it verifies every forwarded end-user JWT
+against the registered deployment's own reviewed Access team/audience, control
+interface version and lifecycle state (see the `deployments` registry in
+[docs/deployment.md](docs/deployment.md)). Generated SQL does not invent a
 commercial license or grant operator access.
 
 ## License

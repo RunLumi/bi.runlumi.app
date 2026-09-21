@@ -28,9 +28,9 @@ const run=(command,args,cwd,{expectFail=false,env={}}={})=>{
  if(r.status!==0&&!expectFail)throw new Error(`${command} ${args.join(' ')} failed: ${(r.stdout??'')+(r.stderr??'')}`);
  return {...r,ok:r.status===0};
 };
-const generate=async(customer,name)=>{
+const generate=async(customer,name,envs='production,staging')=>{
  const dest=path.join(work,customer);
- run(process.execPath,[path.join(root,'scripts/customer-new.mjs'),'--customer',customer,'--name',name,'--dest',dest],root);
+ run(process.execPath,[path.join(root,'scripts/customer-new.mjs'),'--customer',customer,'--name',name,'--env',envs,'--dest',dest],root);
  // Apply the checked-in synthetic overlay (custom pages, metrics, navigation).
  await cp(path.join(root,'examples/customers',customer,'customer'),path.join(dest,'customer'),{recursive:true});
  // Merge the fixture's declared routes/extensions into the lock for validation.
@@ -74,6 +74,59 @@ try{
   for(const dir of [alpha,beta]){
    const out=run(npm,['test'],dir);
    assert(/pass [1-9]/.test(out.stdout),`${dir} must run passing customer tests`);
+  }
+ });
+ // ---- I. per-environment deployment identity and the operator review gate ----
+ await step('I1 production and staging own distinct deployment identities',async()=>{
+  for(const dir of [alpha,beta]){
+   const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
+   const prod=JSON.parse(await customerFile(dir,'infra/environments/production.json'));
+   const staging=JSON.parse(await customerFile(dir,'infra/environments/staging.json'));
+   assert.equal(prod.customerId,lock.customerId);assert.equal(staging.customerId,lock.customerId);
+   for(const key of ['workerName','hostname','deploymentId','sourcesBucket','accessAudience']){
+    assert.notEqual(prod[key],staging[key],`${key} must differ between ${dir} environments`);
+   }
+   assert.notEqual(prod.servingDatabase.databaseName,staging.servingDatabase.databaseName,`${dir} serving databases must differ`);
+   assert.notEqual(prod.servingDatabase.databaseId,staging.servingDatabase.databaseId,`${dir} serving database ids must differ`);
+   const wrangler=JSON.parse(await customerFile(dir,'apps/worker/wrangler.jsonc'));
+   assert.equal(wrangler.name,prod.workerName,'production is the wrangler base');
+   assert.equal(wrangler.env.staging.name,staging.workerName,'staging is a named wrangler environment');
+   assert.equal(wrangler.env.staging.vars.ACCESS_AUD,staging.accessAudience);
+   assert.equal(wrangler.env.staging.vars.DEPLOYMENT_ID,`${lock.customerId}-staging`);
+   assert.equal(wrangler.env.staging.d1_databases[0].database_id,staging.servingDatabase.databaseId);
+   assert.equal(wrangler.d1_databases[0].migrations_dir,'../../customer/migrations','serving migrations resolve to the customer repo root');
+  }
+ });
+ await step('I2 the customer lock is customer-level and validates both environments',async()=>{
+  for(const dir of [alpha,beta]){
+   const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
+   assert.equal(lock.deploymentId,undefined);assert.equal(lock.environment,undefined);
+   assert.equal(lock.core.migrations.controlBaseline,5);assert.equal(lock.core.migrations.tenantBaseline,9);
+   run(npm,['run','validate'],dir);
+  }
+ });
+ await step('I3 deploy:plan blocks scaffold placeholders before any review',async()=>{
+  const out=run(npm,['run','deploy:plan'],alpha,{expectFail:true});
+  assert(!out.ok,'unreviewed scaffold must never be deployable');
+  assert(/hostname must be reviewed/.test(out.stdout+out.stderr),'the diagnostic must name the unreviewed hostname');
+ });
+ await step('I4 deploy:plan approves after operator review and names the wrangler command',async()=>{
+  for(const dir of [alpha,beta]){
+   for(const envName of ['production','staging']){
+    const file=path.join(dir,'infra/environments',`${envName}.json`);
+    const original=await customerFile(dir,`infra/environments/${envName}.json`);
+    try{
+     const inventory=JSON.parse(original);
+     inventory.hostnameReviewed=true;inventory.accessTeam=`${inventory.customerId}-reviewed`;
+     await writeFile(file,JSON.stringify(inventory,null,2));
+     const out=run(npm,['run','deploy:plan','--',envName],dir);
+     assert(out.ok,`reviewed ${envName} plan must be approved: ${(out.stdout??'')+(out.stderr??'')}`);
+     assert(out.stdout.includes('npx wrangler deploy'),`plan must name the deploy command for ${envName}`);
+     if(envName==='staging')assert(out.stdout.includes('--env staging'),'the staging plan must name the staging wrangler environment');
+     else assert(!out.stdout.includes('--env'),'the production plan must use the wrangler base environment');
+     assert(/no Cloudflare resource/.test(out.stdout),'a plan creates nothing');
+    }finally{await writeFile(file,original);}
+   }
   }
  });
  // ---- C. custom pages and extensions exist and are customer-owned ----
@@ -120,7 +173,7 @@ try{
    j.version='0.1.1';if(pkg==='cloudflare'||pkg==='ui')j.dependencies['@runlumi/core']='0.1.1';
    await writeFile(file,JSON.stringify(j,null,2));
   }
-  await writeFile(path.join(bump,'packages/core/src/version.ts'),"export const LUMI_CORE_VERSION = '0.1.1';\nexport const LUMI_EXTENSION_API = 1;\n");
+  await writeFile(path.join(bump,'packages/core/src/version.ts'),"export const LUMI_CORE_VERSION = '0.1.1';\nexport const LUMI_EXTENSION_API = 1;\nexport const LUMI_CONTROL_API = 1;\n");
   run(npm,['install','--ignore-scripts','--save-exact'],bump);
   run(npm,['run','build:packages'],bump);
   const artifacts=path.join(bump,'artifacts/core');

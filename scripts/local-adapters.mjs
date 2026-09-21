@@ -15,6 +15,7 @@ export async function fixture({seed=true}={}){
  env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0002_control_plane.sql',root),'utf8'));
  env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0003_release_safety.sql',root),'utf8'));
  env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0004_tenant_lifecycle.sql',root),'utf8'));
+ env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0005_deployments.sql',root),'utf8'));
  const migration=(await Promise.all((await readdir(new URL('migrations/tenant/',root))).filter(f=>f.endsWith('.sql')).sort().map(f=>readFile(new URL('migrations/tenant/'+f,root),'utf8')))).join('\n');
  const dashboard=JSON.parse(await readFile(new URL('packs/operations-cost/dashboard.json',root),'utf8'));
  for(const [tenant,binding,name] of [['alpha','TENANT_A','Doanh nghiệp A · minh họa'],['beta','TENANT_B','Doanh nghiệp B · minh họa']]){
