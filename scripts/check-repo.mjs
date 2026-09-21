@@ -52,6 +52,13 @@ for(const name of ['@runlumi/core','@runlumi/cloudflare','@runlumi/ui']){
  assert.match(entry.resolved,/^file:vendor\/runlumi-[a-z]+-\d+\.\d+\.\d+\.tgz$/,'Starter lock @runlumi entries must resolve to vendored release tarballs');
  assert.match(entry.integrity,/^sha512-/,'Starter lock @runlumi entries must carry sha512 integrity');
 }
+// The customer template lock declares core migration baselines; they must track the
+// reviewed core migrations so generated customers apply the exact current schema.
+const templateMeta=JSON.parse(await read('starter/customer/lumi.lock.json.template'));
+const controlCount=(await readdir(path.join(root,'migrations/control'))).filter(f=>f.endsWith('.sql')).length;
+const tenantCount=(await readdir(path.join(root,'migrations/tenant'))).filter(f=>f.endsWith('.sql')).length;
+assert.equal(templateMeta.core.migrations.controlBaseline,controlCount,`controlBaseline ${templateMeta.core.migrations.controlBaseline} must equal the ${controlCount} control migrations`);
+assert.equal(templateMeta.core.migrations.tenantBaseline,tenantCount,`tenantBaseline ${templateMeta.core.migrations.tenantBaseline} must equal the ${tenantCount} tenant migrations`);
 // Every registry entry in the template lock must be exact, provenance-checked and
 // license-admitted, mirroring the runtime/web license gates.
 for(const[key,p]of Object.entries(templateLock.packages)){

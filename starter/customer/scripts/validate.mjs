@@ -1,6 +1,9 @@
 /** Validate customer configuration before build or deployment.
  * Fails closed on invalid identity, unknown modules, reserved-route collisions,
- * incompatible core versions and environment/resource mismatches. */
+ * incompatible core versions, environment inventories and resource reuse.
+ * This is scaffold validation: placeholder values are structurally checked but
+ * deployable-release review (real hostname, reviewed Access team, real D1) is
+ * the separate `deploy:plan` gate. */
 import {readFile, readdir, access} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -11,10 +14,12 @@ const readJson=async p=>JSON.parse(await readFile(path.join(repoRoot,p),'utf8'))
 const exists=async p=>{try{await access(path.join(repoRoot,p));return true;}catch{return false;}};
 const problems=[];
 const require_=(condition,message)=>{if(!condition)problems.push(message);};
+const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(v)&&!/^0+$/.test(v.replaceAll('-',''));
+const ident=v=>typeof v==='string'&&/^[a-z0-9][a-z0-9-]{0,62}$/.test(v)&&!/^0+$/.test(v.replaceAll('-',''));
 
 try{
  const {parseCustomerManifest,assertCompatible}=await import('@runlumi/core/customer-config.ts');
- const {LUMI_CORE_VERSION,LUMI_EXTENSION_API}=await import('@runlumi/core/version.ts');
+ const {LUMI_CORE_VERSION,LUMI_EXTENSION_API,LUMI_CONTROL_API}=await import('@runlumi/core/version.ts');
  const lock=await readJson('lumi.lock.json');
  const manifestModule=await import(pathToFileURL(path.join(repoRoot,'customer/manifest.ts')).href);
  const manifest=parseCustomerManifest(manifestModule.manifest);
@@ -23,29 +28,73 @@ try{
  // Customer pages must not collide with reserved core routes.
  const reserved=new Set(['/','/money','/commerce-data','/operations','/configuration','/control']);
  const customPaths=(lock.customerPages??[]).map(p=>p.path);
+ const seenPaths=new Set();
  for(const route of customPaths){
   require_(/^\/[a-z0-9][a-z0-9/-]{0,63}$/.test(route),`invalid custom route ${route}`);
   require_(!reserved.has(route),`customer route ${route} collides with a reserved core route`);
-  require_(new Set(customPaths).size===customPaths.length,`duplicate custom route ${route}`);
+  require_(!route.startsWith('/api/'),`customer route ${route} collides with the API namespace`);
+  require_(!seenPaths.has(route),`duplicate custom route ${route}`);
+  seenPaths.add(route);
  }
- const worker=await readFile(path.join(repoRoot,'apps/worker/wrangler.jsonc'),'utf8');
- require_(/workers_dev":\s*false/.test(worker),'wrangler must disable workers_dev');
- require_(/preview_urls":\s*false/.test(worker),'wrangler must disable preview_urls');
- require_(/CUSTOMER_ID/.test(worker),'wrangler must declare a server-owned CUSTOMER_ID');
- const envName=lock.environment??'production';
- if(await exists(`infra/environments/${envName}.json`)){
-  const inventory=await readJson(`infra/environments/${envName}.json`);
-  require_(inventory.customerId===manifest.customerId,'inventory customerId does not match the manifest');
-  require_(inventory.deploymentId===lock.deploymentId,'inventory deploymentId does not match lumi.lock.json');
-  require_(Boolean(inventory.hostname)&&!inventory.hostname.endsWith('.workers.dev'),'inventory hostname must be a reviewed custom hostname');
-  require_(inventory.workersDev===false&&inventory.previewUrls===false,'production must disable workers.dev and preview URLs');
-  require_(typeof inventory.accessAudience==='string'&&/^[a-f0-9]{20,128}$/i.test(inventory.accessAudience),'each deployment needs its own Access audience');
+ // Every environment inventory must be customer-scoped and resource-distinct.
+ const envFiles=(await readdir(path.join(repoRoot,'infra/environments'))).filter(f=>f.endsWith('.json')).sort();
+ require_(envFiles.length>=1,'no environment inventory found under infra/environments');
+ const seen={workerName:new Map(),hostname:new Map(),databaseName:new Map(),databaseId:new Map(),sourcesBucket:new Map(),accessAudience:new Map(),deploymentId:new Map()};
+ const inventories=[];
+ for(const file of envFiles){
+  const inventory=await readJson(`infra/environments/${file}`);
+  require_(inventory.schemaVersion===2,`${file}: inventory schema must be version 2`);
+  require_(inventory.customerId===manifest.customerId,`${file}: inventory customerId does not match the manifest`);
+  require_(inventory.environment===file.slice(0,-'.json'.length),`${file}: inventory environment must match its filename`);
+  require_(inventory.deploymentId===`${inventory.customerId}-${inventory.environment}`,`${file}: deploymentId must be <customerId>-<environment>`);
+  require_(ident(inventory.workerName)&&inventory.workerName===inventory.deploymentId,`${file}: workerName must equal deploymentId`);
+  require_(typeof inventory.hostname==='string'&&!inventory.hostname.endsWith('.workers.dev')&&!inventory.hostname.endsWith('.example.com'),`${file}: hostname must be a custom hostname`);
+  require_(inventory.workersDev===false&&inventory.previewUrls===false,`${file}: workers.dev and preview URLs must be disabled`);
+  require_(ident(inventory.accessTeam),`${file}: accessTeam must be a valid Cloudflare Access team`);
+  require_(typeof inventory.accessAudience==='string'&&/^[A-Za-z0-9_-]{20,128}$/.test(inventory.accessAudience),`${file}: each deployment needs its own Access audience`);
+  require_(inventory.controlApiVersion===LUMI_CONTROL_API,`${file}: controlApiVersion must equal the control interface version ${LUMI_CONTROL_API}`);
+  require_(inventory.controlWorker&&ident(inventory.controlWorker),`${file}: controlWorker is required`);
+  require_(inventory.servingDatabase?.binding==='SERVING',`${file}: exactly one fixed SERVING binding is required`);
+  require_(ident(inventory.servingDatabase?.databaseName),`${file}: serving database name is required`);
+  require_(uuid(inventory.servingDatabase?.databaseId),`${file}: serving database id must be a non-zero UUID`);
+  require_(ident(inventory.sourcesBucket),`${file}: sources bucket is required`);
+  inventories.push(inventory);
+  for(const key of Object.keys(seen)){
+   const value=String(key==='databaseName'?inventory.servingDatabase?.databaseName:key==='databaseId'?inventory.servingDatabase?.databaseId:inventory[key]);
+   if(seen[key].has(value))require_(false,`${file}: ${key} ${value} is reused by ${seen[key].get(value)}; deployments must own distinct resources`);
+   seen[key].set(value,file);
+  }
+ }
+ // The effective Wrangler configuration must match the inventories exactly.
+ const workerConfig=JSON.parse(await readFile(path.join(repoRoot,'apps/worker/wrangler.jsonc'),'utf8'));
+ require_(workerConfig.workers_dev===false&&workerConfig.preview_urls===false,'wrangler must disable workers_dev and preview_urls');
+ require_(workerConfig.d1_databases?.length===1&&workerConfig.d1_databases[0].binding==='SERVING','wrangler must declare exactly one SERVING serving binding');
+ const base=inventories.find(i=>i.workerName===workerConfig.name);
+ require_(Boolean(base)&&base.environment==='production','wrangler top-level must name the production deployment');
+ for(const inventory of inventories){
+  if(inventory===base){
+   require_(workerConfig.name===inventory.workerName,`wrangler name must be ${inventory.workerName}`);
+   require_(workerConfig.routes?.[0]?.pattern===inventory.hostname,`wrangler production route must be ${inventory.hostname}`);
+   require_(workerConfig.vars?.DEPLOYMENT_ID===inventory.deploymentId&&workerConfig.vars?.CUSTOMER_ID===inventory.customerId&&workerConfig.vars?.ENVIRONMENT===inventory.environment,`wrangler production vars must match ${inventory.deploymentId}`);
+   require_(workerConfig.vars?.ACCESS_TEAM===inventory.accessTeam&&workerConfig.vars?.ACCESS_AUD===inventory.accessAudience,`wrangler production Access vars must match the inventory`);
+   require_(workerConfig.d1_databases[0].database_name===inventory.servingDatabase.databaseName&&workerConfig.d1_databases[0].database_id===inventory.servingDatabase.databaseId,`wrangler production serving database must match the inventory`);
+   require_(workerConfig.r2_buckets?.[0]?.bucket_name===inventory.sourcesBucket,`wrangler production sources bucket must match the inventory`);
+  }else{
+   const section=workerConfig.env?.[inventory.environment];
+   require_(Boolean(section),`wrangler is missing env section ${inventory.environment}`);
+   require_(section.name===inventory.workerName,`wrangler env ${inventory.environment} name must be ${inventory.workerName}`);
+   require_(section.routes?.[0]?.pattern===inventory.hostname,`wrangler env ${inventory.environment} route must be ${inventory.hostname}`);
+   require_(section.vars?.DEPLOYMENT_ID===inventory.deploymentId&&section.vars?.ENVIRONMENT===inventory.environment&&section.vars?.CUSTOMER_ID===inventory.customerId,`wrangler env ${inventory.environment} vars must match the inventory`);
+   require_(section.vars?.ACCESS_TEAM===inventory.accessTeam&&section.vars?.ACCESS_AUD===inventory.accessAudience,`wrangler env ${inventory.environment} Access vars must match the inventory`);
+   require_(section.d1_databases?.[0]?.binding==='SERVING'&&section.d1_databases[0].database_name===inventory.servingDatabase.databaseName&&section.d1_databases[0].database_id===inventory.servingDatabase.databaseId,`wrangler env ${inventory.environment} serving database must match the inventory`);
+   require_(section.r2_buckets?.[0]?.bucket_name===inventory.sourcesBucket,`wrangler env ${inventory.environment} sources bucket must match the inventory`);
+  }
  }
  for(const file of ['apps/worker/wrangler.jsonc','apps/web/src/App.tsx','customer/manifest.ts','lumi.lock.json'])require_(await exists(file),`required file missing: ${file}`);
  for(const migration of (await exists('customer/migrations')?await readdir(path.join(repoRoot,'customer/migrations')):[])){
   require_(/^\d{4}_[a-z0-9_]+\.sql$/.test(migration),`customer migration must be numbered and namespaced: ${migration}`);
  }
- if(!problems.length)console.log(`Customer configuration valid for ${manifest.customerId} (core ${lock.core.version}, ${customPaths.length} custom routes).`);
+ if(!problems.length)console.log(`Customer configuration valid for ${manifest.customerId} (core ${lock.core.version}, ${inventories.length} deployment${inventories.length===1?'':'s'}, ${customPaths.length} custom routes).`);
 }catch(error){problems.push(error.message);}
 
 if(problems.length){console.error('Customer configuration invalid:');for(const p of problems)console.error(` - ${p}`);process.exit(1);}

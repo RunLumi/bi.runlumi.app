@@ -20,7 +20,7 @@ test('generated provisioning SQL creates separate control and data planes, with 
  const {LocalDatabase,LocalObjects}=await import('../scripts/local-adapters.mjs');const {createApi}=await import('@runlumi/core/api.ts');const {createControl}=await import('../apps/control/src/service.ts');const {readFile}=await import('node:fs/promises');
  const plan=compileCell(inventory()),control=new LocalDatabase(),tenant=new LocalDatabase();
  try{
-  for(const file of ['0001_initial.sql','0002_control_plane.sql','0003_release_safety.sql','0004_tenant_lifecycle.sql'])control.db.exec(await readFile(new URL('../migrations/control/'+file,import.meta.url),'utf8'));
+  for(const file of ['0001_initial.sql','0002_control_plane.sql','0003_release_safety.sql','0004_tenant_lifecycle.sql','0005_deployments.sql'])control.db.exec(await readFile(new URL('../migrations/control/'+file,import.meta.url),'utf8'));
   for(const file of ['0001_initial.sql','0002_route_fence.sql'])tenant.db.exec(await readFile(new URL('../migrations/tenant/'+file,import.meta.url),'utf8'));
   control.db.exec(plan.control.join('\n'));tenant.db.exec(plan.seeds.alpha.join('\n'));
   const auth=async()=>({issuer:'https://test-team.cloudflareaccess.com',subject:'subject-opaque'});

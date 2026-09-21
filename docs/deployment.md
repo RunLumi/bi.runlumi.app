@@ -54,6 +54,9 @@ The command generates `.generated/wrangler.control.json`,
 `.generated/wrangler.<cellId>.json`, and bootstrap SQL for
 control/tenant databases. Review each file. The SQL uses INSERT, not destructive
 UPSERT, so re-running provisioning cannot silently reroute an existing tenant.
+The bootstrap also registers the cell's Access scope in the control `deployments`
+registry, so the control service verifies this cell's end-user JWTs against the
+reviewed cell team and audience rather than a global audience.
 The generator does not create resources, migrate databases or deploy code.
 
 ## 4. Migrate both planes; deploy control before cells
@@ -80,10 +83,13 @@ wrangler deploy --config .generated/wrangler.control.json
 wrangler deploy --config .generated/wrangler.sg-01.json
 ```
 
-All cells attached to this control service currently share the same Access team
-and audience. Use one reviewed multi-host Access application; arbitrary per-cell
-identity providers/audiences are not implemented. Never overwrite an existing
-control deployment with an inventory using a different audience.
+Every deployment — dedicated customer environment or shared cell scope — is a
+registered row in the control `deployments` registry with its own reviewed Access
+team and audience, control interface version and lifecycle state. Control verifies
+each forwarded end-user JWT against that registered row; there is no shared global
+audience. Never register a deployment whose audience differs from the reviewed
+Access application protecting its hostname, and never overwrite an existing
+registration with different identity — update state or retract first.
 
 Bootstrap SQL creates memberships, not commercial authority. Provision a reviewed
 initial row in `licenses` using the control config before expecting data access.

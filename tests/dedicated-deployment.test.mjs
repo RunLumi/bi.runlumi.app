@@ -12,11 +12,15 @@ const migration=async()=>{
  return (await Promise.all((await readdir(dir)).filter(f=>f.endsWith('.sql')).sort().map(f=>readFile(new URL(f,dir),'utf8')))).join('\n');
 };
 /** Build a dedicated customer deployment: one fixed SERVING binding, server-owned
- * CUSTOMER_ID, and a control stub for memberships/roles. */
-async function deployment({memberships,features}={}){
+ * CUSTOMER_ID, and a control stub for memberships/roles. The serving D1 must
+ * declare this exact deployment identity (customer/deployment/environment); pass
+ * servingIdentity:null to simulate an unseeded or foreign serving database. */
+async function deployment({memberships,features,servingIdentity}={}){
  const serving=new LocalDatabase();
  serving.db.exec(await migration());
  serving.db.prepare('INSERT INTO tenant_identity (singleton,tenant_id) VALUES (1,?)').run(CUSTOMER);
+ const identity=servingIdentity===undefined?{customerId:CUSTOMER,deploymentId:`${CUSTOMER}-production`,environment:'production'}:servingIdentity;
+ if(identity)serving.db.prepare('INSERT INTO serving_identity (singleton,customer_id,deployment_id,environment) VALUES (1,?,?,?)').run(identity.customerId,identity.deploymentId,identity.environment);
  const env={
   SERVING:serving,SOURCES:new LocalObjects(),
   CONTROL:{fetch:stubControl({cellId:`${CUSTOMER}-production`,memberships:memberships??[
@@ -103,4 +107,33 @@ test('deployment gate rejects a swapped or shared serving binding',async()=>{
  assert.throws(()=>validateDeploymentEnv({...base,TENANT_BINDINGS:'["SERVING","TENANT_B"]'}),/TENANT_ROUTING_UNAVAILABLE/,{name:'multi-tenant config must not masquerade as dedicated'});
  assert.throws(()=>validateDeploymentEnv({...base,CELL_ID:'other'}),/DEPLOYMENT_IDENTITY_MISMATCH/);
  assert.throws(()=>validateDeploymentEnv({...base,CUSTOMER_ID:'BAD ID'}),/DEPLOYMENT_NOT_CONFIGURED/);
+});
+
+test('F: swapping the same customer staging/production serving database must fail',async()=>{
+ // Tenant id and route epoch still match alpha; only the deployment identity differs.
+ const {call}=await deployment({servingIdentity:{customerId:'alpha',deploymentId:'alpha-staging',environment:'staging'}});
+ const response=await call('/api/tenants/alpha/readiness',{user:'alpha-owner'});
+ assert.equal(response.status,503,'staging D1 must not serve production wiring');
+ assert.equal((await response.json()).error.code,'SERVING_IDENTITY_MISMATCH');
+});
+
+test('F: a serving database without a declared deployment identity fails closed',async()=>{
+ const {call}=await deployment({servingIdentity:null});
+ const response=await call('/api/tenants/alpha/readiness',{user:'alpha-owner'});
+ assert.equal(response.status,503,'an unseeded serving database must never be used');
+ assert.equal((await response.json()).error.code,'SERVING_IDENTITY_MISMATCH');
+});
+
+test('F: a different customer serving database fails even when tenant rows match',async()=>{
+ const {call}=await deployment({servingIdentity:{customerId:'beta',deploymentId:'beta-production',environment:'production'}});
+ const response=await call('/api/tenants/alpha/readiness',{user:'alpha-owner'});
+ assert.equal(response.status,503);
+ assert.equal((await response.json()).error.code,'SERVING_IDENTITY_MISMATCH');
+});
+
+test('F: dedicated worker refuses to proxy fleet-administration endpoints',async()=>{
+ const {call}=await deployment();
+ const response=await call('/api/control/admin/overview',{user:'alpha-owner'});
+ assert.equal(response.status,403,'a customer deployment must not proxy unrestricted admin endpoints');
+ assert.equal((await response.json()).error.code,'CONTROL_ADMIN_DENIED');
 });
