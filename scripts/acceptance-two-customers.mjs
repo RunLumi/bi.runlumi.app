@@ -105,7 +105,7 @@ try{
   for(const dir of [alpha,beta]){
    const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
    assert.equal(lock.deploymentId,undefined);assert.equal(lock.environment,undefined);
-   assert.equal(lock.core.migrations.controlBaseline,5);assert.equal(lock.core.migrations.tenantBaseline,9);
+   assert.equal(lock.core.migrations.controlBaseline,5);assert.equal(lock.core.migrations.tenantBaseline,10);
    run(npm,['run','validate'],dir);
   }
  });

@@ -196,7 +196,7 @@ try{
   const lock=JSON.parse(await readFile(path.join(genDest,'lumi.lock.json'),'utf8'));
   assert.equal(lock.deploymentId,undefined);assert.equal(lock.environment,undefined);
   assert.equal(lock.customerId,'alpha');
-  assert.equal(lock.core.migrations.controlBaseline,5);assert.equal(lock.core.migrations.tenantBaseline,9);
+  assert.equal(lock.core.migrations.controlBaseline,5);assert.equal(lock.core.migrations.tenantBaseline,10);
  });
  test('generation: wrangler production base plus per-env sections match the inventories',async()=>{
   const wrangler=JSON.parse(await readFile(path.join(genDest,'apps/worker/wrangler.jsonc'),'utf8'));
