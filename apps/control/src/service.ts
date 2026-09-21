@@ -1,7 +1,8 @@
-import {AppError,id,object,text,sha256,type Principal,type Role} from '@runlumi/core/contracts.ts';
+import {AppError,id,integer,object,text,sha256,type Principal,type Role} from '@runlumi/core/contracts.ts';
 import {features,effectiveFeatures,requireFeature,parseLicense,type Feature,type License} from '@runlumi/core/licensing.ts';
 import {parseTenantPack,type ActivePack,type TenantPack} from '@runlumi/core/tenant-pack.ts';
 import {readJson,json,revision} from '@runlumi/core/http.ts';
+import {LUMI_CONTROL_API} from '@runlumi/core/version.ts';
 import type {Database} from '@runlumi/core/ports.ts';
 import type {ControlEnv} from './control-bindings.ts';
 type Auth=(request:Request,env:ControlEnv)=>Promise<Principal>;
@@ -65,6 +66,54 @@ export function createControl(authenticate:Auth,clock:()=>number=Date.now){
     const t=await db.prepare('SELECT t.id,t.name,t.cell_id,t.route_epoch,t.state,lifecycle.state AS lifecycle_state,lifecycle.revision AS lifecycle_revision,l.plan_id,l.state AS license_state,l.ends_at,l.revision AS license_revision,d.active_release_id,d.revision AS config_revision FROM tenants t JOIN tenant_lifecycle lifecycle ON lifecycle.tenant_id=t.id LEFT JOIN licenses l ON l.tenant_id=t.id LEFT JOIN tenant_deployments d ON d.tenant_id=t.id ORDER BY t.id LIMIT 100').all();
     const u=await db.prepare('SELECT u.issuer,u.subject,u.state,COUNT(m.tenant_id) AS tenant_count FROM users u LEFT JOIN memberships m ON m.issuer=u.issuer AND m.subject=u.subject AND m.state=\'active\' GROUP BY u.issuer,u.subject,u.state ORDER BY u.subject LIMIT 100').all();
     return json({tenants:t.results,users:u.results,limit:100,note:'Control metadata only. Operator role does not grant tenant-data access.'});
+   }
+   if(url.pathname==='/control/admin/deployments'&&request.method==='GET'){
+    const rows=await db.prepare('SELECT d.deployment_id,d.customer_id,d.environment,d.hostname,d.access_team,d.access_aud,d.control_api_version,d.resource_inventory,d.state,d.updated_at,t.name AS customer_name FROM deployments d LEFT JOIN tenants t ON t.id=d.customer_id ORDER BY d.deployment_id LIMIT 200').all();
+    return json({deployments:rows.results});
+   }
+   if(url.pathname==='/control/admin/deployments'&&request.method==='POST'){
+    const b=object(await readJson(request),['deploymentId','customerId','environment','hostname','accessTeam','accessAud','controlApiVersion','resourceInventory']);
+    const deploymentId=String(b.deploymentId);
+    if(!/^[a-z0-9][a-z0-9-]{0,62}$/.test(deploymentId))throw new AppError(400,'INVALID_DEPLOYMENT_ID');
+    // Customer-scoped deployments only: shared cell scopes are reviewed bootstrap
+    // SQL through compileCell (control-bootstrap.sql), never a runtime endpoint.
+    if(!b.customerId)throw new AppError(422,'CUSTOMER_REQUIRED');
+    const customerId=id(b.customerId);if(!(await db.prepare('SELECT 1 AS ok FROM tenants WHERE id=?').bind(customerId).first()))throw new AppError(404,'TENANT_NOT_FOUND');
+    const environment=String(b.environment??'');if(!['production','staging','preview'].includes(environment))throw new AppError(422,'INVALID_ENVIRONMENT');
+    const hostname=text(b.hostname,253);if(!/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(hostname)||hostname.endsWith('.example.com')||hostname.endsWith('.workers.dev'))throw new AppError(422,'INVALID_HOSTNAME');
+    const accessTeam=text(b.accessTeam,63);if(!/^[a-z0-9][a-z0-9-]{0,62}$/.test(accessTeam)||/REPLACE|example/i.test(accessTeam))throw new AppError(422,'INVALID_ACCESS_TEAM');
+    const accessAud=text(b.accessAud,128);if(!/^[A-Za-z0-9_-]{20,128}$/.test(accessAud)||/^(.)\1{19,}$/.test(accessAud)||/REPLACE|example/i.test(accessAud))throw new AppError(422,'INVALID_ACCESS_AUD');
+    const controlApiVersion=integer(b.controlApiVersion);if(controlApiVersion!==LUMI_CONTROL_API)throw new AppError(422,'UNSUPPORTED_CONTROL_API');
+    if(!b.resourceInventory||typeof b.resourceInventory!=='object'||Array.isArray(b.resourceInventory))throw new AppError(422,'INVALID_RESOURCE_INVENTORY');
+    // Cell-scope rows carry NULL customer_id/environment: the unique customer index
+    // does not constrain them, so the deployment_id primary key is their collision gate.
+    const existing=await db.prepare('SELECT deployment_id FROM deployments WHERE deployment_id=? OR (customer_id=? AND environment=?)').bind(deploymentId,customerId,environment).first();
+    if(existing)throw new AppError(409,'DEPLOYMENT_EXISTS');
+    const now=new Date(clock()).toISOString();
+    await db.batch([
+     db.prepare('INSERT INTO deployments (deployment_id,customer_id,environment,hostname,access_team,access_aud,control_api_version,resource_inventory,state,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)').bind(deploymentId,customerId||null,environment||null,hostname,accessTeam,accessAud,controlApiVersion,JSON.stringify(b.resourceInventory),'registered',now),
+     db.prepare('INSERT INTO control_audit SELECT ?,?,?,?,?,?,?,?').bind(crypto.randomUUID(),customerId||deploymentId,p.issuer,p.subject,'deployment.registered',deploymentId,hostname,now)
+    ]);
+    return json({deploymentId,customerId:customerId||null,environment:environment||null,hostname,state:'registered'});
+   }
+   const deploymentRoute=/^\/control\/admin\/deployments\/([a-z0-9-]{1,64})\/state$/.exec(url.pathname);
+   if(deploymentRoute&&request.method==='PUT'){
+    const deploymentId=id(deploymentRoute[1]);
+    const current=await db.prepare('SELECT state,customer_id FROM deployments WHERE deployment_id=?').bind(deploymentId).first<{state:string;customer_id:string|null}>();
+    if(!current)throw new AppError(404,'NOT_FOUND');
+    // Lifecycle changes are audited against the owning tenant, so only customer-scoped
+    // deployments transition here; shared cell scopes move through reviewed bootstrap SQL.
+    if(!current.customer_id)throw new AppError(422,'CELL_SCOPE_BOOTSTRAP_ONLY');
+    const b=object(await readJson(request),['state','reason']);const state=String(b.state);const reason=text(b.reason,200);
+    if(!['registered','suspended','retired'].includes(state)||state===current.state)throw new AppError(422,'INVALID_DEPLOYMENT_STATE');
+    const allowed=state==='retired'?current.state!=='retired':(current.state==='registered'||current.state==='suspended')&&(state==='registered'||state==='suspended');
+    if(!allowed)throw new AppError(409,'DEPLOYMENT_TRANSITION_INVALID');
+    const now=new Date(clock()).toISOString();
+    const result=await db.batch([
+     db.prepare("UPDATE deployments SET state=?,updated_at=? WHERE deployment_id=? AND state=?").bind(state,now,deploymentId,current.state),
+     db.prepare('INSERT INTO control_audit SELECT ?,?,?,?,?,?,?,? WHERE changes()>0').bind(crypto.randomUUID(),current.customer_id,p.issuer,p.subject,'deployment.state',deploymentId,reason,now)
+    ]);
+    if(result[0]?.meta.changes!==1)throw new AppError(409,'DEPLOYMENT_STATE_CONFLICT');return json({deploymentId,state});
    }
    const route=/^\/control\/admin\/tenants\/([a-z0-9_-]{1,64})\/(license|lifecycle|releases|activation)$/.exec(url.pathname);
    if(!route)throw new AppError(404,'NOT_FOUND');const tenant=id(route[1]);

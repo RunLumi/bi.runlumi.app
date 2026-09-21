@@ -52,12 +52,24 @@ for(const name of ['@runlumi/core','@runlumi/cloudflare','@runlumi/ui']){
  assert.match(entry.resolved,/^file:vendor\/runlumi-[a-z]+-\d+\.\d+\.\d+\.tgz$/,'Starter lock @runlumi entries must resolve to vendored release tarballs');
  assert.match(entry.integrity,/^sha512-/,'Starter lock @runlumi entries must carry sha512 integrity');
 }
+// The customer template lock declares core migration baselines; they must track the
+// reviewed core migrations so generated customers apply the exact current schema.
+const templateMeta=JSON.parse(await read('starter/customer/lumi.lock.json.template'));
+const controlCount=(await readdir(path.join(root,'migrations/control'))).filter(f=>f.endsWith('.sql')).length;
+const tenantCount=(await readdir(path.join(root,'migrations/tenant'))).filter(f=>f.endsWith('.sql')).length;
+assert.equal(templateMeta.core.migrations.controlBaseline,controlCount,`controlBaseline ${templateMeta.core.migrations.controlBaseline} must equal the ${controlCount} control migrations`);
+assert.equal(templateMeta.core.migrations.tenantBaseline,tenantCount,`tenantBaseline ${templateMeta.core.migrations.tenantBaseline} must equal the ${tenantCount} tenant migrations`);
 // Every registry entry in the template lock must be exact, provenance-checked and
 // license-admitted, mirroring the runtime/web license gates.
 for(const[key,p]of Object.entries(templateLock.packages)){
  if(!key||key.startsWith('node_modules/@runlumi/'))continue;
- assert.match(p.resolved??'',/^https:\/\/registry\.npmjs\.org\//,`Unreviewed template-lock origin: ${key}`);
- assert.match(p.integrity??'',/^sha512-/,`Missing template-lock integrity: ${key}`);
+ // npm records files bundled inside an integrity-checked parent tarball as
+ // inBundle entries without their own origin/integrity. All other entries must
+ // retain an exact registry origin and sha512 digest.
+ if(p.inBundle!==true){
+  assert.match(p.resolved??'',/^https:\/\/registry\.npmjs\.org\//,`Unreviewed template-lock origin: ${key}`);
+  assert.match(p.integrity??'',/^sha512-/,`Missing template-lock integrity: ${key}`);
+ }
  const common=['MIT','Apache-2.0','ISC','BSD-3-Clause','BSD-2-Clause','0BSD','CC0-1.0','OFL-1.1','MIT OR Apache-2.0'].includes(p.license);
  const data=key==='node_modules/caniuse-lite'&&p.dev===true&&p.license==='CC-BY-4.0';
  const css=/^node_modules\/lightningcss(?:-[a-z0-9-]+)?$/.test(key)&&p.dev===true&&p.license==='MPL-2.0';

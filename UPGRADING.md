@@ -49,9 +49,17 @@ It does not overwrite customer-owned files (`customer/`, `infra/`, `docs/`,
 ```bash
 npm run validate    # config, identity, reserved routes, compatibility
 npm run typecheck   # against the installed packages
+npm test            # executable template suite in customer/tests (see below)
 npm run build       # browser bundle from packaged core
 npm run deploy:plan production
 ```
+
+`npm test` composes the installed core exactly like the deployed worker
+(`createApi` + `LocalDatabase` + a control stub) and asserts the customer's
+intended behavior: connector pull, idempotent replay, exact derived metric
+values, NULL-not-zero on an empty database, unknown-metric `404`, read-only
+decision rules, server-side module gating (`403`) and viewer denial. It only
+runs in a generated customer repository.
 
 ## Migrations and rollback
 

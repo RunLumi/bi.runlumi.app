@@ -33,14 +33,20 @@ try{
  for(const file of files)db.db.exec(await readFile(path.join(customerMigrations,file),'utf8'));
 }catch{/* no customer-owned migrations */} 
 db.db.prepare('INSERT INTO tenant_identity (singleton,tenant_id) VALUES (1,?)').run(manifest.customerId);
+// Seed the deployment's serving identity and the deterministic ops-demo source so
+// the dedicated fence passes and the connector pull has a registered destination.
+db.db.prepare("INSERT INTO serving_identity (singleton,customer_id,deployment_id,environment) VALUES (1,?,?,?)").run(manifest.customerId,'local','local');
+db.db.prepare("INSERT INTO sources VALUES (?,'ops-demo','Synthetic operations snapshot','active')").run(manifest.customerId);
 const env={
  SERVING:db,SOURCES:objects,
  CONTROL:{fetch:stubControl({cellId:'local',memberships:[{tenantId:manifest.customerId,issuer:'local-test',subject:'local-owner',role:'owner'}]})},
- CELL_ID:'local',CUSTOMER_ID:manifest.customerId,TENANT_BINDINGS:'["SERVING"]',ACCESS_TEAM:'',ACCESS_AUD:''
+ CELL_ID:'local',CUSTOMER_ID:manifest.customerId,DEPLOYMENT_ID:'local',ENVIRONMENT:'local',TENANT_BINDINGS:'["SERVING"]',ACCESS_TEAM:'',ACCESS_AUD:''
 };
 const authenticate=async request=>({issuer:'local-test',subject:request.headers.get('x-demo-user')??'local-owner'});
 const {customMetricExtensions}=await import('../customer/data/server-metrics.ts');
-const api=createApi(authenticate,true,{customMetrics:customMetricExtensions});
+const {exampleAdapter}=await import('../customer/data/connectors.ts');
+const {decisionRules}=await import('../customer/workflows/decisions.ts');
+const api=createApi(authenticate,true,{customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules:manifest.modules});
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.woff2':'font/woff2'};
 const server=createServer(async(req,res)=>{
  try{

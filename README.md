@@ -43,6 +43,13 @@ Start with the [commerce specifications](docs/specs/README.md), then the
 - Money/stock review screens, deterministic observed-condition findings, an
   auditable decision register with positively verified outcomes, and authenticated
   CSV/JSON exports. No finding, decision state or payout gap fabricates recovered cash.
+- Generated customer repositories ship **executable extensions**: typed custom
+  pages, deterministic namespaced custom metrics with server registrations,
+  authorized-export connector adapters and advisory decision rules, plus a
+  fixture-agnostic template test suite (`npm test`) that composes the installed
+  core exactly like the worker and asserts exact derived values, NULL-not-zero,
+  module gating `403`s and viewer denials. Core modules disabled in
+  `customer/manifest.ts` lose their server routes, not just navigation.
 
 These commerce paths are a **bounded authorized-export workflow**, not a live
 connector or full financial warehouse. Maximum 100 records/48 KB per raw file,
@@ -59,6 +66,8 @@ No synthetic commerce chart is presented as a working integration.
 
 See the [implementation record](docs/implementation/README.md) for the complete
 C00–C27 status and the next dependency-ordered work.
+New customer setup and end-to-end repository instructions are in the
+[user guide](user-guide/README.md).
 See [PR #2 scope and acceptance mapping](docs/pr2-commerce-alignment.md) and
 [validation](VALIDATION.md). Specifications are contracts, not evidence of delivery.
 
@@ -121,7 +130,8 @@ npm run core:pack                     # deterministic tarballs + provenance mani
 npm run customer:new -- --customer acme --name "ACME" --dest ../acme-lumi
 npm run check:boundaries              # enforce customer -> public core direction
 npm run check:workerd                 # packaged Worker under real local workerd
-npm run acceptance:two-customers      # two-customer install/build/upgrade proof
+npm run acceptance:two-customers      # two-customer install/build/upgrade proof,
+                                      # incl. each customer's own executable tests
 ```
 
 [Architecture](docs/architecture.md) · [Customer base (ADR 0010)](docs/adr/0010-customer-application-repositories.md) ·
@@ -136,8 +146,10 @@ Generate an inventory-specific plan with `npm run cf:config -- .local/cell.json`
 then follow the [runbook](docs/deployment.md): migrate both planes, build assets,
 deploy the private control Worker **before** the cell, and test real bindings.
 
-The control service has no public route. All attached cells currently share the
-same reviewed Access application audience. Generated SQL does not invent a
+The control service has no public route; it verifies every forwarded end-user JWT
+against the registered deployment's own reviewed Access team/audience, control
+interface version and lifecycle state (see the `deployments` registry in
+[docs/deployment.md](docs/deployment.md)). Generated SQL does not invent a
 commercial license or grant operator access.
 
 ## License

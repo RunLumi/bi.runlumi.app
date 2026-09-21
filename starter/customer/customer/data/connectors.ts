@@ -1,21 +1,33 @@
+import type {ConnectorAdapter,ConnectorPullRequest} from '@runlumi/core/api.ts';
+
 /** Customer connector extension. Adapters run server-side in the customer Worker
  * under reviewed code; they never expose executable SQL to a browser or model, and
- * they never receive credentials from the browser. This example is a stub that
- * documents the supported contract and is intentionally not a live provider. */
-export interface ConnectorPullRequest {connectionId:string;resourceType:'orders'|'settlements'|'inventory';window:{from:string;toExclusive:string};observedAt:string}
-export interface ConnectorAdapter {
-  provider: string;
-  /** Declared resource types this adapter may produce. */
-  resources: readonly ('orders'|'settlements'|'inventory')[];
-  /** Server-side transport. Must be a supported, certified transport; not arbitrary fetch. */
-  transport: 'authorized-export';
-  /** Returns a raw export envelope body for the core receipt pipeline. */
-  pull(request: ConnectorPullRequest): Promise<unknown>;
-}
-
+ * they never receive credentials from the browser. The pull request is always
+ * server-constructed from deployment config, never browser-supplied.
+ *
+ * This example is a deterministic fixture export: the same synthetic source,
+ * watermark and day on every pull, so the dev server and the executable customer
+ * tests agree on exact metric values. It is intentionally not a live provider. */
 export const exampleAdapter:ConnectorAdapter={
- provider:'example',
- resources:['orders'],
+ provider:'ops-demo',
+ resources:['workflow_facts'],
  transport:'authorized-export',
- async pull(){throw new Error('Example adapter is not certified; configure an approved export source instead.');}
+ async pull(_request:ConnectorPullRequest){
+  return {
+   sourceId:'ops-demo',
+   observedThrough:'2026-09-18',
+   records:[{
+    recordId:'ops-demo-2026-09-15',
+    day:'2026-09-15',
+    workflow:'quote-preparation',
+    cases:30,
+    baselineMinutes:180,
+    humanMinutes:30,
+    runtimeCostVnd:9000,
+    supportCostVnd:4500,
+    cashSavingsVnd:0,
+    cashEvidenceRef:null
+   }]
+  };
+ }
 };

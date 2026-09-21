@@ -41,7 +41,11 @@ export function compileCell(i) {
     seeds[id]=[`INSERT INTO tenant_identity (singleton,tenant_id) VALUES (1,${quote(id)});`];
     for(const s of t.sources){const sourceId=ident(s.id,'source id');if(sourceIds.has(sourceId))throw new Error('Duplicate source');sourceIds.add(sourceId);seeds[id].push(`INSERT INTO sources (tenant_id,id,name,state) VALUES (${quote(id)},${quote(sourceId)},${quote(s.name)},'active');`);}
   }
-  const controlConfig={name:controlWorker,account_id:accountId,main:'../apps/control/src/index.ts',compatibility_date:'2026-09-20',workers_dev:false,preview_urls:false,routes:[],vars:{ACCESS_TEAM:team,ACCESS_AUD:aud},d1_databases:[dbs[0]],r2_buckets:[{binding:'PACKS',bucket_name:ident(i.control?.packsBucket,'control packsBucket')}]};
+  const controlConfig={name:controlWorker,account_id:accountId,main:'../apps/control/src/index.ts',compatibility_date:'2026-09-20',workers_dev:false,preview_urls:false,routes:[],d1_databases:[dbs[0]],r2_buckets:[{binding:'PACKS',bucket_name:ident(i.control?.packsBucket,'control packsBucket')}]};
+  // Register the shared cell's Access scope so Control verifies forwarded end-user
+  // JWTs against the reviewed cell team/audience instead of a global audience.
+  const scope={type:'cell',workerName:name,hostname,d1Databases:dbs.slice(1).map(d=>d.database_name),r2Bucket:i.r2Bucket,sources:Object.keys(seeds)};
+  control.push(`INSERT INTO deployments (deployment_id,customer_id,environment,hostname,access_team,access_aud,control_api_version,resource_inventory,state,updated_at) VALUES (${quote(cellId)},NULL,NULL,${quote(hostname)},${quote(team)},${quote(aud)},1,${quote(JSON.stringify(scope))},'registered',CURRENT_TIMESTAMP);`);
   return {controlConfig,config:{
     name,account_id:accountId,main:'../apps/api/src/index.ts',compatibility_date:'2026-09-20',
     workers_dev:false,preview_urls:false,routes:[{pattern:hostname,custom_domain:true}],

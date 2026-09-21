@@ -11,7 +11,7 @@
  *   G. An incompatible extension/migration is rejected before deployment, with a diagnostic.
  *   H. One customer's rollback leaves the other unchanged and reports DB compatibility.
  */
-import {mkdtemp, cp, readFile, writeFile, rm, readdir, stat} from 'node:fs/promises';
+import {mkdtemp, cp, readFile, writeFile, rm, readdir, stat, mkdir} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -28,9 +28,9 @@ const run=(command,args,cwd,{expectFail=false,env={}}={})=>{
  if(r.status!==0&&!expectFail)throw new Error(`${command} ${args.join(' ')} failed: ${(r.stdout??'')+(r.stderr??'')}`);
  return {...r,ok:r.status===0};
 };
-const generate=async(customer,name)=>{
+const generate=async(customer,name,envs='production,staging')=>{
  const dest=path.join(work,customer);
- run(process.execPath,[path.join(root,'scripts/customer-new.mjs'),'--customer',customer,'--name',name,'--dest',dest],root);
+ run(process.execPath,[path.join(root,'scripts/customer-new.mjs'),'--customer',customer,'--name',name,'--env',envs,'--dest',dest],root);
  // Apply the checked-in synthetic overlay (custom pages, metrics, navigation).
  await cp(path.join(root,'examples/customers',customer,'customer'),path.join(dest,'customer'),{recursive:true});
  // Merge the fixture's declared routes/extensions into the lock for validation.
@@ -73,22 +73,94 @@ try{
  await step('A5 each customer runs its own independent acceptance tests',async()=>{
   for(const dir of [alpha,beta]){
    const out=run(npm,['test'],dir);
-   assert(/pass [1-9]/.test(out.stdout),`${dir} must run passing customer tests`);
+   // Node's test runner prints a TAP summary (`# pass N`) in pipes and a spec
+   // summary (`ℹ pass N`) on a terminal. Accept both; require real counts.
+   const all=[...(out.stdout.match(/# (pass|fail) \d+/g)??[]),...(out.stdout.match(/ℹ (pass|fail) \d+/g)??[])];
+   const count=(label)=>Number((all.find(x=>x.includes(`${label} `))??'').match(/\d+/)?.[0]??0);
+   const pass=count('pass');const fail=count('fail');
+   assert(pass>=8,`${dir} must run at least 8 passing customer tests (got ${pass})`);
+   assert.equal(fail,0,`${dir} customer tests must run without failures (got ${fail})`);
+  }
+ });
+ await step('A6 promoted report compiles in a fresh customer checkout without embedded results',async()=>{
+  const source=`import type {PageContext} from '@runlumi/ui/app.tsx';\nimport {CommerceReportPage} from '@runlumi/ui/features/commerce-report.tsx';\nexport const reportDefinition={metricIds:['net_merchandise_sales'],from:'2026-09-01',toExclusive:'2026-10-01',dataVersion:'cp_reviewed',blocks:[{id:'sales-card',kind:'metric',metricId:'net_merchandise_sales'}]} as const;\nexport function Report({tenant,identity}:Pick<PageContext,'tenant'|'identity'>){return tenant?<CommerceReportPage tenant={tenant} identity={identity}/>:null;}\n`;
+  for(const dir of [alpha,beta]){await mkdir(path.join(dir,'customer/reports'),{recursive:true});await writeFile(path.join(dir,'customer/reports/weekly-sales.report.tsx'),source);const out=run(npm,['run','typecheck'],dir);assert(out.ok,'promoted report must typecheck in the customer checkout');const report=await customerFile(dir,'customer/reports/weekly-sales.report.tsx');assert(!report.includes('720000'),'promoted source must not embed fixture financial results');run('git',['add','customer/reports/weekly-sales.report.tsx'],dir);run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','-m','reviewed report proposal'],dir);}
+ });
+ // ---- I. per-environment deployment identity and the operator review gate ----
+ await step('I1 production and staging own distinct deployment identities',async()=>{
+  for(const dir of [alpha,beta]){
+   const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
+   const prod=JSON.parse(await customerFile(dir,'infra/environments/production.json'));
+   const staging=JSON.parse(await customerFile(dir,'infra/environments/staging.json'));
+   assert.equal(prod.customerId,lock.customerId);assert.equal(staging.customerId,lock.customerId);
+   for(const key of ['workerName','hostname','deploymentId','sourcesBucket','accessAudience']){
+    assert.notEqual(prod[key],staging[key],`${key} must differ between ${dir} environments`);
+   }
+   assert.notEqual(prod.servingDatabase.databaseName,staging.servingDatabase.databaseName,`${dir} serving databases must differ`);
+   assert.notEqual(prod.servingDatabase.databaseId,staging.servingDatabase.databaseId,`${dir} serving database ids must differ`);
+   const wrangler=JSON.parse(await customerFile(dir,'apps/worker/wrangler.jsonc'));
+   assert.equal(wrangler.name,prod.workerName,'production is the wrangler base');
+   assert.equal(wrangler.env.staging.name,staging.workerName,'staging is a named wrangler environment');
+   assert.equal(wrangler.env.staging.vars.ACCESS_AUD,staging.accessAudience);
+   assert.equal(wrangler.env.staging.vars.DEPLOYMENT_ID,`${lock.customerId}-staging`);
+   assert.equal(wrangler.env.staging.d1_databases[0].database_id,staging.servingDatabase.databaseId);
+   assert.equal(wrangler.d1_databases[0].migrations_dir,'../../customer/migrations','serving migrations resolve to the customer repo root');
+  }
+ });
+ await step('I2 the customer lock is customer-level and validates both environments',async()=>{
+  for(const dir of [alpha,beta]){
+   const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
+   assert.equal(lock.deploymentId,undefined);assert.equal(lock.environment,undefined);
+   assert.equal(lock.core.migrations.controlBaseline,5);assert.equal(lock.core.migrations.tenantBaseline,10);
+   run(npm,['run','validate'],dir);
+  }
+ });
+ await step('I3 deploy:plan blocks scaffold placeholders before any review',async()=>{
+  const out=run(npm,['run','deploy:plan'],alpha,{expectFail:true});
+  assert(!out.ok,'unreviewed scaffold must never be deployable');
+  assert(/hostname must be reviewed/.test(out.stdout+out.stderr),'the diagnostic must name the unreviewed hostname');
+ });
+ await step('I4 deploy:plan approves after operator review and names the wrangler command',async()=>{
+  for(const dir of [alpha,beta]){
+   for(const envName of ['production','staging']){
+    const file=path.join(dir,'infra/environments',`${envName}.json`);
+    const original=await customerFile(dir,`infra/environments/${envName}.json`);
+    try{
+     const inventory=JSON.parse(original);
+     inventory.hostnameReviewed=true;inventory.accessTeam=`${inventory.customerId}-reviewed`;
+     await writeFile(file,JSON.stringify(inventory,null,2));
+     const out=run(npm,['run','deploy:plan','--',envName],dir);
+     assert(out.ok,`reviewed ${envName} plan must be approved: ${(out.stdout??'')+(out.stderr??'')}`);
+     assert(out.stdout.includes('npx wrangler deploy'),`plan must name the deploy command for ${envName}`);
+     if(envName==='staging')assert(out.stdout.includes('--env staging'),'the staging plan must name the staging wrangler environment');
+     else assert(!out.stdout.includes('--env'),'the production plan must use the wrangler base environment');
+     assert(/no Cloudflare resource/.test(out.stdout),'a plan creates nothing');
+    }finally{await writeFile(file,original);}
+   }
   }
  });
  // ---- C. custom pages and extensions exist and are customer-owned ----
  await step('C1 alpha has a custom page and namespaced metric',async()=>{
   const pages=await customerFile(alpha,'customer/ui/pages.tsx');
   const metrics=await customerFile(alpha,'customer/data/metrics.ts');
+  const server=await customerFile(alpha,'customer/data/server-metrics.ts');
   assert(pages.includes("path:'/warehouse'"),'alpha custom route missing');
   assert(metrics.includes('customer.warehouse_hours_saved'),'alpha custom metric missing');
+  assert(server.includes('customer.warehouse_hours_saved'),'alpha must register the metric server-side');
+  assert(pages.includes('/custom-metrics/customer.warehouse_hours_saved'),'alpha page must fetch the registered metric, not embed a value');
+  for(const file of [pages,metrics,server])assert(!file.includes('customMetricValue'),'alpha must not rely on a literal customMetricValue');
  });
  await step('C2 beta has a different custom page and metric',async()=>{
   const pages=await customerFile(beta,'customer/ui/pages.tsx');
   const metrics=await customerFile(beta,'customer/data/metrics.ts');
+  const server=await customerFile(beta,'customer/data/server-metrics.ts');
   assert(pages.includes("path:'/channels'"),'beta custom route missing');
   assert(!pages.includes('/warehouse'),'beta must not share alpha navigation');
   assert(metrics.includes('customer.channel_margin_note'),'beta custom metric missing');
+  assert(metrics.includes("'operations.cases'"),'beta metric must derive from the operations case source');
+  assert(server.includes('customer.channel_margin_note'),'beta must register the metric server-side');
+  assert(pages.includes('/custom-metrics/customer.channel_margin_note'),'beta page must fetch the registered metric, not embed a value');
+  for(const file of [pages,metrics,server])assert(!file.includes('customMetricValue'),'beta must not rely on a literal customMetricValue');
  });
  // ---- G. incompatible extension/migration rejected with a diagnostic ----
  await step('G1 reserved-route collision is rejected before deployment',async()=>{
@@ -114,13 +186,13 @@ try{
   const beforeLockA=await customerFile(alpha,'lumi.lock.json');
   // Stage an N+1 release from a synthetic bump in an isolated copy of the upstream tree.
   const bump=path.join(work,'upstream-n1');
-  await cp(root,bump,{recursive:true,filter:source=>!source.includes('node_modules')&&!source.includes('/.git/')&&!source.includes('artifacts')});
+  await cp(root,bump,{recursive:true,filter:source=>!source.includes('node_modules')&&!source.includes('/.git/')&&!source.includes('/artifacts/')&&!source.endsWith('/artifacts')});
   for(const pkg of ['core','cloudflare','ui']){
    const file=path.join(bump,'packages',pkg,'package.json');const j=JSON.parse(await readFile(file,'utf8'));
    j.version='0.1.1';if(pkg==='cloudflare'||pkg==='ui')j.dependencies['@runlumi/core']='0.1.1';
    await writeFile(file,JSON.stringify(j,null,2));
   }
-  await writeFile(path.join(bump,'packages/core/src/version.ts'),"export const LUMI_CORE_VERSION = '0.1.1';\nexport const LUMI_EXTENSION_API = 1;\n");
+  await writeFile(path.join(bump,'packages/core/src/version.ts'),"export const LUMI_CORE_VERSION = '0.1.1';\nexport const LUMI_EXTENSION_API = 1;\nexport const LUMI_CONTROL_API = 1;\n");
   run(npm,['install','--ignore-scripts','--save-exact'],bump);
   run(npm,['run','build:packages'],bump);
   const artifacts=path.join(bump,'artifacts/core');

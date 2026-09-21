@@ -28,5 +28,7 @@ jobs:
         run: npm run typecheck
       - name: Build the application from packaged core artifacts
         run: npm run build
+      - name: Run the executable customer acceptance tests
+        run: npm test
       - name: Guarded upgrade plan (reports migrations and extension compatibility)
         run: npm run upgrade -- --check

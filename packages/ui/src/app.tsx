@@ -21,7 +21,7 @@ export interface AppLabels {
 }
 export interface AppConfig {brand:AppBrand;labels:AppLabels;pages:AppPage[];demoIdentities:string[]}
 
-class Boundary extends Component<{children:ReactNode},{failed:boolean}>{state={failed:false};static getDerivedStateFromError(){return {failed:true};}render(){return this.state.failed?<main className="state" role="alert">Giao diện chưa sẵn sàng. Tải lại trang để bắt đầu phiên mới.</main>:this.props.children;}}
+class Boundary extends Component<{children:ReactNode},{failed:boolean}>{state={failed:false};static getDerivedStateFromError(){return {failed:true};}componentDidCatch(error:unknown){console.error('Lumi UI boundary',error);}render(){return this.state.failed?<main className="state" role="alert">Giao diện chưa sẵn sàng. Tải lại trang để bắt đầu phiên mới.</main>:this.props.children;}}
 
 function IdentityScope({identity,onIdentity,config}:{identity:string;onIdentity:(value:string)=>void;config:AppConfig}){
  // New client on identity change. Never persist or reuse another identity's query cache.
