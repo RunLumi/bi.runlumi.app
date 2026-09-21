@@ -63,8 +63,13 @@ assert.equal(templateMeta.core.migrations.tenantBaseline,tenantCount,`tenantBase
 // license-admitted, mirroring the runtime/web license gates.
 for(const[key,p]of Object.entries(templateLock.packages)){
  if(!key||key.startsWith('node_modules/@runlumi/'))continue;
- assert.match(p.resolved??'',/^https:\/\/registry\.npmjs\.org\//,`Unreviewed template-lock origin: ${key}`);
- assert.match(p.integrity??'',/^sha512-/,`Missing template-lock integrity: ${key}`);
+ // npm records files bundled inside an integrity-checked parent tarball as
+ // inBundle entries without their own origin/integrity. All other entries must
+ // retain an exact registry origin and sha512 digest.
+ if(p.inBundle!==true){
+  assert.match(p.resolved??'',/^https:\/\/registry\.npmjs\.org\//,`Unreviewed template-lock origin: ${key}`);
+  assert.match(p.integrity??'',/^sha512-/,`Missing template-lock integrity: ${key}`);
+ }
  const common=['MIT','Apache-2.0','ISC','BSD-3-Clause','BSD-2-Clause','0BSD','CC0-1.0','OFL-1.1','MIT OR Apache-2.0'].includes(p.license);
  const data=key==='node_modules/caniuse-lite'&&p.dev===true&&p.license==='CC-BY-4.0';
  const css=/^node_modules\/lightningcss(?:-[a-z0-9-]+)?$/.test(key)&&p.dev===true&&p.license==='MPL-2.0';

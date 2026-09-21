@@ -18,7 +18,7 @@ const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9
 const ident=v=>typeof v==='string'&&/^[a-z0-9][a-z0-9-]{0,62}$/.test(v)&&!/^0+$/.test(v.replaceAll('-',''));
 
 try{
- const {parseCustomerManifest,assertCompatible}=await import('@runlumi/core/customer-config.ts');
+ const {parseCustomerManifest,assertCompatible,parseDecisionRules}=await import('@runlumi/core/customer-config.ts');
  const {LUMI_CORE_VERSION,LUMI_EXTENSION_API,LUMI_CONTROL_API}=await import('@runlumi/core/version.ts');
  const lock=await readJson('lumi.lock.json');
  const manifestModule=await import(pathToFileURL(path.join(repoRoot,'customer/manifest.ts')).href);
@@ -90,7 +90,42 @@ try{
    require_(section.r2_buckets?.[0]?.bucket_name===inventory.sourcesBucket,`wrangler env ${inventory.environment} sources bucket must match the inventory`);
   }
  }
- for(const file of ['apps/worker/wrangler.jsonc','apps/web/src/App.tsx','customer/manifest.ts','lumi.lock.json'])require_(await exists(file),`required file missing: ${file}`);
+ // Extensions must exist and stay coherent with the manifest and with the server
+  // registration they are compiled against. A declared metric that is never
+  // registered, or a registration for an undeclared metric, is a build-time error.
+  const loadModule=async(rel,label)=>{try{return await import(pathToFileURL(path.join(repoRoot,rel)).href);}catch(error){problems.push(`${label}: cannot load: ${error?.message??error}`);return null;}};
+  const metricsSource=await readFile(path.join(repoRoot,'customer/data/metrics.ts'),'utf8').catch(()=>'');
+  require_(!metricsSource.includes('customMetricValue'),'customer/data/metrics.ts must not contain the no-query customMetricValue placeholder');
+  const metricsModule=await loadModule('customer/data/metrics.ts','customer/data/metrics.ts');
+  const serverMetricsModule=await loadModule('customer/data/server-metrics.ts','customer/data/server-metrics.ts');
+  const namespace=manifest.extensions[0]?.namespace??'customer';
+  if(metricsModule){
+   const declared=metricsModule.customMetrics??[];
+   require_(Array.isArray(declared),'customer/data/metrics.ts must export customMetrics');
+   const declaredIds=new Set();
+   for(const metric of declared){
+    require_(typeof metric?.id==='string'&&metric.id.startsWith(`${namespace}.`),`custom metric ${metric?.id??'<missing>'} must use the ${namespace}. namespace`);
+    if(!declaredIds.has(metric?.id))declaredIds.add(metric?.id);else require_(false,`duplicate custom metric id ${metric?.id}`);
+    for(const source of metric?.source?.from??[])require_(manifest.modules.includes((String(source).split('.')[0])),`custom metric ${metric?.id} derives from ${source} but module ${String(source).split('.')[0]} is not enabled in the manifest`);
+   }
+   if(serverMetricsModule){
+    const registered=serverMetricsModule.customMetricExtensions??[];
+    const registeredIds=new Set((registered??[]).map(ext=>ext?.id).filter(Boolean));
+    require_(registeredIds.size===declaredIds.size&&[...registeredIds].every(id=>declaredIds.has(id)),'custom metric ids declared in customer/data/metrics.ts must match the ids registered in customer/data/server-metrics.ts');
+   }
+  }
+  const decisionsModule=await loadModule('customer/workflows/decisions.ts','customer/workflows/decisions.ts');
+  if(decisionsModule){
+   try{parseDecisionRules(decisionsModule.decisionRules);}catch(error){problems.push(`customer/workflows/decisions.ts: ${error?.message??error}`);}
+   for(const rule of decisionsModule.decisionRules??[])require_(typeof rule?.id==='string'&&rule.id.startsWith(`${namespace}.`),`decision rule ${rule?.id??'<missing>'} must use the ${namespace}. namespace`);
+  }
+  const aiModule=await loadModule('customer/ai/profile.ts','customer/ai/profile.ts');
+  if(aiModule){
+   const profile=aiModule.aiProfile;
+   require_(profile?.contextMode==='authorized-results-only','customer/ai/profile.ts must declare contextMode authorized-results-only');
+   for(const prompt of profile?.prompts??[])require_(await exists(`customer/ai/${prompt.file}`),`AI prompt ${prompt.file} is missing under customer/ai`);
+  }
+  for(const file of ['apps/worker/wrangler.jsonc','apps/web/src/App.tsx','customer/manifest.ts','lumi.lock.json'])require_(await exists(file),`required file missing: ${file}`);
  for(const migration of (await exists('customer/migrations')?await readdir(path.join(repoRoot,'customer/migrations')):[])){
   require_(/^\d{4}_[a-z0-9_]+\.sql$/.test(migration),`customer migration must be numbered and namespaced: ${migration}`);
  }

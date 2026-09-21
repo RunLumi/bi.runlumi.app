@@ -14,13 +14,56 @@ import { readCommerceCapabilities, reviewCommerceCapability } from './commerce-c
 import { enqueueCommerceJob, executeCommerceJob, readCommerceJob, readCommerceJobs } from './commerce-jobs.ts';
 import { authorizeTenant, canEdit } from './tenant.ts';
 import { importSnapshot } from './ingest.ts';
+import {CORE_MODULES,parseDecisionRules,type CoreModule,type DecisionRule} from './extension-contracts.ts';
 import { LUMI_CORE_VERSION } from './version.ts';
 import type { AppEnv } from './ports.ts';
 export type Authenticate<E extends AppEnv = AppEnv> = (request:Request,env:E)=>Promise<Principal>;
 export interface CustomMetricResult { value: string|null; unit: string; evidence: unknown }
 export interface CustomMetricContext { request: Request; tenant: import('./tenant.ts').TenantContext; query: (query: Query)=>ReturnType<typeof executeQueries> }
 export interface CustomMetricExtension { id: string; version: number; execute: (context: CustomMetricContext)=>Promise<CustomMetricResult> }
-export interface ApiOptions { customMetrics?: readonly CustomMetricExtension[] }
+/** Server-side source export contract. Adapters run inside the customer worker under
+ * reviewed code. The pull request is always server-constructed from deployment
+ * configuration: a browser or model never supplies connection ids, windows,
+ * watermarks or credentials. */
+export type ConnectorResourceType='orders'|'settlements'|'inventory'|'workflow_facts';
+export interface ConnectorPullRequest {
+  connectionId: string;
+  resourceType: ConnectorResourceType;
+  window: {from:string; toExclusive:string};
+  observedAt: string;
+}
+export interface ConnectorAdapter {
+  provider: string;
+  /** Declared resource types this adapter may produce. */
+  resources: readonly ConnectorResourceType[];
+  /** Server-side transport. Must be a supported, certified transport; not arbitrary fetch. */
+  transport: 'authorized-export';
+  /** Returns a raw export envelope body for the core snapshot pipeline. */
+  pull(request: ConnectorPullRequest): Promise<unknown>;
+}
+export interface ApiOptions {
+  customMetrics?: readonly CustomMetricExtension[];
+  connectors?: readonly ConnectorAdapter[];
+  decisionRules?: readonly DecisionRule[];
+  /** Enabled product modules from the customer manifest. When present, routes whose
+   * family is not enabled are rejected server-side (403 MODULE_DISABLED). */
+  modules?: readonly CoreModule[];
+}
+/** Server-owned pull window. A reviewed adapter build defines the real operational
+ * range; the API never trusts a browser-suggested horizon. */
+const PULL_WINDOW={from:'2026-09-01',toExclusive:'2026-10-01'} as const;
+/** Validate extension composition synchronously so a misconfigured worker fails
+ * closed at startup rather than on first request. */
+function validateComposition(options:ApiOptions):void{
+  if(options.decisionRules!==undefined)parseDecisionRules(options.decisionRules);
+  if(options.modules!==undefined&&(!Array.isArray(options.modules)||!options.modules.length||options.modules.some(m=>!CORE_MODULES.includes(m as CoreModule))))throw new AppError(500,'INVALID_MODULE_CONFIG');
+  for(const connector of options.connectors??[]){
+   if(!connector||typeof connector!=='object'||typeof connector.provider!=='string'||!/^[a-z][a-z0-9-]{0,62}$/.test(connector.provider))throw new AppError(500,'INVALID_CONNECTOR_PROVIDER');
+   if(!Array.isArray(connector.resources)||!connector.resources.length||!connector.resources.every(r=>['orders','settlements','inventory','workflow_facts'].includes(r as ConnectorResourceType)))throw new AppError(500,'INVALID_CONNECTOR_RESOURCES');
+   if(connector.transport!=='authorized-export')throw new AppError(500,'UNSUPPORTED_CONNECTOR_TRANSPORT');
+   if(typeof connector.pull!=='function')throw new AppError(500,'INVALID_CONNECTOR_PULL');
+  }
+}
 const MAX_BODY=65536;
 async function readJson(request:Request):Promise<unknown> {
   if(request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() !== 'application/json') throw new AppError(415,'JSON_REQUIRED');
@@ -42,6 +85,7 @@ function secure(response:Response,requestId:string):Response {
   return r;
 }
 export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E>, demo=false, options:ApiOptions={}) {
+  validateComposition(options);
   return async(request:Request,env:E):Promise<Response>=>{
     const requestId=crypto.randomUUID();
     try {
@@ -67,10 +111,16 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
         const body=request.method==='GET'?undefined:await readJson(request);
         return secure(await controlRequest(env.CONTROL,request,url.pathname.replace('/api/control/','/control/admin/'),controlScope(env),body,demo),requestId);
       }
-      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|custom-metrics|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname);
+      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|custom-metrics|connector-pull|custom-rules|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname);
       if(!match)throw new AppError(404,'NOT_FOUND');
       const tenantId=id(match[1]);const route=match[2];const resource=match[3];
-      const feature=['commerce-receipts','commerce-normalizations','commerce-mappings','commerce-publications','commerce-connections','commerce-capabilities','commerce-jobs','commerce-insights','commerce-decisions','commerce-exports','commerce-staging'].includes(route??'')?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
+      // Module enablement gates server behavior, never just nav links. A route whose
+      // family is disabled is rejected before tenant authorization is even attempted.
+      if(options.modules){
+        const family:CoreModule|undefined=route?.startsWith('commerce-')?'commerce':['metrics','query','query-batch','dashboards','imports','custom-metrics','connector-pull','custom-rules'].includes(route??'') ? 'operations' : undefined;
+        if(family&&!options.modules.includes(family))throw new AppError(403,'MODULE_DISABLED');
+      }
+      const feature=['commerce-receipts','commerce-normalizations','commerce-mappings','commerce-publications','commerce-connections','commerce-capabilities','commerce-jobs','commerce-insights','commerce-decisions','commerce-exports','commerce-staging'].includes(route??'')?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='connector-pull'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
       const ctx=await authorizeTenant(env,principal,tenantId,request,feature,demo);
       const active=ctx.active;
       if(route==='custom-metrics'&&request.method==='GET'&&resource){
@@ -78,6 +128,23 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
         if(!extension)throw new AppError(404,'CUSTOM_METRIC_NOT_FOUND');
         const result=await extension.execute({request,tenant:ctx,query:(query)=>executeQueries(ctx,[query])});
         return secure(json({id:extension.id,version:extension.version,...result,scope:{tenantId:ctx.id,role:ctx.role},coreVersion:LUMI_CORE_VERSION}),requestId);
+      }
+      if(route==='custom-rules'&&request.method==='GET'&&!resource){
+        // Read-only advisory catalog. Rules are reviewed definitions; they never
+        // execute external actions. No writer exists: POST/PUT fall to 404.
+        return secure(json({version:'operations-v1',rules:options.decisionRules??[],scope:{tenantId:ctx.id,role:ctx.role},coreVersion:LUMI_CORE_VERSION}),requestId);
+      }
+      if(route==='connector-pull'&&request.method==='POST'){
+        // The pull request is server-constructed from reviewed deployment config;
+        // a browser or model never supplies connection ids, windows, watermarks
+        // or credentials. The envelope flows through the same snapshot pipeline as
+        // a reviewed import, with a deterministic idempotency key per pull.
+        const adapter=resource?(options.connectors??[]).find(item=>item.provider===resource):undefined;
+        if(!adapter)throw new AppError(404,'CONNECTOR_NOT_FOUND');
+        const envelope=await adapter.pull({connectionId:'customer-deployment',resourceType:adapter.resources[0]??'workflow_facts',window:{from:PULL_WINDOW.from,toExclusive:PULL_WINDOW.toExclusive},observedAt:new Date().toISOString()});
+        const snapshot=parseSnapshot(envelope);
+        const result=await importSnapshot(env,ctx,snapshot,`pull-${adapter.provider}-${snapshot.observedThrough}`);
+        return secure(json({...result,provider:adapter.provider,sourceId:snapshot.sourceId,recordCount:snapshot.records.length,observedThrough:snapshot.observedThrough},result.replayed?200:201),requestId);
       }
       if(route==='configuration'&&request.method==='GET'&&!resource)return secure(json({active:active?{releaseId:active.releaseId,revision:active.revision,sourceCommit:active.sourceCommit,provenance:active.provenance,attestationVerified:active.attestationVerified,name:active.pack.name,queries:active.pack.queries,ai:{enabled:active.pack.ai.enabled,providerInstanceRef:active.pack.ai.providerInstanceRef,modelRef:active.pack.ai.modelRef,dailyBudgetUsd:active.pack.ai.dailyBudgetUsd,inferenceImplemented:false}}:null}),requestId);
       if(route==='readiness'&&request.method==='GET'&&!resource)return secure(json(commerceReadiness),requestId);

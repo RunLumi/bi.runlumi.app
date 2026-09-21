@@ -6,7 +6,7 @@
 import {readFile, access, readdir} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {LUMI_CONTROL_API} from '@runlumi/core/version.ts';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const repoRoot=path.resolve(root,'..');
@@ -32,6 +32,14 @@ require_(inventory.servingDatabase?.binding==='SERVING','exactly one fixed servi
 require_(ident(inventory.servingDatabase?.databaseName),'a serving database name is required');
 require_(uuid(inventory.servingDatabase?.databaseId),'a real non-zero serving database id is required');
 require_(ident(inventory.sourcesBucket),'a sources bucket is required');
+// AI configuration is part of the reviewed release. When inference is enabled, the
+// provider instance, model and credential references must be reviewed real
+// references, never scaffold placeholders. When AI is not enabled, the profile is
+// informational only and cannot leak a credential.
+const aiProfile=inventory.ai?.enabled===true?await import(pathToFileURL(path.join(repoRoot,'customer/ai/profile.ts')).href).then(m=>m.aiProfile??null).catch(()=>null):null;
+require_(aiProfile===null||typeof aiProfile.providerInstanceRef==='string'&&!/^replace-/.test(aiProfile.providerInstanceRef),'AI provider instance must be a reviewed reference (replace the scaffold value) when AI is enabled');
+require_(aiProfile===null||typeof aiProfile.modelRef==='string'&&!/^replace-/.test(aiProfile.modelRef),'AI model must be a reviewed reference (replace the scaffold value) when AI is enabled');
+require_(aiProfile===null||typeof aiProfile.credentialRef==='string'&&!/^replace-/.test(aiProfile.credentialRef),'AI credential must be a real secret reference (replace the scaffold value) when AI is enabled');
 // No environment may reuse another environment's resources.
 for(const file of (await readdir(path.join(repoRoot,'infra/environments'))).filter(f=>f.endsWith('.json')&&f!==`${environment}.json`)){
  const other=await readJson(`infra/environments/${file}`);
@@ -46,6 +54,7 @@ console.log(`  hostname:      ${inventory.hostname} (Access audience ${String(in
 console.log(`  serving D1:    ${inventory.servingDatabase.databaseName} [fixed binding SERVING]`);
 console.log(`  sources R2:    ${inventory.sourcesBucket}`);
 console.log(`  control:       ${inventory.controlWorker} (private service binding, interface v${inventory.controlApiVersion})`);
+console.log(`  ai:            ${inventory.ai?.enabled===true?`enabled (${aiProfile?.modelRef??'reviewed model'})`:'not enabled in this deployment'}`);
 console.log(`  deploy:        npx wrangler deploy --config apps/worker/wrangler.jsonc${inventory.environment==='production'?'':` --env ${inventory.environment}`}`);
 console.log('Plan only: no Cloudflare resource, hostname, DNS record or secret was created.');
 console.log('Operator steps are in docs/DEPLOYMENT.md: register the deployment at Control, migrate core then customer ledger, deploy the Worker, verify Access and D1 identity.');

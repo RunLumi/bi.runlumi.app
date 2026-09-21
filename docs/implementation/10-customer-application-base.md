@@ -64,6 +64,13 @@ Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md)
 - **Configuration validation**: `parseCustomerManifest`, `parseCustomerRoutes` and
   `assertCompatible` in `packages/core/src/customer-config.ts`, invoked by the
   customer `validate` command and CI.
+- **Executable starter extensions.** Generated Workers now register reviewed custom
+  metrics, authorized-export connector adapters and advisory decision rules through
+  bounded core contracts. Module enablement is enforced server-side. Validation
+  rejects declaration/registration drift, placeholder metric readers, unsafe rule
+  shapes and missing AI prompt references; AI deployment stays disabled until its
+  provider, model and credential references are reviewed. The included connector is
+  a deterministic synthetic operations fixture, not a live commerce integration.
 
 ## Verified environments
 
@@ -105,7 +112,8 @@ Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md)
   and a bad customer id are rejected with diagnostics; a synthetic N+1 core release
   upgrades both applications while customer files stay byte-identical; one
   customer's rollback to N leaves the other at N+1 and the migration-limit guidance
-  is present.
+  is present. Each customer fixture also carries its own executable server metric
+  registration, rather than a UI-only value placeholder.
 
 ## Remaining prerequisites (not claimed here)
 

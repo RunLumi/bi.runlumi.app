@@ -20,9 +20,3 @@ const assertNamespace=(id:string)=>{if(!id.startsWith(`${NAMESPACE}.`))throw new
 export const customMetrics:readonly CustomMetric[]=[
  {id:assertNamespace('customer.example_hours_saved'),label:'Giờ tiết kiệm (riêng)',unit:'hours',definition:'Chỉ số mở rộng do doanh nghiệp định nghĩa, không thay thế chỉ số dùng chung.',source:{kind:'derived',from:['operations.released_hours'],note:'Synthetic deterministic extension. Requires review before production use.'}}
 ];
-
-export function customMetricValue(id:string):{label:string;display:string}{
- const metric=customMetrics.find(m=>m.id===id);
- if(!metric)throw new Error(`Unknown custom metric: ${id}`);
- return {label:metric.label,display:'Chờ tải từ máy chủ được cấp quyền'};
-}

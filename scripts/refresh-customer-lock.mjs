@@ -84,6 +84,7 @@ try{
  const registryMissing=Object.entries(lock.packages).filter(([k,p])=>k&&p.resolved?.startsWith('https://')&&!/^sha512-/.test(p.integrity??''));
  if(registryMissing.length)throw new Error(`Registry entries without integrity in template lock: ${registryMissing.length}`);
  // Adopt the lock: change the dummy customer name back to the template token.
+ lock.name='__CUSTOMER_ID__-lumi-app';
  rootPkg.name='__CUSTOMER_ID__-lumi-app';
  await writeFile(path.join(root,'starter','customer','package-lock.json.template'),JSON.stringify(lock,null,2)+'\n');
  console.log(`Refreshed starter/customer/package-lock.json.template for core ${manifest.release} (${Object.keys(lock.packages).length} locked packages). Review the diff and commit.`);

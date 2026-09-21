@@ -1,10 +1,10 @@
 import {AppError,text} from './contracts.ts';
+import {CORE_MODULES,type CoreModule} from './extension-contracts.ts';
+export {CORE_MODULES,parseDecisionRules,type CoreModule,type DecisionRule} from './extension-contracts.ts';
 /** Customer application configuration schema. This is the reviewed contract between
  * a customer repository and the shared core. Validation runs at generation, build and
  * startup: invalid identifiers, unknown modules, reserved-route collisions and
  * incompatible core versions fail closed before deployment. */
-export const CORE_MODULES=['commerce','operations','ai'] as const;
-export type CoreModule=typeof CORE_MODULES[number];
 /** Routes and metric namespaces owned by the shared core. Customer content may not
  * silently replace these; an explicit new version is required to change meaning. */
 export const RESERVED_ROUTES=['/','/money','/commerce-data','/operations','/configuration','/control'] as const;
@@ -21,6 +21,9 @@ export interface CustomerManifest {
   brand:{logoSrc:string;logoAlt:string};
 }
 export interface CustomerPageRoute {path:string;label:string}
+/** Customer decision workflow. Records a supported, human-reviewed response to an
+ * observed core finding. `externalAction` is always `false`: lumi-agents owns action
+ * authority and verification; customer rules cannot execute side effects. */
 const IDENT=/^[a-z0-9][a-z0-9-]{0,62}$/;
 const NAMESPACE=/^[a-z][a-z0-9_]{0,31}$/;
 const SEMVER=/^\d+\.\d+\.\d+$/;

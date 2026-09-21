@@ -5,7 +5,8 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {parseCustomerManifest,parseCustomerRoutes,RESERVED_ROUTES} from '@runlumi/core/customer-config.ts';
 import {manifest} from '../manifest.ts';
-import {customMetrics,customMetricValue} from '../data/metrics.ts';
+import {customMetrics} from '../data/metrics.ts';
+import {customMetricExtensions} from '../data/server-metrics.ts';
 // Independent expectations: this fixture asserts the customer's intended behavior,
 // not whatever the implementation happens to produce.
 const here=path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +32,6 @@ test('custom metrics use the declared namespace and are additive',()=>{
  for(const metric of customMetrics)assert(metric.id.startsWith(`${namespace}.`),`${metric.id} must use the ${namespace} namespace`);
 });
 
-test('an unknown custom metric fails rather than returning a fabricated value',()=>{
- assert.throws(()=>customMetricValue('customer.does_not_exist'));
+test('every declared custom metric has one executable server registration',()=>{
+ assert.deepEqual(customMetricExtensions.map(metric=>metric.id).sort(),customMetrics.map(metric=>metric.id).sort());
 });
