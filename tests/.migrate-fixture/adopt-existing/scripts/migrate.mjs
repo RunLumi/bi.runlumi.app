@@ -27,7 +27,6 @@
  */
 import {createHash} from 'node:crypto';
 import {readFile, readdir} from 'node:fs/promises';
-import {readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -38,25 +37,16 @@ const remote=args.includes('--remote');
 const adopt=args.includes('--adopt');
 const envIndex=args.indexOf('--env');
 const envName=envIndex>=0?args[envIndex+1]:undefined;
+const wrangler=process.env.LUMI_WRANGLER_BIN??path.join(repoRoot,'node_modules','.bin','wrangler');
 const config=path.join(repoRoot,'apps','worker','wrangler.jsonc');
 const sha256=text=>createHash('sha256').update(text).digest('hex');
-// Resolve a directly-spawnable wrangler: node + the package's JS entry, so
-// .bin shim quirks can never re-parse our arguments. LUMI_WRANGLER_BIN may
-// point at any executable override for exotic environments.
-function resolveWrangler(){
- if(process.env.LUMI_WRANGLER_BIN)return {cmd:process.env.LUMI_WRANGLER_BIN,prefix:[]};
- const wranglerPackage=path.join(repoRoot,'node_modules','wrangler','package.json');
- const manifest=JSON.parse(readFileSync(wranglerPackage,'utf8'));
- const bin=typeof manifest.bin==='string'?manifest.bin:manifest.bin.wrangler;
- return {cmd:process.execPath,prefix:[path.join(repoRoot,'node_modules','wrangler',bin)]};
-}
-const {cmd:wranglerCmd,prefix:wranglerPrefix}=resolveWrangler();
+
 function wranglerArgs(extra){
- return [...wranglerPrefix,'d1','execute','DB',remote?'--remote':'--local','--config',config,...(envName?['--env',envName]:[]),...extra];
+ return [wrangler,'d1','execute','DB',remote?'--remote':'--local','--config',config,...(envName?['--env',envName]:[]),...extra];
 }
 function runWrangler(extra,{json=false}={}){
  // Argument arrays only: migration names and checksums never cross a shell.
- const r=spawnSync(wranglerCmd,wranglerArgs([...(json?['--json']:[]),...extra]),{cwd:repoRoot,encoding:'utf8'});
+ const r=spawnSync(wrangler,wranglerArgs([...(json?['--json']:[]),...extra]),{cwd:repoRoot,encoding:'utf8'});
  if(r.status!==0)throw new Error(`wrangler d1 execute failed: ${(r.stderr||r.stdout||'').slice(0,800)}`);
  return r.stdout;
 }

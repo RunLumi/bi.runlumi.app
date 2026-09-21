@@ -51,7 +51,27 @@ for(const name of ['core','cloudflare','ui']){
 }
 await rm(migrationTarget,{recursive:true,force:true});
 
-// 3. Provenance record consumed by customer lumi.lock.json and the upgrade command.
+// 3. Release scan: the packaged browser/Worker artifacts must not carry retired
+// multi-installation constructs. Applied to the actual packaged bytes, not the
+// source tree, and narrow enough to exclude legitimate business vocabulary
+// (a company's own shops/channels are data, not tenancy).
+const RETIRED_CONSTRUCTS=[
+ [/tenant_id|tenantId\b/,'tenant identifier'],
+ [/'\/api\/tenants/,'tenant API route'],
+ [/CONTROL_DB|CONTROL_API|CELL_ID\b/,'control/cell bindings'],
+ [/tenants\/[^'"`]*\/commerce\//,'tenant-scoped storage path'],
+ [/cloudflareaccess\.com\/.*tenants/,'tenant access issuer']
+];
+for(const [pkgName,info] of Object.entries(tarballs)){
+ const {execFileSync}=await import('node:child_process');
+ const contents=execFileSync('tar',['-xzf',path.join(outDir,info.file),'-O'],{maxBuffer:64*1024*1024,stdio:['ignore','pipe','ignore']}).toString('utf8');
+ for(const [pattern,label] of RETIRED_CONSTRUCTS){
+  if(pattern.test(contents))throw new Error(`Release scan failed: @runlumi/${pkgName} contains a retired construct (${label}). Remove it before packaging.`);
+ }
+}
+console.log('Release scan: no retired multi-installation constructs in packaged artifacts.');
+
+// 4. Provenance record consumed by customer lumi.lock.json and the upgrade command.
 const manifest={schemaVersion:1,release:coreVersion,templateVersion,extensionApi:1,sourceCommit:SOURCE_COMMIT,dirty:SOURCE_DIRTY,builtAt:new Date().toISOString(),migrations:checksums,packages:tarballs};
 await writeFile(path.join(outDir,'lumi-core-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
 console.log(`Packaged core release ${coreVersion} from ${SOURCE_COMMIT.slice(0,12)}${SOURCE_DIRTY?' (dirty)':''}.`);
