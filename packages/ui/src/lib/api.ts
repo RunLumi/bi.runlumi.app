@@ -1,6 +1,7 @@
 import type {Dashboard} from '@runlumi/core/semantics.ts';
-export interface Tenant {id:string;name:string;role:'owner'|'editor'|'viewer';cell_id:string;features:string[];license:{plan:string;state:string;endsAt:string;revision:number}|null}
-export interface Session {demo:boolean;tenants:Tenant[];platformOperator:boolean}
+export interface Tenant {id:string;name:string;role:'owner'|'editor'|'viewer';cell_id:string;features:string[];license:{plan:string;state:string;endsAt:string;revision:number}|null;apiBase?:string}
+export interface Session {demo:boolean;tenants:Tenant[];platformOperator:boolean;standalone?:boolean}
+export const tenantApiBase=(tenant:Tenant)=>tenant.apiBase??`/api/tenants/${tenant.id}`;
 export interface SavedDashboard {id:string;revision:number;management:'git'|'ui';configurationRelease:string;configurationRevision:number;releaseId?:string;definition:Dashboard}
 export interface Metric {id:string;label:string;unit:string;definition:string}
 export interface QueryResult {data:Record<string,number|string|null>[];meta:{tenantId:string;configurationRelease:string;configurationRevision:number;contextHash:string;qualityState:string;missingSources:string[];noPublishedData:boolean;provenance:{id:string;content_hash:string;observed_through:string}[]}}
@@ -29,11 +30,11 @@ export function message(error:unknown):string{
 CONFIGURATION_CHANGED:'Cấu hình vừa đổi. Tải lại danh sách dashboard trước khi xem dữ liệu.',TENANT_ROUTE_FENCED:'Dữ liệu đang chuyển môi trường. Tạm dừng truy cập để kiểm tra định tuyến.',PACK_METRIC_DENIED:'Bản cấu hình hiện tại không cho phép chỉ số được yêu cầu.',ENTITLEMENT_REQUIRED:'Gói sử dụng chưa cấp tính năng này hoặc đã hết hạn.',TENANT_ACCESS_DENIED:'Bạn không có quyền truy cập doanh nghiệp này.',PLATFORM_OPERATOR_REQUIRED:'Chỉ người vận hành được cấp quyền mới xem được Control Plane.',GIT_MANAGED_DASHBOARD:'Dashboard này được quản lý bằng Git. Hãy tạo pull request hoặc tạo bản sao.',REVISION_CONFLICT:'Cấu hình đã thay đổi. Tải lại trước khi lưu.',MIXED_SNAPSHOT:'Dữ liệu hoặc cấu hình vừa thay đổi. Hãy tải lại để xem cùng một phiên bản.',CONTROL_UNAVAILABLE:'Dịch vụ cấp quyền chưa sẵn sàng. Không mở dữ liệu khi chưa xác minh được quyền.'};
  return messages[code]??'Chưa tải được dữ liệu. Hãy thử lại hoặc liên hệ người quản trị.';
 }
-export async function dashboardData(tenant:string,identity:string,dashboard:SavedDashboard,from:string,to:string,signal:AbortSignal){
- const batch=await api<{contextHash:string;results:QueryResult[]}>(`/api/tenants/${tenant}/query-batch`,identity,{method:'POST',signal,body:{
+export async function dashboardData(base:string,identity:string,dashboard:SavedDashboard,from:string,to:string,signal:AbortSignal){
+ const batch=await api<{contextHash:string;results:QueryResult[]}>(base+'/query-batch',identity,{method:'POST',signal,body:{
    configurationRelease:dashboard.configurationRelease,configurationRevision:dashboard.configurationRevision,
    queries:dashboard.definition.widgets.map(w=>({metrics:w.metrics,groupBy:w.groupBy,from,to}))
  }});
- if(batch.results.length!==dashboard.definition.widgets.length || batch.results.some(r=>r.meta.tenantId!==tenant||r.meta.contextHash!==batch.contextHash||r.meta.configurationRelease!==dashboard.configurationRelease||r.meta.configurationRevision!==dashboard.configurationRevision))throw new ApiError('MIXED_SNAPSHOT',409);
+ if(batch.results.length!==dashboard.definition.widgets.length || batch.results.some(r=>r.meta.contextHash!==batch.contextHash||r.meta.configurationRelease!==dashboard.configurationRelease||r.meta.configurationRevision!==dashboard.configurationRevision))throw new ApiError('MIXED_SNAPSHOT',409);
  return batch.results;
 }

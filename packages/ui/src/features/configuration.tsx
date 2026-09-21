@@ -1,7 +1,7 @@
-import {useQuery} from '@tanstack/react-query';import {api,type Configuration,type Tenant} from '../lib/api.ts';
+import {useQuery} from '@tanstack/react-query';import {api,tenantApiBase,type Configuration,type Tenant} from '../lib/api.ts';
 import {Card,CardHeader,CardTitle,CardContent} from '../components/ui/card.tsx';import {Loading,ErrorState,Empty} from '../components/states.tsx';
 export function ConfigurationPage({tenant,identity}:{tenant:Tenant;identity:string}){
- const q=useQuery({queryKey:['configuration',identity,tenant.id],queryFn:({signal})=>api<Configuration>(`/api/tenants/${tenant.id}/configuration`,identity,{signal})});
+ const q=useQuery({queryKey:['configuration',identity,tenant.id],queryFn:({signal})=>api<Configuration>(tenantApiBase(tenant)+'/configuration',identity,{signal})});
  if(q.isPending)return <Loading/>;if(q.isError)return <ErrorState error={q.error}/>;
  const active=q.data.active;
  return <><div className="page-title"><div><p className="eyebrow">TENANT PACKS</p><h1>Cấu hình riêng. Một nền tảng chung.</h1><p>Dashboard, truy vấn và AI profile có phiên bản, được review trước khi công bố.</p></div></div>

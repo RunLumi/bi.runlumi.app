@@ -1,6 +1,6 @@
 import {useState} from 'react';
 import {useQuery,useMutation,useQueryClient} from '@tanstack/react-query';
-import {api,dashboardData,message,type SavedDashboard,type Tenant,type Metric} from '../lib/api.ts';
+import {api,dashboardData,message,tenantApiBase,type SavedDashboard,type Tenant,type Metric} from '../lib/api.ts';
 import {Card,CardHeader,CardTitle,CardContent} from '../components/ui/card.tsx';
 import {Input,Textarea} from '../components/ui/input.tsx';import {Button} from '../components/ui/button.tsx';
 import {Loading,Empty,ErrorState} from '../components/states.tsx';import {RefreshGlyph} from '../components/glyphs.tsx';
@@ -11,7 +11,7 @@ function initialWindow(demo:boolean):readonly [string,string]{
  return [`${year}-${String(month).padStart(2,'0')}-01`,`${month===12?year+1:year}-${String(month===12?1:month+1).padStart(2,'0')}-01`];
 }
 export function DashboardPage({tenant,identity,demo}:{tenant:Tenant;identity:string;demo:boolean}){
- const list=useQuery({queryKey:['dashboards',identity,tenant.id],queryFn:({signal})=>api<{dashboards:SavedDashboard[]}>(`/api/tenants/${tenant.id}/dashboards`,identity,{signal})});
+ const base=tenantApiBase(tenant);const list=useQuery({queryKey:['dashboards',identity,tenant.id],queryFn:({signal})=>api<{dashboards:SavedDashboard[]}>(base+'/dashboards',identity,{signal})});
  const [selected,setSelected]=useState('');const [from,setFrom]=useState<string>(()=>initialWindow(demo)[0]);const [to,setTo]=useState<string>(()=>initialWindow(demo)[1]);
  if(list.isPending)return <Loading/>;if(list.isError)return <ErrorState error={list.error} retry={()=>list.refetch()}/>;
  const dashboard=list.data.dashboards.find(d=>d.id===selected)??list.data.dashboards[0];
@@ -23,9 +23,9 @@ export function DashboardPage({tenant,identity,demo}:{tenant:Tenant;identity:str
  <Editor key={`${tenant.id}:${dashboard.id}:${dashboard.revision}`} tenant={tenant} identity={identity} dashboard={dashboard}/></>;
 }
 function DashboardCanvas({tenant,identity,dashboard,from,to}:{tenant:Tenant;identity:string;dashboard:SavedDashboard;from:string;to:string}){
- const client=useQueryClient();
- const query=useQuery({queryKey:['results',identity,tenant.id,dashboard.id,dashboard.revision,dashboard.configurationRelease,dashboard.configurationRevision,from,to],queryFn:({signal})=>dashboardData(tenant.id,identity,dashboard,from,to,signal)});
- const catalog=useQuery({queryKey:['metrics',identity,tenant.id,dashboard.configurationRelease,dashboard.configurationRevision],queryFn:({signal})=>api<{metrics:Metric[]}>(`/api/tenants/${tenant.id}/metrics`,identity,{signal})});
+ const client=useQueryClient();const base=tenantApiBase(tenant);
+ const query=useQuery({queryKey:['results',identity,tenant.id,dashboard.id,dashboard.revision,dashboard.configurationRelease,dashboard.configurationRevision,from,to],queryFn:({signal})=>dashboardData(base,identity,dashboard,from,to,signal)});
+ const catalog=useQuery({queryKey:['metrics',identity,tenant.id,dashboard.configurationRelease,dashboard.configurationRevision],queryFn:({signal})=>api<{metrics:Metric[]}>(base+'/metrics',identity,{signal})});
  if(query.isPending||catalog.isPending)return <Loading/>;if(query.isError||catalog.isError)return <ErrorState error={query.error??catalog.error} retry={()=>{client.invalidateQueries({queryKey:['dashboards',identity,tenant.id]});query.refetch();catalog.refetch();}}/>;
  const lookup=new Map(catalog.data.metrics.map(m=>[m.id,m]));
  const fmt=(v:unknown,metricId:string)=>typeof v==='number'?new Intl.NumberFormat('vi-VN',{maximumFractionDigits:lookup.get(metricId)?.unit==='hours'?1:0}).format(v):String(v??'Chưa xác định');
@@ -39,8 +39,8 @@ function DashboardCanvas({tenant,identity,dashboard,from,to}:{tenant:Tenant;iden
  })}</div></>;
 }
 function Editor({tenant,identity,dashboard}:{tenant:Tenant;identity:string;dashboard:SavedDashboard}){
- const client=useQueryClient();const [value,setValue]=useState(JSON.stringify(dashboard.definition,null,2));const [note,setNote]=useState('');
- const mutation=useMutation({mutationFn:async(copy:boolean)=>{let definition:unknown;try{definition=JSON.parse(value);}catch{throw new Error('INVALID_JSON');}return api(`/api/tenants/${tenant.id}/dashboards${copy?'':`/${dashboard.id}`}`,identity,{method:copy?'POST':'PUT',body:copy?{id:`dashboard-${crypto.randomUUID().slice(0,8)}`,definition}:definition,...(!copy?{revision:dashboard.revision}:{})});},onSuccess:()=>{setNote('Đã lưu cấu hình được kiểm tra.');client.invalidateQueries({queryKey:['dashboards',identity,tenant.id]});}});
+ const client=useQueryClient();const base=tenantApiBase(tenant);const [value,setValue]=useState(JSON.stringify(dashboard.definition,null,2));const [note,setNote]=useState('');
+ const mutation=useMutation({mutationFn:async(copy:boolean)=>{let definition:unknown;try{definition=JSON.parse(value);}catch{throw new Error('INVALID_JSON');}return api(base+`/dashboards${copy?'':`/${dashboard.id}`}`,identity,{method:copy?'POST':'PUT',body:copy?{id:`dashboard-${crypto.randomUUID().slice(0,8)}`,definition}:definition,...(!copy?{revision:dashboard.revision}:{})});},onSuccess:()=>{setNote('Đã lưu cấu hình được kiểm tra.');client.invalidateQueries({queryKey:['dashboards',identity,tenant.id]});}});
  if(tenant.role==='viewer'||!tenant.features.includes('dashboard.edit'))return null;
  return <details className="config-editor"><summary>Tùy chỉnh dashboard</summary><p>{dashboard.management==='git'?'Nguồn chính thức nằm trong Git. Tạo bản sao để thử; thay đổi bản chính qua pull request.':'Cấu hình khai báo, không nhận SQL, HTML hoặc script. Lưu có kiểm tra revision.'}</p><label className="sr-only" htmlFor="dashboard-json">Cấu hình dashboard JSON</label><Textarea id="dashboard-json" rows={12} value={value} onChange={e=>setValue(e.target.value)}/><div className="editor-actions"><Button disabled={mutation.isPending||dashboard.management==='git'} onClick={()=>mutation.mutate(false)}>Lưu thay đổi</Button><Button variant="outline" disabled={mutation.isPending} onClick={()=>mutation.mutate(true)}>Tạo bản sao</Button><span role="status">{mutation.isError?message(mutation.error):note}</span></div></details>;
 }

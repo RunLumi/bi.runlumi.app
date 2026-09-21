@@ -1,7 +1,7 @@
 import {useState,type FormEvent} from 'react';
 import {useQuery,useMutation,useQueryClient} from '@tanstack/react-query';
 import {Link} from 'react-router-dom';
-import {api,ApiError,type Tenant} from '../lib/api.ts';
+import {api,ApiError,tenantApiBase,type Tenant} from '../lib/api.ts';
 import {commercePermitted,localInstant,type CommerceConnection,type CommerceBuild,type CommerceReceipt,type Candidate,type Preview,type CommerceCapabilityConnection} from '../lib/commerce.ts';
 import {commerceSchemaFingerprint} from '@runlumi/core/commerce-model.ts';
 import {Card,CardHeader,CardTitle,CardContent} from '../components/ui/card.tsx';import {Button} from '../components/ui/button.tsx';
@@ -12,7 +12,7 @@ export function CommerceDataPage(props:{tenant:Tenant;identity:string}){
  return <AuthorizedDataPage {...props}/>;
 }
 function AuthorizedDataPage({tenant,identity}:{tenant:Tenant;identity:string}){
- const base=`/api/tenants/${tenant.id}`,client=useQueryClient();
+ const base=tenantApiBase(tenant),client=useQueryClient();
   const connections=useQuery({queryKey:['commerce-connections',identity,tenant.id],queryFn:({signal})=>api<{connections:CommerceConnection[]}>(base+'/commerce-connections',identity,{signal})});
   const capabilities=useQuery({queryKey:['commerce-capabilities',identity,tenant.id],queryFn:({signal})=>api<{connections:CommerceCapabilityConnection[]}>(base+'/commerce-capabilities',identity,{signal})});
  const receipts=useQuery({queryKey:['commerce-receipts',identity,tenant.id],queryFn:({signal})=>api<{receipts:CommerceReceipt[]}>(base+'/commerce-receipts',identity,{signal})});

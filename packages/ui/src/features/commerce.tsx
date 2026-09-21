@@ -1,14 +1,14 @@
 import {useQuery} from '@tanstack/react-query';
 import {Link} from 'react-router-dom';
 import {commercePermitted,type CommercePublication} from '../lib/commerce.ts';
-import {api,type Tenant} from '../lib/api.ts';
+import {api,tenantApiBase,type Tenant} from '../lib/api.ts';
 import {Card,CardHeader,CardTitle,CardContent} from '../components/ui/card.tsx';
 import {Loading,ErrorState} from '../components/states.tsx';
 import type {commerceReadiness} from '@runlumi/core/commerce-readiness.ts';
 
 export function CommercePage({tenant,identity}:{tenant:Tenant;identity:string}) {
-  const query=useQuery({queryKey:['readiness',identity,tenant.id],queryFn:({signal})=>api<typeof commerceReadiness>(`/api/tenants/${tenant.id}/readiness`,identity,{signal})});
-  const publication=useQuery({queryKey:['commerce-report',identity,tenant.id],enabled:commercePermitted(tenant),queryFn:({signal})=>api<CommercePublication>(`/api/tenants/${tenant.id}/commerce-publications`,identity,{signal})});
+  const query=useQuery({queryKey:['readiness',identity,tenant.id],queryFn:({signal})=>api<typeof commerceReadiness>(tenantApiBase(tenant)+'/readiness',identity,{signal})});
+  const publication=useQuery({queryKey:['commerce-report',identity,tenant.id],enabled:commercePermitted(tenant),queryFn:({signal})=>api<CommercePublication>(tenantApiBase(tenant)+'/commerce-publications',identity,{signal})});
   if(query.isPending)return <Loading/>;
   if(query.isError)return <ErrorState error={query.error} retry={()=>query.refetch()}/>;
   const readiness=query.data;

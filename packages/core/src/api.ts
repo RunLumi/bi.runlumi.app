@@ -105,7 +105,7 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
         if(options.standalone){
           const db=env.SERVING as import('./ports.ts').Database|undefined;if(!db||typeof db.prepare!=='function')throw new AppError(503,'LOCAL_AUTHORITY_UNAVAILABLE');
           const rows=await db.prepare("SELECT m.tenant_id AS id,m.role,e.features FROM local_memberships m JOIN local_entitlements e ON e.tenant_id=m.tenant_id WHERE m.issuer=? AND m.subject=? AND m.state='active' AND e.state='active' ORDER BY m.tenant_id LIMIT 100").bind(principal.issuer,principal.subject).all<{id:string;role:Role;features:string}>();
-          return secure(json({demo,platformOperator:false,tenants:rows.results.filter(t=>!env.CUSTOMER_ID||t.id===env.CUSTOMER_ID).map(t=>({id:t.id,name:t.id,cell_id:env.CELL_ID,role:t.role,license:null,features:JSON.parse(t.features)}))}),requestId);
+          return secure(json({demo,standalone:true,platformOperator:false,tenants:rows.results.filter(t=>!env.CUSTOMER_ID||t.id===env.CUSTOMER_ID).map(t=>({id:t.id,name:t.id,cell_id:env.CELL_ID,role:t.role,license:null,features:JSON.parse(t.features),apiBase:'/api'}))}),requestId);
         }
         if(!env.CONTROL)throw new AppError(503,'CONTROL_UNAVAILABLE');
         const response=await controlRequest(env.CONTROL,request,'/control/session',controlScope(env),undefined,demo);
@@ -121,9 +121,10 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
         if(!env.CONTROL)throw new AppError(503,'CONTROL_UNAVAILABLE');
         return secure(await controlRequest(env.CONTROL,request,url.pathname.replace('/api/control/','/control/admin/'),controlScope(env),body,demo),requestId);
       }
-      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(members|metrics|query|query-batch|custom-metrics|connector-pull|custom-rules|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname);
-      if(!match)throw new AppError(404,'NOT_FOUND');
-      const tenantId=id(match[1]);const route=match[2];const resource=match[3];
+      const tenantMatch=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(members|metrics|query|query-batch|custom-metrics|connector-pull|custom-rules|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname);
+      const localMatch=options.standalone?/^\/api\/(members|metrics|query|query-batch|custom-metrics|connector-pull|custom-rules|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname):null;
+      if(!tenantMatch&&!localMatch)throw new AppError(404,'NOT_FOUND');
+      const tenantId=id(options.standalone?env.CUSTOMER_ID??'':tenantMatch![1]);const route=options.standalone?localMatch![1]:tenantMatch![2];const resource=options.standalone?localMatch![2]:tenantMatch![3];
       // Module enablement gates server behavior, never just nav links. A route whose
       // family is disabled is rejected before tenant authorization is even attempted.
       if(options.modules){
