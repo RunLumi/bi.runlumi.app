@@ -1,4 +1,6 @@
 import { AppError, type Principal } from '@runlumi/core/contracts.ts';
+import type { Database } from '@runlumi/core/ports.ts';
+import { LUMI_CONTROL_API } from '@runlumi/core/version.ts';
 // Narrow Access-only verifier, not a general JWT framework. WebCrypto supplies RSA.
 // No algorithm negotiation, token-supplied key URL, email-header trust, or dev bypass.
 type Jwk = JsonWebKey & {kid?:string};
@@ -47,4 +49,36 @@ export async function verifyAccessToken(token:string, team:string, aud:string, f
     if(!valid) throw new Error('signature');
     return {issuer,subject:claims.sub};
   } catch { throw new AppError(401,'UNAUTHENTICATED'); }
+}
+/** Server-owned deployment registration: the bounded policy row a deployment may
+ * claim. The deployment id is a lookup key only; it confers no authority. The
+ * row's Access team/audience, interface version and lifecycle state are the
+ * authority. The JWKS URL is derived from the registered team, never from an
+ * unverified token or request. */
+export interface DeploymentRegistration {
+  deploymentId:string;
+  customerId:string|null;
+  environment:string|null;
+  hostname:string;
+  accessTeam:string;
+  accessAud:string;
+  controlApiVersion:number;
+  state:string;
+}
+export async function registeredDeployment(db:Database,deploymentId:string):Promise<DeploymentRegistration>{
+  if(!/^[a-z0-9][a-z0-9-]{0,62}$/.test(deploymentId))throw new AppError(503,'AUTH_NOT_CONFIGURED');
+  const row=await db.prepare('SELECT customer_id,environment,hostname,access_team,access_aud,control_api_version,state FROM deployments WHERE deployment_id=?')
+    .bind(deploymentId).first<{customer_id:string|null;environment:string|null;hostname:string;access_team:string;access_aud:string;control_api_version:number;state:string}>();
+  if(!row)throw new AppError(503,'AUTH_NOT_CONFIGURED');
+  return {deploymentId,customerId:row.customer_id,environment:row.environment,hostname:row.hostname,accessTeam:row.access_team,accessAud:row.access_aud,controlApiVersion:row.control_api_version,state:row.state};
+}
+/** Control entry authentication: locate the claimed registered deployment, verify
+ * the control interface version, then verify the forwarded end-user JWT against
+ * the registered team/audience. Never a shared global audience. */
+export async function verifyRegisteredAccess(db:Database,request:Request,fetcher:typeof fetch=fetch,nowSeconds=Math.floor(Date.now()/1000)):Promise<Principal>{
+  const registration=await registeredDeployment(db,request.headers.get('x-lumi-deployment')??'');
+  if(registration.state!=='registered')throw new AppError(403,'DEPLOYMENT_INACTIVE');
+  const api=request.headers.get('x-lumi-control-api');
+  if(api!==String(registration.controlApiVersion)||registration.controlApiVersion!==LUMI_CONTROL_API)throw new AppError(409,'CONTROL_API_MISMATCH');
+  return verifyAccessToken(request.headers.get('cf-access-jwt-assertion')??'',registration.accessTeam,registration.accessAud,fetcher,nowSeconds);
 }

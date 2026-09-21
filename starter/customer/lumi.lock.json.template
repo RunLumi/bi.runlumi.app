@@ -1,8 +1,6 @@
 {
   "schemaVersion": 1,
   "customerId": "__CUSTOMER_ID__",
-  "deploymentId": "__DEPLOYMENT_ID__",
-  "environment": "__ENVIRONMENT__",
   "core": {
     "version": "__CORE_VERSION__",
     "extensionApi": 1,
@@ -14,7 +12,7 @@
       "@runlumi/cloudflare": {"version": "__CORE_VERSION__", "sha256": "__CLOUDFLARE_SHA256__"},
       "@runlumi/ui": {"version": "__CORE_VERSION__", "sha256": "__UI_SHA256__"}
     },
-    "migrations": {"controlBaseline": 4, "tenantBaseline": 8}
+    "migrations": {"controlBaseline": 5, "tenantBaseline": 9}
   },
   "customerPages": [],
   "extensions": []
