@@ -1,4 +1,5 @@
 import {spawnSync} from 'node:child_process';
+import {existsSync} from 'node:fs';
 import {cp, mkdir, readFile, writeFile, rm, readdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import path from 'node:path';
@@ -35,19 +36,69 @@ for(const file of (await readdir(path.join(migrationSource,'installation'))).fil
  checksums[`migrations/installation/${file}`]=createHash('sha256').update(body).digest('hex');
 }
 
-// 2. Build each package, then emit a real tarball.
+// 2. Build each package, then emit a DETERMINISTIC tarball: fixed mtime, no
+// gzip timestamp, sorted entries, root uid/gid. A rebuild from the same commit
+// produces byte-identical artifacts anywhere, so lock integrity recorded once
+// is valid in every environment (CI repacks and must match the committed lock).
+import {gzipSync} from 'node:zlib';
+function ustarChecksum(header){const sum=header.reduce((acc,byte,i)=>i<148?acc+byte:i<156?acc+32:acc+byte,0);header.write(sum.toString(8).padStart(6,'0')+'\0 ','148');}
+function ustarEntry(name,content,mtimeSec=0){
+ const data=Buffer.isBuffer(content)?content:Buffer.from(content);
+ const header=Buffer.alloc(512);header.write('0',156);
+ let namePart=name,prefixPart='';
+ if(Buffer.byteLength(name)>100){
+  const splitAt=name.lastIndexOf('/',name.length-100);
+  if(splitAt<0)throw new Error(`Tarball entry name too long and unsplittable: ${name}`);
+  prefixPart=name.slice(0,splitAt);namePart=name.slice(splitAt+1);
+ }
+ header.write(namePart,0,100);header.write('0000644\0',100);header.write('0000000\0',108);
+ header.write('0000000\0',116);header.write(data.length.toString(8).padStart(11,'0')+'\0',124);
+ header.write(mtimeSec.toString(8).padStart(11,'0')+'\0',136);
+ header.write('ustar\0',257);header.write('00',263);
+ if(prefixPart)header.write(prefixPart,345,150);
+ ustarChecksum(header);
+ const body=Buffer.concat([data]);
+ const padding=(512-(body.length%512))%512;
+ return Buffer.concat([header,body,Buffer.alloc(padding)]);
+}
+function deterministicTarball(files){
+ // files: sorted [{name:'package/<path>',content:Buffer}]
+ const chunks=[];
+ for(const file of files)chunks.push(ustarEntry(file.name,file.content));
+ chunks.push(Buffer.alloc(1024));
+ return gzipSync(Buffer.concat(chunks),{mtime:0});
+}
 const tarballs={};
 for(const name of ['core','cloudflare','ui']){
  const dir=path.join(root,'packages',name);
  const pkg=JSON.parse(await readFile(path.join(dir,'package.json'),'utf8'));
  const build=spawnSync(npmBin,['run','build','--workspace',`@runlumi/${name}`],{cwd:root,stdio:'inherit'});
  if(build.status!==0)process.exit(build.status??1);
- const pack=spawnSync(npmBin,['pack','--pack-destination',outDir,'--json'],{cwd:dir,encoding:'utf8'});
- if(pack.status!==0){process.stderr.write(pack.stderr??'');process.exit(pack.status??1);}
- const [entry]=JSON.parse(pack.stdout);
- const filename=entry.filename;
- const digest=createHash('sha256').update(await readFile(path.join(outDir,filename))).digest('hex');
- tarballs[pkg.name]={version:pkg.version,file:filename,sha256:digest,files:entry.files.map(f=>f.path).sort()};
+ // npm-pack-equivalent content, gathered deterministically.
+ const contentFiles=[];
+ const addFile=async(absPath,relName)=>{
+  const content=await readFile(absPath);
+  contentFiles.push({name:`package/${relName}`,content});
+ };
+ await addFile(path.join(dir,'package.json'),'package.json');
+ for(const extra of ['README.md','LICENSE']){
+  if(existsSync(path.join(dir,extra)))await addFile(path.join(dir,extra),extra);
+ }
+ const walk=async(rel)=>{
+  const abs=path.join(dir,rel);
+  for(const entry of await readdir(abs,{withFileTypes:true})){
+   const child=rel?`${rel}/${entry.name}`:entry.name;
+   if(entry.isDirectory())await walk(child);else await addFile(path.join(abs,entry.name),child);
+  }
+ };
+ await walk('dist');
+ if(name==='core')await walk('migrations');
+ contentFiles.sort((a,b)=>a.name<b.name?-1:1);
+ const filename=`runlumi-${name}-${pkg.version}.tgz`;
+ const tarball=deterministicTarball(contentFiles);
+ await writeFile(path.join(outDir,filename),tarball);
+ const digest=createHash('sha256').update(tarball).digest('hex');
+ tarballs[pkg.name]={version:pkg.version,file:filename,sha256:digest,files:contentFiles.map(f=>f.name).sort()};
 }
 await rm(migrationTarget,{recursive:true,force:true});
 
@@ -62,9 +113,13 @@ const RETIRED_CONSTRUCTS=[
  [/tenants\/[^'"`]*\/commerce\//,'tenant-scoped storage path'],
  [/cloudflareaccess\.com\/.*tenants/,'tenant access issuer']
 ];
+const {gunzipSync}=await import('node:zlib');
+const tarballBodies={};
 for(const [pkgName,info] of Object.entries(tarballs)){
- const {execFileSync}=await import('node:child_process');
- const contents=execFileSync('tar',['-xzf',path.join(outDir,info.file),'-O'],{maxBuffer:64*1024*1024,stdio:['ignore','pipe','ignore']}).toString('utf8');
+ tarballBodies[pkgName]=gunzipSync(await readFile(path.join(outDir,info.file))).toString('latin1');
+}
+for(const [pkgName,info] of Object.entries(tarballs)){
+ const contents=tarballBodies[pkgName];
  for(const [pattern,label] of RETIRED_CONSTRUCTS){
   if(pattern.test(contents))throw new Error(`Release scan failed: @runlumi/${pkgName} contains a retired construct (${label}). Remove it before packaging.`);
  }
