@@ -66,6 +66,8 @@ No synthetic commerce chart is presented as a working integration.
 
 See the [implementation record](docs/implementation/README.md) for the complete
 C00–C27 status and the next dependency-ordered work.
+New customer setup and end-to-end repository instructions are in the
+[user guide](user-guide/README.md).
 See [PR #2 scope and acceptance mapping](docs/pr2-commerce-alignment.md) and
 [validation](VALIDATION.md). Specifications are contracts, not evidence of delivery.
 
