@@ -27,6 +27,7 @@
  */
 import {createHash} from 'node:crypto';
 import {readFile, readdir} from 'node:fs/promises';
+import {readFileSync,existsSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -37,16 +38,40 @@ const remote=args.includes('--remote');
 const adopt=args.includes('--adopt');
 const envIndex=args.indexOf('--env');
 const envName=envIndex>=0?args[envIndex+1]:undefined;
-const wrangler=process.env.LUMI_WRANGLER_BIN??path.join(repoRoot,'node_modules','.bin','wrangler');
 const config=path.join(repoRoot,'apps','worker','wrangler.jsonc');
 const sha256=text=>createHash('sha256').update(text).digest('hex');
-
+// Resolve a directly-spawnable wrangler: node + the package's JS entry, so
+// .bin shim quirks can never re-parse our arguments. LUMI_WRANGLER_BIN may
+// point at any executable override for exotic environments.
+const PINNED_WRANGLER_VERSION='4.123.0';
+/** Resolve wrangler's actual JS entry so every invocation is
+ * `node <wrangler.js> d1 execute …` — argument arrays end to end, no shim
+ * re-parsing. Order: LUMI_WRANGLER_BIN (file or package root) → local
+ * install → pinned npx download (cached after the first run). */
+function resolveWrangler(){
+ const fromPackage=(packageDir)=>{
+  const manifestPath=path.join(packageDir,'package.json');
+  if(!existsSync(manifestPath))return null;
+  const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
+  const bin=typeof manifest.bin==='string'?manifest.bin:manifest.bin.wrangler;
+  const entry=path.join(packageDir,bin);
+  return existsSync(entry)?{cmd:process.execPath,prefix:[entry]}:null;
+ };
+ const override=process.env.LUMI_WRANGLER_BIN;
+ if(override){
+  const resolved=existsSync(path.join(override,'package.json'))?fromPackage(override):{cmd:process.execPath,prefix:[override]};
+  if(resolved)return resolved;
+ }
+ return fromPackage(path.join(repoRoot,'node_modules','wrangler'))
+  ??{cmd:'npx',prefix:['--yes',`wrangler@${PINNED_WRANGLER_VERSION}`]};
+}
+const {cmd:wranglerCmd,prefix:wranglerPrefix}=resolveWrangler();
 function wranglerArgs(extra){
- return [wrangler,'d1','execute','DB',remote?'--remote':'--local','--config',config,...(envName?['--env',envName]:[]),...extra];
+ return [...wranglerPrefix,'d1','execute','DB',remote?'--remote':'--local','--config',config,...(envName?['--env',envName]:[]),...extra];
 }
 function runWrangler(extra,{json=false}={}){
  // Argument arrays only: migration names and checksums never cross a shell.
- const r=spawnSync(wrangler,wranglerArgs([...(json?['--json']:[]),...extra]),{cwd:repoRoot,encoding:'utf8'});
+ const r=spawnSync(wranglerCmd,wranglerArgs([...(json?['--json']:[]),...extra]),{cwd:repoRoot,encoding:'utf8'});
  if(r.status!==0)throw new Error(`wrangler d1 execute failed: ${(r.stderr||r.stdout||'').slice(0,800)}`);
  return r.stdout;
 }
@@ -118,6 +143,8 @@ for(const migration of pending){
  if(adopt){
   console.log(`adopt (not executing): ${migration.name} -> ${migration.checksum.slice(0,12)}…`);
  }else{
+  const body=(await readFile(migration.file,'utf8')).replace(/--[^\n]*/g,'');
+  if(!/\S/.test(body)){console.log(`skipping (no statements): ${migration.name}`);continue;}
   console.log(`applying: ${migration.name}`);
   d1File(migration.file);
  }

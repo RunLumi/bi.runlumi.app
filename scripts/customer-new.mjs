@@ -141,6 +141,11 @@ export async function generateCustomer({customerId,displayName,envs=['production
   if(entry?.resolved!==expected)throw new Error(`Starter lock resolved for ${name} is ${entry?.resolved} but the release packages ${expected}`);
   if(!/^sha512-/.test(entry?.integrity??''))throw new Error(`Starter lock entry for ${name} lacks sha512 integrity`);
   await access(path.join(target,'vendor',info.file));
+  // file: dependencies are not integrity-rechecked by npm: the generated lock
+  // must carry exactly the sha512 of the tarball being vendored, or a stale
+  // starter lock would silently install different bytes than the release.
+  const actual='sha512-'+createHash('sha512').update(await readFile(path.join(target,'vendor',info.file))).digest('base64');
+  if(entry.integrity!==actual)throw new Error(`Starter lock integrity for ${name} does not match the packaged tarball (lock ${entry.integrity.slice(0,20)}… vs artifact ${actual.slice(0,20)}…). Run npm run core:pack && npm run refresh:customer-lock, then regenerate.`);
  }
  // Per-environment deployment inventories (replace the scaffold copy) and the
  // effective multi-environment Wrangler configuration.

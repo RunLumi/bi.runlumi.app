@@ -47,7 +47,8 @@ const REPORT_TZ_OFFSET_MS=7*60*60_000;
 /** Business-day window in the report timezone (UTC+7), as a half-open UTC
  * instant interval. Recognition instants are compared against this interval,
  * never against YYYY-MM-DD text. */
-export function businessDayWindow(from:string,toExclusive:string):{fromInstant:string;toInstant:string}{
+export function businessDayOf(instant:string):string{return new Date(Date.parse(instant)+REPORT_TZ_OFFSET_MS).toISOString().slice(0,10);}
+function businessDayWindow(from:string,toExclusive:string):{fromInstant:string;toInstant:string}{
  return {fromInstant:new Date(Date.parse(from+'T00:00:00.000Z')-REPORT_TZ_OFFSET_MS).toISOString(),toInstant:new Date(Date.parse(toExclusive+'T00:00:00.000Z')-REPORT_TZ_OFFSET_MS).toISOString()};
 }
 export const COMMERCE_QUERY_BASIS='recognized-cohort; business_date = recognition business day (Asia/Ho_Chi_Minh); half-open interval';
@@ -78,8 +79,8 @@ function reportCells(report:Record<string,unknown>,requested:readonly {id:string
  * out-of-window range is reported as such instead of returning false zeros. */
 function coverageOf(window:{from:string;toExclusive:string},range:[string,string]|undefined):'unfiltered'|'in-window'|'partial'|'out-of-window'{
  if(!range)return 'unfiltered';
- const windowFrom=window.from.slice(0,10);
- const windowLastDay=new Date(Date.parse(window.toExclusive)-1).toISOString().slice(0,10);
+ const windowFrom=businessDayOf(window.from);
+ const windowLastDay=businessDayOf(new Date(Date.parse(window.toExclusive)-1).toISOString());
  const [from,to]=range;
  if(to<=windowFrom||from>windowLastDay)return 'out-of-window';
  if(from>=windowFrom&&to<=nextDay(windowLastDay))return 'in-window';
@@ -91,7 +92,8 @@ export function queryCommerceReport(report:Record<string,unknown>,query:Commerce
  const window=(report.window as {from:string;toExclusive:string}|undefined)??{from:'0000-01-01',toExclusive:'9999-12-31'};
  if(query.comparison){
   const {comparison:_,...base}=query;
-  const current={...base,filters:[] as CommerceQuery['filters']};
+  // A comparison keeps the caller's current-period query exactly as supplied.
+  const current={...base};
   const prior={...base,filters:[{field:'business_date' as const,op:'range' as const,value:[query.comparison.from,query.comparison.toExclusive] as [string,string]}]};
   const comparison=queryCommerceReport(report,prior) as Record<string,unknown>;
   return {semanticBasis:COMMERCE_QUERY_BASIS,current:queryCommerceReport(report,current),comparison:{...comparison,range:{from:query.comparison.from,toExclusive:query.comparison.toExclusive}}};

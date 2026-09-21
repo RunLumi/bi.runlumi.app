@@ -27,7 +27,7 @@
  */
 import {createHash} from 'node:crypto';
 import {readFile, readdir} from 'node:fs/promises';
-import {readFileSync} from 'node:fs';
+import {readFileSync,existsSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
@@ -43,12 +43,27 @@ const sha256=text=>createHash('sha256').update(text).digest('hex');
 // Resolve a directly-spawnable wrangler: node + the package's JS entry, so
 // .bin shim quirks can never re-parse our arguments. LUMI_WRANGLER_BIN may
 // point at any executable override for exotic environments.
+const PINNED_WRANGLER_VERSION='4.123.0';
+/** Resolve wrangler's actual JS entry so every invocation is
+ * `node <wrangler.js> d1 execute …` — argument arrays end to end, no shim
+ * re-parsing. Order: LUMI_WRANGLER_BIN (file or package root) → local
+ * install → pinned npx download (cached after the first run). */
 function resolveWrangler(){
- if(process.env.LUMI_WRANGLER_BIN)return {cmd:process.env.LUMI_WRANGLER_BIN,prefix:[]};
- const wranglerPackage=path.join(repoRoot,'node_modules','wrangler','package.json');
- const manifest=JSON.parse(readFileSync(wranglerPackage,'utf8'));
- const bin=typeof manifest.bin==='string'?manifest.bin:manifest.bin.wrangler;
- return {cmd:process.execPath,prefix:[path.join(repoRoot,'node_modules','wrangler',bin)]};
+ const fromPackage=(packageDir)=>{
+  const manifestPath=path.join(packageDir,'package.json');
+  if(!existsSync(manifestPath))return null;
+  const manifest=JSON.parse(readFileSync(manifestPath,'utf8'));
+  const bin=typeof manifest.bin==='string'?manifest.bin:manifest.bin.wrangler;
+  const entry=path.join(packageDir,bin);
+  return existsSync(entry)?{cmd:process.execPath,prefix:[entry]}:null;
+ };
+ const override=process.env.LUMI_WRANGLER_BIN;
+ if(override){
+  const resolved=existsSync(path.join(override,'package.json'))?fromPackage(override):{cmd:process.execPath,prefix:[override]};
+  if(resolved)return resolved;
+ }
+ return fromPackage(path.join(repoRoot,'node_modules','wrangler'))
+  ??{cmd:'npx',prefix:['--yes',`wrangler@${PINNED_WRANGLER_VERSION}`]};
 }
 const {cmd:wranglerCmd,prefix:wranglerPrefix}=resolveWrangler();
 function wranglerArgs(extra){
@@ -128,6 +143,8 @@ for(const migration of pending){
  if(adopt){
   console.log(`adopt (not executing): ${migration.name} -> ${migration.checksum.slice(0,12)}…`);
  }else{
+  const body=(await readFile(migration.file,'utf8')).replace(/--[^\n]*/g,'');
+  if(!/\S/.test(body)){console.log(`skipping (no statements): ${migration.name}`);continue;}
   console.log(`applying: ${migration.name}`);
   d1File(migration.file);
  }
