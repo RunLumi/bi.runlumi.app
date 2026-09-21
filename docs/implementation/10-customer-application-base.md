@@ -1,6 +1,6 @@
 # 10 — Customer application base (reusable core, generated customers)
 
-Status: implemented and locally verified. Date: 2026-09-20.
+Status: implemented and locally verified. Date: 2026-09-20 (PR3 extension execution: 2026-09-21).
 Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md).
 
 ## What shipped
@@ -93,11 +93,63 @@ Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md)
   compile/upgrade evidence; it is not a protected Cloudflare preview or production
   deployment certification.
 
+### Executable starter extensions and fixture-agnostic template tests (PR3)
+
+PR3 makes the starter/customer extensions genuinely executable rather than a
+scaffold with placeholder readers, and proves them with a self-contained test
+suite that ships to every generated repository.
+
+- **Typed extension composition runs server-side.** Generated customer Workers
+  register deterministic custom metrics through `customer/data/server-metrics.ts`,
+  a connector adapter pull through `customer/data/connectors.ts`, advisory
+  decision rules through `customer/workflows/decisions.ts`, and custom pages
+  through `customer/ui/pages.tsx`. Composition happens through the same public
+  core interfaces the deployed worker uses (`createApi` + `LocalDatabase` +
+  a control stub, mirroring `starter/customer/scripts/dev.mjs`) — no internal
+  core path or fork is involved.
+- **Server-side module gating.** Disabling a module in `customer/manifest.ts`
+  denies the corresponding server routes with `403 MODULE_DISABLED` (verified in
+  both directions), not merely hiding navigation links.
+- **Exact derived values, never echoes.** The template suite computes its
+  expectations from the connectors' returned envelope records, keyed by each
+  metric's declared `source.from[0]`; an unknown source or a drifting fixture
+  fails loudly instead of passing by echo. The alpha fixture asserts
+  `customer.warehouse_hours_saved` = `'2.5'` released hours and the beta fixture
+  asserts `customer.channel_margin_note` = `'30'` cases (window
+  2026-09-01..2026-10-01, upper-exclusive date bound), plus `null` — never
+  `'0'` — on an empty database.
+- **Fixture-agnostic overlays.** Customer fixtures replace only
+  `customer/data/{metrics,server-metrics}.ts` and `customer/ui/pages.tsx`;
+  `connectors.ts`, `workflows/decisions.ts`, `tests/` and `manifest.ts` survive
+  from the template, so the same 12-test suite runs unchanged against either
+  customer's contract and asserts its own derived values.
+- **Executable template suite.** `starter/customer/customer/tests/customer.test.mjs`
+  is a 12-test suite that runs *only in generated repositories*
+  (`node --experimental-strip-types --test customer/tests/*.test.mjs`, wired as
+  `npm test`): manifest identity, non-reserved unique routes, additive
+  namespace-only metrics, one executable server registration per declared metric,
+  connector pull `201` with exact envelope metadata, idempotent replay
+  (`200`, same snapshotId), exact derived values through HTTP, NULL-not-zero on an
+  empty database, unknown-metric `404`, read-only advisory decision rules, module
+  gating `403` in both directions, and viewer denial `403` on connector pull.
+- **In-repo execution suite.** `tests/extensions-execution.test.mjs` (8 tests)
+  runs the same executable expectations against the starter extensions inside
+  this repository, so the template behavior is exercised by `npm run check` even
+  though the placeholder template never executes.
+- **The acceptance smoke-run caught a real bug.** The first run of A5 surfaced
+  that the template suite's request helper did not thread the environment into
+  the composed API (every post-fence route degraded to `500 INTERNAL_ERROR`
+  instead of `201/200/404/403`). The helper now passes `env` explicitly and both
+  generated customers re-verified 12/12. This is the intended value of an
+  executable fixture-agnostic suite: the generated-repository test run is evidence,
+  not a green-by-construction unit suite.
+
 ## Verified environments
 
-- **Local (this repository).** `npm run check` — package build, typecheck, 294
-  unit/SQLite tests, repository checks (including the starter lock↔migration
-  baseline gate), boundary checks and the licensing gate.
+- **Local (this repository).** `npm run check` — package build, typecheck, 305
+  unit/SQLite tests (including the 8-test in-repo extension execution suite),
+  repository checks (including the starter lock↔migration baseline gate), boundary
+  checks and the licensing gate.
 - **Local workerd.** `node scripts/workerd-check.mjs` runs a thin Worker composed
   only from packaged artifacts under `wrangler dev` (local workerd, no account).
   6/6 checks: the packaged module graph evaluates; a missing or unconfigured Access
@@ -123,18 +175,23 @@ Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md)
   audited against the owning tenant and retire is terminal. Generation distinctness
   (worker/hostname/database/bucket/audience/deployment id across production and
   staging) and the customer-level lock are asserted hermetically.
-- **Two-customer acceptance + upgrade.**
-  `node scripts/acceptance-two-customers.mjs` — 15/15 checks: both applications
+- **Two-customer acceptance + upgrade + executable customer tests.**
+  `node scripts/acceptance-two-customers.mjs` — 16/16 checks: both applications
   install from real tarballs (not symlinks) and build without upstream source
-  paths; production and staging own distinct deployment identities with matching
+  paths; **each runs its own independent executable test suite through the
+  packaged core** (A5 parses the runner's TAP/spec summary and requires at least
+  8 passing tests and zero failures per customer; both alpha and beta ran 12/12
+  with their exact derived `'2.5'`/`'30'` values, NULL-not-zero, `404` unknown
+  metric, read-only rules, module gating `403` and viewer denial `403`);
+  production and staging own distinct deployment identities with matching
   Wrangler `env` sections and a customer-level lock; `deploy:plan` blocks the
   unreviewed scaffold and approves after operator review (creating no resource);
-  each has distinct custom pages and namespaced metrics; a reserved-route collision
-  and a bad customer id are rejected with diagnostics; a synthetic N+1 core release
-  upgrades both applications while customer files stay byte-identical; one
-  customer's rollback to N leaves the other at N+1 and the migration-limit guidance
-  is present. Each customer fixture also carries its own executable server metric
-  registration, rather than a UI-only value placeholder.
+  each has distinct custom pages and namespaced metrics; a reserved-route
+  collision and a bad customer id are rejected with diagnostics; a synthetic N+1
+  core release upgrades both applications while customer files stay byte-identical;
+  one customer's rollback to N leaves the other at N+1 and the migration-limit
+  guidance is present. Each customer fixture also carries its own executable
+  server metric registration, rather than a UI-only value placeholder.
 
 ## Remaining prerequisites (not claimed here)
 

@@ -43,6 +43,13 @@ Start with the [commerce specifications](docs/specs/README.md), then the
 - Money/stock review screens, deterministic observed-condition findings, an
   auditable decision register with positively verified outcomes, and authenticated
   CSV/JSON exports. No finding, decision state or payout gap fabricates recovered cash.
+- Generated customer repositories ship **executable extensions**: typed custom
+  pages, deterministic namespaced custom metrics with server registrations,
+  authorized-export connector adapters and advisory decision rules, plus a
+  fixture-agnostic template test suite (`npm test`) that composes the installed
+  core exactly like the worker and asserts exact derived values, NULL-not-zero,
+  module gating `403`s and viewer denials. Core modules disabled in
+  `customer/manifest.ts` lose their server routes, not just navigation.
 
 These commerce paths are a **bounded authorized-export workflow**, not a live
 connector or full financial warehouse. Maximum 100 records/48 KB per raw file,
@@ -121,7 +128,8 @@ npm run core:pack                     # deterministic tarballs + provenance mani
 npm run customer:new -- --customer acme --name "ACME" --dest ../acme-lumi
 npm run check:boundaries              # enforce customer -> public core direction
 npm run check:workerd                 # packaged Worker under real local workerd
-npm run acceptance:two-customers      # two-customer install/build/upgrade proof
+npm run acceptance:two-customers      # two-customer install/build/upgrade proof,
+                                      # incl. each customer's own executable tests
 ```
 
 [Architecture](docs/architecture.md) · [Customer base (ADR 0010)](docs/adr/0010-customer-application-repositories.md) ·
