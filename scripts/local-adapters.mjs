@@ -9,6 +9,13 @@ export {LocalDatabase,LocalObjects};
 export function request(path,{user='alpha-owner',method='GET',body,headers={}}={}){
  return new Request(`http://localhost:8787${path}`,{method,headers:{'x-demo-user':user,...(body!==undefined?{'content-type':'application/json'}:{}),...headers},...(body!==undefined?{body:JSON.stringify(body)}:{})});
 }
+/** Loopback demo identity for the local adapter network. Matches the memberships,
+ * operators and control-plane users seeded by fixture(). Never a production gate. */
+export const localAuthenticate=async req=>{
+ const user=req.headers.get('x-demo-user');
+ if(!user || !/^(?:(alpha|beta)-(owner|editor|viewer)|platform-admin)$/.test(user))throw new AppError(401,'UNAUTHENTICATED');
+ return {issuer:'local-demo',subject:user};
+};
 export async function fixture({seed=true}={}){
  const env={CONTROL_DB:new LocalDatabase(),TENANT_A:new LocalDatabase(),TENANT_B:new LocalDatabase(),SOURCES:new LocalObjects(),PACKS:new LocalObjects(),CELL_ID:'local',TENANT_BINDINGS:'["TENANT_A","TENANT_B"]',ACCESS_TEAM:'',ACCESS_AUD:'',ASSETS:{async fetch(){return new Response('fixture',{status:404});}}};
  env.CONTROL_DB.db.exec(await readFile(new URL('migrations/control/0001_initial.sql',root),'utf8'));
@@ -29,13 +36,8 @@ export async function fixture({seed=true}={}){
   db.db.prepare('INSERT INTO dashboards VALUES (?,?,?,?,?)').run(tenant,'operations-cost',JSON.stringify(dashboard),1,'2026-09-20T00:00:00Z');
  }
  env.CONTROL_DB.db.exec("INSERT INTO users SELECT DISTINCT issuer,subject,'active' FROM memberships; INSERT INTO users VALUES ('local-demo','platform-admin','active'); INSERT INTO platform_operators VALUES ('local-demo','platform-admin');");
- const authenticate=async req=>{
-  const user=req.headers.get('x-demo-user');
-  if(!user || !/^(?:(alpha|beta)-(owner|editor|viewer)|platform-admin)$/.test(user))throw new AppError(401,'UNAUTHENTICATED');
-  return {issuer:'local-demo',subject:user};
- };
- const control=createControl(authenticate);env.CONTROL={fetch:req=>control(req,env)};
- const api=createApi(authenticate,true);
+ const control=createControl(localAuthenticate);env.CONTROL={fetch:req=>control(req,env)};
+ const api=createApi(localAuthenticate,true);
  if(seed)for(const tenant of ['alpha','beta']){
   const body=JSON.parse(await readFile(new URL(`fixtures/${tenant}.json`,root),'utf8'));
   const response=await api(request(`/api/tenants/${tenant}/imports`,{user:`${tenant}-owner`,method:'POST',body,headers:{'idempotency-key':'fixture-first-snapshot'}}),env);

@@ -73,7 +73,13 @@ try{
  await step('A5 each customer runs its own independent acceptance tests',async()=>{
   for(const dir of [alpha,beta]){
    const out=run(npm,['test'],dir);
-   assert(/pass [1-9]/.test(out.stdout),`${dir} must run passing customer tests`);
+   // Node's test runner prints a TAP summary (`# pass N`) in pipes and a spec
+   // summary (`ℹ pass N`) on a terminal. Accept both; require real counts.
+   const all=[...(out.stdout.match(/# (pass|fail) \d+/g)??[]),...(out.stdout.match(/ℹ (pass|fail) \d+/g)??[])];
+   const count=(label)=>Number((all.find(x=>x.includes(`${label} `))??'').match(/\d+/)?.[0]??0);
+   const pass=count('pass');const fail=count('fail');
+   assert(pass>=8,`${dir} must run at least 8 passing customer tests (got ${pass})`);
+   assert.equal(fail,0,`${dir} customer tests must run without failures (got ${fail})`);
   }
  });
  await step('A6 promoted report compiles in a fresh customer checkout without embedded results',async()=>{
@@ -137,15 +143,24 @@ try{
  await step('C1 alpha has a custom page and namespaced metric',async()=>{
   const pages=await customerFile(alpha,'customer/ui/pages.tsx');
   const metrics=await customerFile(alpha,'customer/data/metrics.ts');
+  const server=await customerFile(alpha,'customer/data/server-metrics.ts');
   assert(pages.includes("path:'/warehouse'"),'alpha custom route missing');
   assert(metrics.includes('customer.warehouse_hours_saved'),'alpha custom metric missing');
+  assert(server.includes('customer.warehouse_hours_saved'),'alpha must register the metric server-side');
+  assert(pages.includes('/custom-metrics/customer.warehouse_hours_saved'),'alpha page must fetch the registered metric, not embed a value');
+  for(const file of [pages,metrics,server])assert(!file.includes('customMetricValue'),'alpha must not rely on a literal customMetricValue');
  });
  await step('C2 beta has a different custom page and metric',async()=>{
   const pages=await customerFile(beta,'customer/ui/pages.tsx');
   const metrics=await customerFile(beta,'customer/data/metrics.ts');
+  const server=await customerFile(beta,'customer/data/server-metrics.ts');
   assert(pages.includes("path:'/channels'"),'beta custom route missing');
   assert(!pages.includes('/warehouse'),'beta must not share alpha navigation');
   assert(metrics.includes('customer.channel_margin_note'),'beta custom metric missing');
+  assert(metrics.includes("'operations.cases'"),'beta metric must derive from the operations case source');
+  assert(server.includes('customer.channel_margin_note'),'beta must register the metric server-side');
+  assert(pages.includes('/custom-metrics/customer.channel_margin_note'),'beta page must fetch the registered metric, not embed a value');
+  for(const file of [pages,metrics,server])assert(!file.includes('customMetricValue'),'beta must not rely on a literal customMetricValue');
  });
  // ---- G. incompatible extension/migration rejected with a diagnostic ----
  await step('G1 reserved-route collision is rejected before deployment',async()=>{
