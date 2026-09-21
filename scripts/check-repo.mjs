@@ -52,13 +52,10 @@ for(const name of ['@runlumi/core','@runlumi/cloudflare','@runlumi/ui']){
  assert.match(entry.resolved,/^file:vendor\/runlumi-[a-z]+-\d+\.\d+\.\d+\.tgz$/,'Starter lock @runlumi entries must resolve to vendored release tarballs');
  assert.match(entry.integrity,/^sha512-/,'Starter lock @runlumi entries must carry sha512 integrity');
 }
-// The customer template lock declares core migration baselines; they must track the
-// reviewed core migrations so generated customers apply the exact current schema.
+// The customer template lock declares the core installation schema baseline.
 const templateMeta=JSON.parse(await read('starter/customer/lumi.lock.json.template'));
-const controlCount=(await readdir(path.join(root,'migrations/control'))).filter(f=>f.endsWith('.sql')).length;
-const tenantCount=(await readdir(path.join(root,'migrations/tenant'))).filter(f=>f.endsWith('.sql')).length;
-assert.equal(templateMeta.core.migrations.controlBaseline,controlCount,`controlBaseline ${templateMeta.core.migrations.controlBaseline} must equal the ${controlCount} control migrations`);
-assert.equal(templateMeta.core.migrations.tenantBaseline,tenantCount,`tenantBaseline ${templateMeta.core.migrations.tenantBaseline} must equal the ${tenantCount} tenant migrations`);
+const installationCount=(await readdir(path.join(root,'migrations/installation'))).filter(f=>f.endsWith('.sql')).length;
+assert.equal(templateMeta.core.migrations.installationBaseline,installationCount,`installationBaseline ${templateMeta.core.migrations.installationBaseline} must equal the ${installationCount} installation migrations`);
 // Every registry entry in the template lock must be exact, provenance-checked and
 // license-admitted, mirroring the runtime/web license gates.
 for(const[key,p]of Object.entries(templateLock.packages)){
@@ -79,7 +76,7 @@ for(const[key,p]of Object.entries(templateLock.packages)){
 const production=await read('apps/api/src/index.ts');
 assert(!/x-demo-user|local-adapters|fixtures\/|DEV_AUTH|DEMO_AUTH/.test(production));
 const headers=await read('apps/web/public/_headers');assert(headers.includes("frame-ancestors 'none'"));assert(headers.includes("script-src 'self'"));
-for(const file of ['README.md','AGENTS.md','SECURITY.md','docs/architecture.md','docs/deployment.md','docs/semantic-contract.md','docs/roadmap.md','docs/references.md']) assert((await read(file)).length>100);
+for(const file of ['README.md','AGENTS.md','SECURITY.md','CUSTOMIZATION.md','docs/architecture.md','docs/deployment.md','docs/semantic-contract.md','user-guide/05-upgrading-core.md']) assert((await read(file)).length>100);
 // Check local Markdown targets without fetching external URLs. Code fences are excluded.
 async function walk(dir){const list=[];for(const e of await readdir(dir,{withFileTypes:true})){if(e.name.startsWith('.')||['node_modules','dist','validation-artifacts'].includes(e.name))continue;const p=path.join(dir,e.name);if(e.isDirectory())list.push(...await walk(p));else if(p.endsWith('.md')&&!['DESIGN.md','ICON.md'].includes(e.name))list.push(p);}return list;}
 for(const file of await walk(root)){

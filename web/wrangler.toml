@@ -1,5 +1,5 @@
 # Optional Wrangler Pages configuration. Git integration settings are in README.md.
-# This is NOT the Workers / tenant application in apps/web.
+# This is NOT the Workers / installation application in apps/web.
 name = "lumi-bi-web"
 pages_build_output_dir = "./dist"
 compatibility_date = "2026-09-20"

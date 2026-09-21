@@ -33,7 +33,7 @@ export function environmentInventory(customerId,environment){
   previewUrls:false,
   accessTeam:'replace-access-team',
   accessAudience:randomBytes(16).toString('hex'),
-  servingDatabase:{binding:'SERVING',databaseName:`${customerId}-${environment}-serving`,databaseId:uuid()},
+  database:{binding:'DB',databaseName:`${customerId}-${environment}-db`,databaseId:uuid()},
   sourcesBucket:`${customerId}-${environment}-sources`,
   note:'Customer/environment deployment inventory. Non-secret identifiers only; credentials and tokens live in Cloudflare secrets, never in Git. Set hostnameReviewed:true only for a real reviewed custom hostname protected by Access.'
  };
@@ -43,8 +43,8 @@ export function environmentInventory(customerId,environment){
 export function wranglerConfig(inventories){
  const production=inventories.find(i=>i.environment==='production');
  if(!production)throw new Error('A production environment is required for the wrangler base configuration');
- const d1=i=>({binding:'SERVING',database_name:i.servingDatabase.databaseName,database_id:i.servingDatabase.databaseId,migrations_dir:'../../customer/migrations'});
- const vars=i=>({CELL_ID:i.deploymentId,DEPLOYMENT_ID:i.deploymentId,ENVIRONMENT:i.environment,CUSTOMER_ID:i.customerId,TENANT_BINDINGS:'["SERVING"]',ACCESS_TEAM:i.accessTeam,ACCESS_AUD:i.accessAudience});
+ const d1=i=>({binding:'DB',database_name:i.database.databaseName,database_id:i.database.databaseId,migrations_dir:'../../migrations'});
+ const vars=i=>({DEPLOYMENT_ID:i.deploymentId,ENVIRONMENT:i.environment,ACCESS_TEAM:i.accessTeam,ACCESS_AUD:i.accessAudience});
  const config={
   $schema:'node_modules/wrangler/config-schema.json',
   name:production.workerName,
@@ -100,8 +100,8 @@ export async function generateCustomer({customerId,displayName,envs=['production
   __HOSTNAME__:production.hostname,
   __ACCESS_TEAM__:production.accessTeam,
   __ACCESS_AUD__:production.accessAudience,
-  __DATABASE_NAME__:production.servingDatabase.databaseName,
-  __DATABASE_ID__:production.servingDatabase.databaseId,
+  __DATABASE_NAME__:production.database.databaseName,
+  __DATABASE_ID__:production.database.databaseId,
   __SOURCES_BUCKET__:production.sourcesBucket
  };
  const substitute=source=>source.replace(/__[A-Z][A-Z0-9_]*__/g,match=>{if(!(match in substitutions))throw new Error(`Missing substitution ${match}`);return substitutions[match];});

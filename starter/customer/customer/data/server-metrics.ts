@@ -1,7 +1,7 @@
 import type {CustomMetricExtension} from '@runlumi/core/api.ts';
 
 /** The extension executes through the core's bounded semantic query compiler.
- * It cannot provide SQL, access a database binding, or bypass tenant scope.
+ * It cannot provide SQL or access a database binding.
  * NULL-not-zero is the extension's job: an empty database aggregates to a single
  * row ({released_hours:0, matched_rows:0}), which must surface as null, never '0'. */
 export const customMetricExtensions:readonly CustomMetricExtension[]=[{

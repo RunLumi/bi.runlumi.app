@@ -1,7 +1,7 @@
 import { defineConfig } from 'astro/config';
 import { site } from './src/data/site.ts';
 
-// Marketing is a static, separately deployed surface; never bind it to tenant data.
+// Marketing is a static, separately deployed surface; never bind it to installation data.
 export default defineConfig({
   site: site.origin,
   output: 'static',

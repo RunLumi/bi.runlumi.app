@@ -8,7 +8,7 @@ test('createApp composes a customer application from pages',()=>{
  const pages=[{path:'/',label:'Home',render:()=>null},{path:'/custom',label:'Custom',render:()=>null}];
  const App=createApp({
   brand:{name:'X',logoSrc:'/x.svg',logoAlt:'',workspaceLabel:'W',footer:null},
-  labels:{skipToContent:'s',tenantLabel:'t',tenantAriaLabel:'t',navAriaLabel:'n',noTenantsOption:'o',operatorBar:'b',notFound:'404',demoNotice:'d',demoIdentityAriaLabel:'i'},
+  labels:{skipToContent:'s',installationLabel:'t',installationAriaLabel:'t',navAriaLabel:'n',noUsersOption:'o',operatorBar:'b',notFound:'404',demoNotice:'d',demoIdentityAriaLabel:'i'},
   pages,demoIdentities:[]
  });
  assert.equal(typeof App,'function');

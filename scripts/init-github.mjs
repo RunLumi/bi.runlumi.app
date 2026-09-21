@@ -34,7 +34,7 @@ try {
   run('git', ['init', '-b', 'main']);
   run('git', ['remote', 'add', 'origin', remote]);
   run('git', ['add', '.']);
-  run('git', ['commit', '-m', 'Bootstrap Cloudflare-first tenant-isolated BI kernel']);
+  run('git', ['commit', '-m', 'Bootstrap standalone installation BI kernel']);
   // No --force. A concurrent remote initialization will safely reject this push.
   run('git', ['push', '-u', 'origin', 'main']);
   console.log('Published main. Inspect GitHub CI before enabling any deployment.');

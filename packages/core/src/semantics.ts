@@ -1,6 +1,6 @@
 import { AppError, object, day, text, type Query } from './contracts.ts';
 export interface Metric { id: string; label: string; unit: 'count'|'hours'|'VND'; expression: string; definition: string }
-// SQL expressions are reviewed product code, NEVER supplied by tenants, browsers or models.
+// SQL expressions are reviewed product code, NEVER supplied by browsers or models.
 export const metrics: readonly Metric[] = [
   { id:'cases', label:'Lượt xử lý', unit:'count', expression:'COALESCE(SUM(f.cases), 0)', definition:'Tổng lượt xử lý trong các snapshot nguồn đang hiệu lực.' },
   { id:'baseline_hours', label:'Giờ làm thủ công theo mốc so sánh', unit:'hours', expression:'COALESCE(SUM(f.baseline_minutes), 0) / 60.0', definition:'Khối lượng công việc tương đương trước tự động hóa; cùng phạm vi và sản lượng.' },
@@ -28,7 +28,7 @@ export function parseQuery(value: unknown): Query {
   if (groupBy !== 'none' && groupBy !== 'day' && groupBy !== 'workflow') throw new AppError(400, 'INVALID_GROUP');
   return { metrics: names, from, to, groupBy };
 }
-export function compileQuery(query: Query, tenantId: string): { sql: string; params: string[] } {
+export function compileInstallationQuery(query: Query): { sql: string; params: string[] } {
   // Revalidate at the compiler boundary: typed callers and agents are not authority.
   const q = parseQuery(query);
   const group = q.groupBy === 'day' ? 'f.business_day' : q.groupBy === 'workflow' ? 'f.workflow' : null;
@@ -36,8 +36,8 @@ export function compileQuery(query: Query, tenantId: string): { sql: string; par
   selects.push('COUNT(*) AS matched_rows');
   if (group) selects.unshift(`${group} AS dimension`);
   return {
-    sql: `SELECT ${selects.join(', ')} FROM workflow_facts f JOIN active_snapshots a ON a.tenant_id = f.tenant_id AND a.snapshot_id = f.snapshot_id JOIN sources src ON src.tenant_id=a.tenant_id AND src.id=a.source_id AND src.state='active' WHERE f.tenant_id = ? AND f.business_day >= ? AND f.business_day < ?${group ? ` GROUP BY ${group} ORDER BY ${group}` : ''} LIMIT 201`,
-    params: [tenantId, q.from, q.to]
+    sql: `SELECT ${selects.join(', ')} FROM workflow_facts f JOIN active_snapshots a ON a.snapshot_id = f.snapshot_id JOIN sources src ON src.id=a.source_id AND src.state='active' WHERE f.business_day >= ? AND f.business_day < ?${group ? ` GROUP BY ${group} ORDER BY ${group}` : ''} LIMIT 201`,
+    params: [q.from, q.to]
   };
 }
 export interface Widget { id: string; kind: 'kpi'|'bar'|'table'; title: string; metrics: string[]; groupBy: Query['groupBy'] }

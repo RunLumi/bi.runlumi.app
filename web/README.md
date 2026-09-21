@@ -1,8 +1,8 @@
 # Lumi BI — public marketing site
 
 Vietnamese Astro landing for **https://about.bi.runlumi.app**, independent from the
-React tenant application in `../apps/web`. Separate package and lock, static
-output, no auth, tenant bindings, API calls, tracking or customer data.
+React installation application in `../apps/web`. Separate package and lock, static
+output, no auth, installation bindings, API calls, tracking or customer data.
 The platform remains at **https://bi.runlumi.app**. See [GEO.md](GEO.md) for public
 identity, JSON-LD, llms.txt, regression gates and post-deployment acceptance.
 
@@ -34,7 +34,7 @@ matches the phone/desktop column and tablet row.
 
 ## Deploy with Cloudflare Pages Git integration
 
-Create a separate **Pages** project, not another tenant Worker.
+Create a separate **Pages** project, not another installation Worker.
 
 | Setting | Value |
 | --- | --- |

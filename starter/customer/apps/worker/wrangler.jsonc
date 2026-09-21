@@ -13,15 +13,12 @@
     "run_worker_first": ["/api/*", "/healthz"]
   },
   "vars": {
-    "CELL_ID": "__DEPLOYMENT_ID__",
     "DEPLOYMENT_ID": "__DEPLOYMENT_ID__",
     "ENVIRONMENT": "__ENVIRONMENT__",
-    "CUSTOMER_ID": "__CUSTOMER_ID__",
-    "TENANT_BINDINGS": "[\"SERVING\"]",
     "ACCESS_TEAM": "__ACCESS_TEAM__",
     "ACCESS_AUD": "__ACCESS_AUD__"
   },
-  "d1_databases": [{"binding": "SERVING", "database_name": "__DATABASE_NAME__", "database_id": "__DATABASE_ID__", "migrations_dir": "../../customer/migrations"}],
+  "d1_databases": [{"binding": "DB", "database_name": "__DATABASE_NAME__", "database_id": "__DATABASE_ID__", "migrations_dir": "../../migrations"}],
   "r2_buckets": [{"binding": "SOURCES", "bucket_name": "__SOURCES_BUCKET__"}],
   "limits": {"cpu_ms": 50}
 }

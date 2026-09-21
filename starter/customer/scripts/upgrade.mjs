@@ -59,16 +59,16 @@ if(next.extensionApi!==lock.core.extensionApi)throw new Error(`Extension API ${l
 if(next.templateVersion!==lock.core.templateVersion)console.warn(`Template moved ${lock.core.templateVersion} -> ${next.templateVersion}: review generated-file changes via three-way merge.`);
 
 // 3. Report migration and extension deltas without applying anything in --check mode.
-function countByPlane(migrations,plane){return Object.keys(migrations??{}).filter(k=>k.startsWith(`migrations/${plane}/`)).length;}
+function countInstallationMigrations(migrations){return Object.keys(migrations??{}).filter(k=>k.startsWith('migrations/installation/')).length;}
 const customerMigrations=(await exists('customer/migrations')?await readdir(path.join(repoRoot,'customer/migrations')):[]).filter(f=>f.endsWith('.sql'));
 const report={
  from:lock.core.version,to:next.release,sourceCommit:next.sourceCommit,
- migrations:{control:countByPlane(next.migrations,'control'),tenant:countByPlane(next.migrations,'tenant')},
+ migrations:{installation:countInstallationMigrations(next.migrations)},
  customerMigrations,
  extensionApi:{from:lock.core.extensionApi,to:next.extensionApi}
 };
 console.log(`Upgrade plan: core ${report.from} -> ${report.to} (commit ${String(report.sourceCommit).slice(0,12)})`);
-console.log(`Core migrations in target release: tenant=${report.migrations.tenant}, control=${report.migrations.control}`);
+console.log(`Core installation migrations in target release: ${report.migrations.installation}`);
 console.log(`Customer-owned migrations preserved: ${report.customerMigrations.length}`);
 console.log(`Extension API: ${report.extensionApi.from} -> ${report.extensionApi.to}`);
 if(checkOnly){console.log('Check only: no files changed. Rerun without --check to apply.');process.exit(0);}

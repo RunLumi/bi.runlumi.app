@@ -1,11 +1,11 @@
 import {Component,useState,type ReactNode,type ComponentType} from 'react';
 import {QueryClient,QueryClientProvider,useQuery} from '@tanstack/react-query';
 import {BrowserRouter,NavLink,Route,Routes} from 'react-router-dom';
-import {api,type Session,type Tenant} from './lib/api.ts';
+import {api,type Session,type InstallationUser} from './lib/api.ts';
 import {Empty,ErrorState,Loading} from './components/states.tsx';
 
-export interface NavContext {tenant:Tenant|null;platformOperator:boolean}
-export interface PageContext {tenant:Tenant|null;identity:string;demo:boolean;session:Session}
+export interface NavContext {user:InstallationUser|null;platformOperator:boolean}
+export interface PageContext {user:InstallationUser|null;identity:string;demo:boolean;session:Session}
 export interface AppPage {
   path:string;
   label:string;
@@ -16,8 +16,8 @@ export interface AppPage {
 }
 export interface AppBrand {name:ReactNode;logoSrc:string;logoAlt:string;workspaceLabel:string;footer:ReactNode}
 export interface AppLabels {
-  skipToContent:string;tenantLabel:string;tenantAriaLabel:string;navAriaLabel:string;
-  noTenantsOption:string;operatorBar:string;notFound:string;demoNotice:string;demoIdentityAriaLabel:string;
+  skipToContent:string;installationLabel:string;installationAriaLabel:string;navAriaLabel:string;
+  noUsersOption:string;operatorBar:string;notFound:string;demoNotice:string;demoIdentityAriaLabel:string;
 }
 export interface AppConfig {brand:AppBrand;labels:AppLabels;pages:AppPage[];demoIdentities:string[]}
 
@@ -30,18 +30,17 @@ function IdentityScope({identity,onIdentity,config}:{identity:string;onIdentity:
 }
 
 function Shell({identity,onIdentity,config}:{identity:string;onIdentity:(value:string)=>void;config:AppConfig}){
- const q=useQuery({queryKey:['session',identity],queryFn:({signal})=>api<Session>('/api/session',identity,{signal})});const [tenantId,setTenantId]=useState('');
+ const q=useQuery({queryKey:['session',identity],queryFn:({signal})=>api<Session>('/api/session',identity,{signal})});
  if(q.isPending)return <Loading/>;if(q.isError)return <ErrorState error={q.error} retry={()=>q.refetch()}/>;
- const session=q.data;const tenant=session.tenants.find(t=>t.id===tenantId)??session.tenants[0];
- const navCtx:NavContext={tenant:tenant??null,platformOperator:session.platformOperator};
+ const session=q.data;const user=session.user;
+ const navCtx:NavContext={user,platformOperator:false};
  const visible=config.pages.filter(p=>p.nav?.(navCtx));
  return <div className="app-shell"><a className="skip-link" href="#main-content">{config.labels.skipToContent}</a><aside className="sidebar"><a className="brand" href="/"><img src={config.brand.logoSrc} width="28" height="28" alt={config.brand.logoAlt}/><strong>{config.brand.name}</strong></a><p className="workspace-label">{config.brand.workspaceLabel}</p>
- {!session.standalone&&<label className="tenant-label"><span>{config.labels.tenantLabel}</span><select aria-label={config.labels.tenantAriaLabel} value={tenant?.id??''} onChange={e=>setTenantId(e.target.value)} disabled={!session.tenants.length}>{session.tenants.length?session.tenants.map(t=><option value={t.id} key={t.id}>{t.name}</option>):<option value="">{config.labels.noTenantsOption}</option>}</select></label>}
- {session.standalone&&tenant&&<p className="tenant-label">{tenant.name}</p>}
+ <p className="user-label">{session.installation.name??user.name}</p>
  <nav aria-label={config.labels.navAriaLabel}>{visible.map(p=><NavLink key={p.path} to={p.path} end={p.path==='/'}>{p.glyph?<p.glyph/>:null}{p.label}</NavLink>)}</nav>
- <div className="sidebar-footer">{config.brand.footer}</div></aside><div className="main-shell"><header className="topbar"><span>{tenant?`${tenant.id} / ${tenant.role}`:config.labels.operatorBar}</span><div>{tenant?.license&&<span className="tag">{tenant.license.plan} · {tenant.license.state}</span>}{session.demo&&<label className="demo-switch"><span>DEMO</span><select aria-label={config.labels.demoIdentityAriaLabel} value={identity||(config.demoIdentities[0]??'')} onChange={e=>onIdentity(e.target.value)}>{config.demoIdentities.map(x=><option key={x}>{x}</option>)}</select></label>}</div></header>
+ <div className="sidebar-footer">{config.brand.footer}</div></aside><div className="main-shell"><header className="topbar"><span>{`${user.id} / ${user.role}`}</span><div>{session.demo&&<label className="demo-switch"><span>DEMO</span><select aria-label={config.labels.demoIdentityAriaLabel} value={identity||(config.demoIdentities[0]??'')} onChange={e=>onIdentity(e.target.value)}>{config.demoIdentities.map(x=><option key={x}>{x}</option>)}</select></label>}</div></header>
  {session.demo&&<div className="demo-notice">{config.labels.demoNotice}</div>}
- <main id="main-content" key={`${identity}:${tenant?.id??'control'}`}><Routes>{config.pages.map(p=><Route key={p.path} path={p.path} element={p.render({tenant:tenant??null,identity,demo:session.demo,session})}/>)}<Route path="*" element={<Empty>{config.labels.notFound}</Empty>}/></Routes></main></div></div>;
+ <main id="main-content" key={`${identity}:${user.id}`}><Routes>{config.pages.map(p=><Route key={p.path} path={p.path} element={p.render({user,identity,demo:session.demo,session})}/>)}<Route path="*" element={<Empty>{config.labels.notFound}</Empty>}/></Routes></main></div></div>;
 }
 
 /** Compose a customer application from reviewed pages, navigation and brand config.

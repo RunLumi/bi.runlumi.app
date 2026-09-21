@@ -1,12 +1,11 @@
 import type {Dashboard} from '@runlumi/core/semantics.ts';
-export interface Tenant {id:string;name:string;role:'owner'|'editor'|'viewer';cell_id:string;features:string[];license:{plan:string;state:string;endsAt:string;revision:number}|null;apiBase?:string}
-export interface Session {demo:boolean;tenants:Tenant[];platformOperator:boolean;standalone?:boolean}
-export const tenantApiBase=(tenant:Tenant)=>tenant.apiBase??`/api/tenants/${tenant.id}`;
-export interface SavedDashboard {id:string;revision:number;management:'git'|'ui';configurationRelease:string;configurationRevision:number;releaseId?:string;definition:Dashboard}
+export interface InstallationUser {id:string;name:string;role:'owner'|'editor'|'viewer';features:string[];apiBase?:string}
+export interface Session {demo:boolean;standalone:boolean;user:InstallationUser;installation:{name:string|null;coreRelease:string|null}}
+export const installationApiBase=(_user:InstallationUser)=>'/api';
+export interface SavedDashboard {id:string;revision:number;management:'git'|'ui';configurationRelease?:string;configurationRevision?:number;releaseId?:string;definition:Dashboard}
 export interface Metric {id:string;label:string;unit:string;definition:string}
-export interface QueryResult {data:Record<string,number|string|null>[];meta:{tenantId:string;configurationRelease:string;configurationRevision:number;contextHash:string;qualityState:string;missingSources:string[];noPublishedData:boolean;provenance:{id:string;content_hash:string;observed_through:string}[]}}
+export interface QueryResult {data:Record<string,number|string|null>[];meta:{contextHash:string;qualityState:string;missingSources:string[];noPublishedData:boolean;provenance:{id:string;content_hash:string;observed_through:string}[]}}
 export interface Configuration {active:null|{name:string;releaseId:string;revision:number;sourceCommit:string;provenance:'operator-asserted';attestationVerified:false;queries:{id:string}[];ai:{enabled:boolean;providerInstanceRef:string;modelRef:string;dailyBudgetUsd:number;inferenceImplemented:false}}}
-export interface Overview {tenants:{id:string;name:string;cell_id:string;state:string;plan_id:string|null;license_state:string|null;active_release_id:string|null;config_revision:number}[];users:{issuer:string;subject:string;state:string;tenant_count:number}[];limit:number}
 export class ApiError extends Error{constructor(public code:string,public status:number){super(code);}}
 export async function api<T>(path:string,identity:string,options:{body?:unknown;method?:string;revision?:number;signal?:AbortSignal}={}):Promise<T>{
  const headers:Record<string,string>={};if(identity)headers['x-demo-user']=identity;
@@ -27,14 +26,11 @@ export function message(error:unknown):string{
   CONNECTION_REVISION_OR_STATE_CONFLICT:'Quyền nguồn đã thay đổi hoặc kết nối đã thu hồi. Tải lại trạng thái.',DELIVERY_ID_CONFLICT:'Mã lần gửi đã dùng cho nội dung khác. Giữ mã cũ khi gửi lại nguyên tệp; dùng mã mới cho bản mới.',
   OUTCOME_NOT_OBSERVED:'Chưa đủ bằng chứng kết quả: cần bản mới cùng phạm vi, còn đối tượng và điều kiện đã hết.',NEW_OUTCOME_EVIDENCE_REQUIRED:'Cần một bản công bố mới để xác nhận kết quả.',RECURRENCE_REVIEW_REQUIRED:'Điều kiện này thuộc một việc đã đóng. Cần xem lại lần tái diễn, không đánh dấu đã xử lý tự động.',
   DECISION_REQUIRES_CURRENT_EVIDENCE:'Bản bằng chứng đã được thay thế. Mở bản hiện tại trước khi ghi nhận việc.',
-CONFIGURATION_CHANGED:'Cấu hình vừa đổi. Tải lại danh sách dashboard trước khi xem dữ liệu.',TENANT_ROUTE_FENCED:'Dữ liệu đang chuyển môi trường. Tạm dừng truy cập để kiểm tra định tuyến.',PACK_METRIC_DENIED:'Bản cấu hình hiện tại không cho phép chỉ số được yêu cầu.',ENTITLEMENT_REQUIRED:'Gói sử dụng chưa cấp tính năng này hoặc đã hết hạn.',TENANT_ACCESS_DENIED:'Bạn không có quyền truy cập doanh nghiệp này.',PLATFORM_OPERATOR_REQUIRED:'Chỉ người vận hành được cấp quyền mới xem được Control Plane.',GIT_MANAGED_DASHBOARD:'Dashboard này được quản lý bằng Git. Hãy tạo pull request hoặc tạo bản sao.',REVISION_CONFLICT:'Cấu hình đã thay đổi. Tải lại trước khi lưu.',MIXED_SNAPSHOT:'Dữ liệu hoặc cấu hình vừa thay đổi. Hãy tải lại để xem cùng một phiên bản.',CONTROL_UNAVAILABLE:'Dịch vụ cấp quyền chưa sẵn sàng. Không mở dữ liệu khi chưa xác minh được quyền.'};
+CONFIGURATION_CHANGED:'Cấu hình vừa đổi. Tải lại danh sách dashboard trước khi xem dữ liệu.',GIT_MANAGED_DASHBOARD:'Dashboard này được quản lý bằng Git. Hãy tạo pull request hoặc tạo bản sao.',REVISION_CONFLICT:'Cấu hình đã thay đổi. Tải lại trước khi lưu.',MIXED_SNAPSHOT:'Dữ liệu hoặc cấu hình vừa thay đổi. Hãy tải lại để xem cùng một phiên bản.',CONTROL_UNAVAILABLE:'Dịch vụ cấp quyền chưa sẵn sàng. Không mở dữ liệu khi chưa xác minh được quyền.'};
  return messages[code]??'Chưa tải được dữ liệu. Hãy thử lại hoặc liên hệ người quản trị.';
 }
 export async function dashboardData(base:string,identity:string,dashboard:SavedDashboard,from:string,to:string,signal:AbortSignal){
- const batch=await api<{contextHash:string;results:QueryResult[]}>(base+'/query-batch',identity,{method:'POST',signal,body:{
-   configurationRelease:dashboard.configurationRelease,configurationRevision:dashboard.configurationRevision,
-   queries:dashboard.definition.widgets.map(w=>({metrics:w.metrics,groupBy:w.groupBy,from,to}))
- }});
- if(batch.results.length!==dashboard.definition.widgets.length || batch.results.some(r=>r.meta.contextHash!==batch.contextHash||r.meta.configurationRelease!==dashboard.configurationRelease||r.meta.configurationRevision!==dashboard.configurationRevision))throw new ApiError('MIXED_SNAPSHOT',409);
+ const batch=await api<{contextHash:string;results:QueryResult[]}>(base+'/query-batch',identity,{method:'POST',signal,body:{queries:dashboard.definition.widgets.map(w=>({metrics:w.metrics,groupBy:w.groupBy,from,to}))}});
+ if(batch.results.length!==dashboard.definition.widgets.length || batch.results.some(r=>r.meta.contextHash!==batch.contextHash))throw new ApiError('MIXED_SNAPSHOT',409);
  return batch.results;
 }

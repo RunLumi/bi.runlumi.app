@@ -25,9 +25,9 @@ require_(inventory.hostnameReviewed===true,'hostname must be reviewed: replace t
 require_(typeof inventory.hostname==='string'&&!inventory.hostname.endsWith('.workers.dev')&&!inventory.hostname.endsWith('.example.com'),'a reviewed custom hostname protected by Access is required');
 require_(ident(inventory.accessTeam)&&!/REPLACE|example/i.test(inventory.accessTeam),'a reviewed Access team is required (replace the scaffold value)');
 require_(typeof inventory.accessAudience==='string'&&/^[A-Za-z0-9_-]{20,128}$/.test(inventory.accessAudience)&&!/^(.)\1{19,}$/.test(inventory.accessAudience)&&!/REPLACE|example/i.test(inventory.accessAudience),'a reviewed per-deployment Access audience is required');
-require_(inventory.servingDatabase?.binding==='SERVING','exactly one fixed serving binding is required');
-require_(ident(inventory.servingDatabase?.databaseName),'a serving database name is required');
-require_(uuid(inventory.servingDatabase?.databaseId),'a real non-zero serving database id is required');
+require_(inventory.database?.binding==='DB','exactly one fixed DB binding is required');
+require_(ident(inventory.database?.databaseName),'a database name is required');
+require_(uuid(inventory.database?.databaseId),'a real non-zero database id is required');
 require_(ident(inventory.sourcesBucket),'a sources bucket is required');
 // AI configuration is part of the reviewed release. When inference is enabled, the
 // provider instance, model and credential references must be reviewed real
@@ -40,7 +40,7 @@ require_(aiProfile===null||typeof aiProfile.credentialRef==='string'&&!/^replace
 // No environment may reuse another environment's resources.
 for(const file of (await readdir(path.join(repoRoot,'infra/environments'))).filter(f=>f.endsWith('.json')&&f!==`${environment}.json`)){
  const other=await readJson(`infra/environments/${file}`);
- const shared=[['workerName',inventory.workerName,other.workerName],['hostname',inventory.hostname,other.hostname],['databaseName',inventory.servingDatabase?.databaseName,other.servingDatabase?.databaseName],['databaseId',inventory.servingDatabase?.databaseId,other.servingDatabase?.databaseId],['sourcesBucket',inventory.sourcesBucket,other.sourcesBucket],['accessAudience',inventory.accessAudience,other.accessAudience]];
+ const shared=[['workerName',inventory.workerName,other.workerName],['hostname',inventory.hostname,other.hostname],['databaseName',inventory.database?.databaseName,other.database?.databaseName],['databaseId',inventory.database?.databaseId,other.database?.databaseId],['sourcesBucket',inventory.sourcesBucket,other.sourcesBucket],['accessAudience',inventory.accessAudience,other.accessAudience]];
  for(const[key,a,b]of shared)if(typeof a==='string'&&a===b)require_(false,`${key} ${a} is reused by ${environment} and ${other.environment}; deployments must own distinct resources`);
 }
 await access(path.join(repoRoot,'apps/web/dist/index.html')).catch(()=>problems.push('browser bundle missing: run npm run build first'));
@@ -48,7 +48,7 @@ if(problems.length){console.error('Deployment plan blocked:');for(const p of pro
 console.log(`Deployment plan for ${inventory.customerId} (${environment})`);
 console.log(`  worker:        ${inventory.workerName}`);
 console.log(`  hostname:      ${inventory.hostname} (Access audience ${String(inventory.accessAudience).slice(0,8)}…)`);
-console.log(`  serving D1:    ${inventory.servingDatabase.databaseName} [fixed binding SERVING]`);
+console.log(`  database D1:   ${inventory.database.databaseName} [fixed binding DB]`);
 console.log(`  sources R2:    ${inventory.sourcesBucket}`);
 console.log(`  ai:            ${inventory.ai?.enabled===true?`enabled (${aiProfile?.modelRef??'reviewed model'})`:'not enabled in this deployment'}`);
 console.log(`  deploy:        npx wrangler deploy --config apps/worker/wrangler.jsonc${inventory.environment==='production'?'':` --env ${inventory.environment}`}`);

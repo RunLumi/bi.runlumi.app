@@ -27,13 +27,12 @@ await mkdir(outDir,{recursive:true});
 const migrationSource=path.join(root,'migrations');
 const migrationTarget=path.join(root,'packages/core/migrations');
 await rm(migrationTarget,{recursive:true,force:true});
-await cp(migrationSource,migrationTarget,{recursive:true});
+await mkdir(migrationTarget,{recursive:true});
+await cp(path.join(migrationSource,'installation'),path.join(migrationTarget,'installation'),{recursive:true});
 const checksums={};
-for(const plane of ['control','tenant']){
- for(const file of (await readdir(path.join(migrationSource,plane))).filter(f=>f.endsWith('.sql')).sort()){
-  const body=await readFile(path.join(migrationSource,plane,file),'utf8');
-  checksums[`migrations/${plane}/${file}`]=createHash('sha256').update(body).digest('hex');
- }
+for(const file of (await readdir(path.join(migrationSource,'installation'))).filter(f=>f.endsWith('.sql')).sort()){
+ const body=await readFile(path.join(migrationSource,'installation',file),'utf8');
+ checksums[`migrations/installation/${file}`]=createHash('sha256').update(body).digest('hex');
 }
 
 // 2. Build each package, then emit a real tarball.

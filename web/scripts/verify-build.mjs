@@ -34,7 +34,7 @@ assert(!headers.includes('unsafe-inline'));
 assert(!headers.includes('unsafe-eval'));
 const entries = await readdir(new URL('dist/', root));
 assert(!entries.includes('_worker.js'), 'Public site must remain static');
-assert(!entries.includes('functions'), 'Public site must not bind tenant services');
+assert(!entries.includes('functions'), 'Public site must not bind installation services');
 
 // Only local font binaries and an adapted utility-glyph subset are redistributed.
 // Build tools are not a browser runtime; the exact graph and integrity are in the lock.

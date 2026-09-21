@@ -13,7 +13,7 @@ The root README already separates the landing page (`https://about.bi.runlumi.ap
 from the platform (`https://bi.runlumi.app`). The old Astro config, metadata and
 crawl endpoints incorrectly pointed at the platform. `src/data/site.ts` now owns
 the public identity for every generated representation; `appOrigin` explicitly
-identifies the separate application. No DNS, app routes or tenant code changes.
+identifies the separate application. No DNS, app routes or installation code changes.
 
 ## What is emitted
 

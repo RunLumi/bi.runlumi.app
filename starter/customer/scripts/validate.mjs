@@ -52,13 +52,13 @@ try{
   require_(inventory.workersDev===false&&inventory.previewUrls===false,`${file}: workers.dev and preview URLs must be disabled`);
   require_(ident(inventory.accessTeam),`${file}: accessTeam must be a valid Cloudflare Access team`);
   require_(typeof inventory.accessAudience==='string'&&/^[A-Za-z0-9_-]{20,128}$/.test(inventory.accessAudience),`${file}: each deployment needs its own Access audience`);
-  require_(inventory.servingDatabase?.binding==='SERVING',`${file}: exactly one fixed SERVING binding is required`);
-  require_(ident(inventory.servingDatabase?.databaseName),`${file}: serving database name is required`);
-  require_(uuid(inventory.servingDatabase?.databaseId),`${file}: serving database id must be a non-zero UUID`);
+  require_(inventory.database?.binding==='DB',`${file}: exactly one fixed DB binding is required`);
+  require_(ident(inventory.database?.databaseName),`${file}: database name is required`);
+  require_(uuid(inventory.database?.databaseId),`${file}: database id must be a non-zero UUID`);
   require_(ident(inventory.sourcesBucket),`${file}: sources bucket is required`);
   inventories.push(inventory);
   for(const key of Object.keys(seen)){
-   const value=String(key==='databaseName'?inventory.servingDatabase?.databaseName:key==='databaseId'?inventory.servingDatabase?.databaseId:inventory[key]);
+   const value=String(key==='databaseName'?inventory.database?.databaseName:key==='databaseId'?inventory.database?.databaseId:inventory[key]);
    if(seen[key].has(value))require_(false,`${file}: ${key} ${value} is reused by ${seen[key].get(value)}; deployments must own distinct resources`);
    seen[key].set(value,file);
   }
@@ -66,25 +66,25 @@ try{
  // The effective Wrangler configuration must match the inventories exactly.
  const workerConfig=JSON.parse(await readFile(path.join(repoRoot,'apps/worker/wrangler.jsonc'),'utf8'));
  require_(workerConfig.workers_dev===false&&workerConfig.preview_urls===false,'wrangler must disable workers_dev and preview_urls');
- require_(workerConfig.d1_databases?.length===1&&workerConfig.d1_databases[0].binding==='SERVING','wrangler must declare exactly one SERVING serving binding');
+  require_(workerConfig.d1_databases?.length===1&&workerConfig.d1_databases[0].binding==='DB','wrangler must declare exactly one fixed DB binding');
  const base=inventories.find(i=>i.workerName===workerConfig.name);
  require_(Boolean(base)&&base.environment==='production','wrangler top-level must name the production deployment');
  for(const inventory of inventories){
   if(inventory===base){
    require_(workerConfig.name===inventory.workerName,`wrangler name must be ${inventory.workerName}`);
    require_(workerConfig.routes?.[0]?.pattern===inventory.hostname,`wrangler production route must be ${inventory.hostname}`);
-   require_(workerConfig.vars?.DEPLOYMENT_ID===inventory.deploymentId&&workerConfig.vars?.CUSTOMER_ID===inventory.customerId&&workerConfig.vars?.ENVIRONMENT===inventory.environment,`wrangler production vars must match ${inventory.deploymentId}`);
+   require_(workerConfig.vars?.DEPLOYMENT_ID===inventory.deploymentId&&workerConfig.vars?.ENVIRONMENT===inventory.environment,`wrangler production vars must match ${inventory.deploymentId}`);
    require_(workerConfig.vars?.ACCESS_TEAM===inventory.accessTeam&&workerConfig.vars?.ACCESS_AUD===inventory.accessAudience,`wrangler production Access vars must match the inventory`);
-   require_(workerConfig.d1_databases[0].database_name===inventory.servingDatabase.databaseName&&workerConfig.d1_databases[0].database_id===inventory.servingDatabase.databaseId,`wrangler production serving database must match the inventory`);
+   require_(workerConfig.d1_databases[0].database_name===inventory.database.databaseName&&workerConfig.d1_databases[0].database_id===inventory.database.databaseId,`wrangler production database must match the inventory`);
    require_(workerConfig.r2_buckets?.[0]?.bucket_name===inventory.sourcesBucket,`wrangler production sources bucket must match the inventory`);
   }else{
    const section=workerConfig.env?.[inventory.environment];
    require_(Boolean(section),`wrangler is missing env section ${inventory.environment}`);
    require_(section.name===inventory.workerName,`wrangler env ${inventory.environment} name must be ${inventory.workerName}`);
    require_(section.routes?.[0]?.pattern===inventory.hostname,`wrangler env ${inventory.environment} route must be ${inventory.hostname}`);
-   require_(section.vars?.DEPLOYMENT_ID===inventory.deploymentId&&section.vars?.ENVIRONMENT===inventory.environment&&section.vars?.CUSTOMER_ID===inventory.customerId,`wrangler env ${inventory.environment} vars must match the inventory`);
+   require_(section.vars?.DEPLOYMENT_ID===inventory.deploymentId&&section.vars?.ENVIRONMENT===inventory.environment,`wrangler env ${inventory.environment} vars must match the inventory`);
    require_(section.vars?.ACCESS_TEAM===inventory.accessTeam&&section.vars?.ACCESS_AUD===inventory.accessAudience,`wrangler env ${inventory.environment} Access vars must match the inventory`);
-   require_(section.d1_databases?.[0]?.binding==='SERVING'&&section.d1_databases[0].database_name===inventory.servingDatabase.databaseName&&section.d1_databases[0].database_id===inventory.servingDatabase.databaseId,`wrangler env ${inventory.environment} serving database must match the inventory`);
+   require_(section.d1_databases?.[0]?.binding==='DB'&&section.d1_databases[0].database_name===inventory.database.databaseName&&section.d1_databases[0].database_id===inventory.database.databaseId,`wrangler env ${inventory.environment} database must match the inventory`);
    require_(section.r2_buckets?.[0]?.bucket_name===inventory.sourcesBucket,`wrangler env ${inventory.environment} sources bucket must match the inventory`);
   }
  }

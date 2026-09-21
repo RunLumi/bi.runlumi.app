@@ -26,14 +26,7 @@ const specifiers=source=>{
  return found;
 };
 /** Browser code (React/Vite) must never pull server-only modules into a bundle. */
-const SERVER_ONLY=[
- '@runlumi/core/api.ts','@runlumi/core/ports.ts','@runlumi/core/tenant.ts','@runlumi/core/control-client.ts',
- '@runlumi/core/ingest.ts','@runlumi/core/query.ts','@runlumi/core/commerce-receipts.ts',
- '@runlumi/core/commerce-normalization.ts','@runlumi/core/commerce-publication.ts',
- '@runlumi/core/commerce-jobs.ts','@runlumi/core/commerce-connections.ts','@runlumi/core/commerce-capabilities.ts',
- '@runlumi/core/commerce-decisions.ts','@runlumi/core/commerce-evidence.ts',
- '@runlumi/cloudflare/auth.ts','@runlumi/cloudflare/deployment.ts','@runlumi/cloudflare/cell.ts','@runlumi/cloudflare/testing.ts'
-];
+const SERVER_ONLY=['@runlumi/core/api.ts','@runlumi/core/ports.ts','@runlumi/core/ingest.ts','@runlumi/core/query.ts','@runlumi/cloudflare/auth.ts','@runlumi/cloudflare/testing.ts'];
 const failures=[];
 const check=(condition,message)=>{if(!condition)failures.push(message);};
 const isExternal=spec=>spec.startsWith('@runlumi/')||(!spec.startsWith('.')&&!spec.startsWith('node:'));
@@ -58,8 +51,8 @@ for(const file of await sources('packages/ui/src')){
   check(!spec.startsWith('apps/')&&!/^\.\.\/(\.\.\/)*apps\//.test(spec),`${rel} imports application code: ${spec}`);
  }
 }
-// 3. The production cell and control entries never import the local test adapter.
-for(const entry of ['apps/api/src/index.ts','apps/control/src/index.ts']){
+// 3. The production entry never imports the local test adapter.
+for(const entry of ['apps/api/src/index.ts']){
  let source;try{source=await readFile(path.join(root,entry),'utf8');}catch{continue;}
  for(const spec of specifiers(source)){
   check(!spec.includes('testing.ts'),`${entry} must not import the local test adapter: ${spec}`);

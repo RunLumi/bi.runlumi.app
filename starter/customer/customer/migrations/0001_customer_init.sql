@@ -3,13 +3,13 @@
 --   * Number files 0001_..., 0002_... and keep them immutable once applied.
 --   * Add owned tables and indexes only. Do not alter or drop core-owned schema.
 --   * Declare the compatible core schema version in a comment header.
--- The core tenant migrations run first; these run after them in the serving database.
+-- The core installation schema runs first; these run after it in the installation database.
 -- Example (commented so a fresh install is a no-op):
 -- CREATE TABLE customer_saved_views (
---   tenant_id TEXT NOT NULL,
+--   installation_record_id TEXT NOT NULL,
 --   id TEXT NOT NULL,
 --   definition TEXT NOT NULL,
 --   revision INTEGER NOT NULL DEFAULT 1,
 --   updated_at TEXT NOT NULL,
---   PRIMARY KEY (tenant_id, id)
+--   PRIMARY KEY (installation_record_id, id)
 -- );

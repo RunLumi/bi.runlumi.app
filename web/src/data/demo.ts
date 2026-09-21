@@ -1,4 +1,4 @@
-/** Synthetic, independent scenarios. Never fetch or resemble live tenant data. */
+/** Synthetic, independent scenarios. Never fetch or resemble live installation data. */
 export type Scenario = {
   id: string; tab: string; number: string; title: string; subtitle: string;
   metrics: { label: string; value: string; unit?: string; note: string; unknown?: boolean }[];
