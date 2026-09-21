@@ -12,7 +12,7 @@
       "@runlumi/cloudflare": {"version": "__CORE_VERSION__", "sha256": "__CLOUDFLARE_SHA256__"},
       "@runlumi/ui": {"version": "__CORE_VERSION__", "sha256": "__UI_SHA256__"}
     },
-    "migrations": {"controlBaseline": 5, "tenantBaseline": 10}
+    "migrations": {"controlBaseline": 5, "tenantBaseline": 11}
   },
   "customerPages": [],
   "extensions": []

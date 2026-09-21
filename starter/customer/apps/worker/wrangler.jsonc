@@ -21,7 +21,6 @@
     "ACCESS_TEAM": "__ACCESS_TEAM__",
     "ACCESS_AUD": "__ACCESS_AUD__"
   },
-  "services": [{"binding": "CONTROL", "service": "__CONTROL_WORKER__"}],
   "d1_databases": [{"binding": "SERVING", "database_name": "__DATABASE_NAME__", "database_id": "__DATABASE_ID__", "migrations_dir": "../../customer/migrations"}],
   "r2_buckets": [{"binding": "SOURCES", "bucket_name": "__SOURCES_BUCKET__"}],
   "limits": {"cpu_ms": 50}

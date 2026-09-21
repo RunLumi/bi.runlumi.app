@@ -9,6 +9,7 @@ Read in order:
 3. [Run the customer E2E workflow](03-customer-e2e.md)
 4. [Deployment handoff](04-deployment-handoff.md)
 5. [Core upgrades](05-upgrading-core.md)
+6. [Standalone customer architecture](06-standalone-customer-architecture.md)
 
 ## Important boundaries
 

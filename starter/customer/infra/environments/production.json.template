@@ -10,8 +10,6 @@
   "previewUrls": false,
   "accessTeam": "__ACCESS_TEAM__",
   "accessAudience": "__ACCESS_AUD__",
-  "controlWorker": "__CONTROL_WORKER__",
-  "controlApiVersion": 1,
   "servingDatabase": {"binding": "SERVING", "databaseName": "__DATABASE_NAME__", "databaseId": "__DATABASE_ID__"},
   "sourcesBucket": "__SOURCES_BUCKET__",
   "note": "Customer/environment deployment inventory. Non-secret identifiers only; credentials and tokens live in Cloudflare secrets, never in Git. Set hostnameReviewed:true only for a real reviewed custom hostname protected by Access."

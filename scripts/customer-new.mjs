@@ -33,8 +33,6 @@ export function environmentInventory(customerId,environment){
   previewUrls:false,
   accessTeam:'replace-access-team',
   accessAudience:randomBytes(16).toString('hex'),
-  controlWorker:'lumi-control',
-  controlApiVersion:1,
   servingDatabase:{binding:'SERVING',databaseName:`${customerId}-${environment}-serving`,databaseId:uuid()},
   sourcesBucket:`${customerId}-${environment}-sources`,
   note:'Customer/environment deployment inventory. Non-secret identifiers only; credentials and tokens live in Cloudflare secrets, never in Git. Set hostnameReviewed:true only for a real reviewed custom hostname protected by Access.'
@@ -57,7 +55,6 @@ export function wranglerConfig(inventories){
   routes:[{pattern:production.hostname,custom_domain:true}],
   assets:{directory:'../web/dist',binding:'ASSETS',not_found_handling:'single-page-application',run_worker_first:['/api/*','/healthz']},
   vars:vars(production),
-  services:[{binding:'CONTROL',service:production.controlWorker}],
   d1_databases:[d1(production)],
   r2_buckets:[{binding:'SOURCES',bucket_name:production.sourcesBucket}],
   limits:{cpu_ms:50}
@@ -103,7 +100,6 @@ export async function generateCustomer({customerId,displayName,envs=['production
   __HOSTNAME__:production.hostname,
   __ACCESS_TEAM__:production.accessTeam,
   __ACCESS_AUD__:production.accessAudience,
-  __CONTROL_WORKER__:production.controlWorker,
   __DATABASE_NAME__:production.servingDatabase.databaseName,
   __DATABASE_ID__:production.servingDatabase.databaseId,
   __SOURCES_BUCKET__:production.sourcesBucket

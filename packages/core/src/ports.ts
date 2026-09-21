@@ -15,7 +15,7 @@ export interface ObjectStore { get(key:string): Promise<{text():Promise<string>;
 /** Private service binding to the central control plane (membership/license/route authority). */
 export interface ServiceBinding { fetch(request: Request): Promise<Response> }
 /** Cell/deployment routing environment. Dedicated customer deployments set CUSTOMER_ID. */
-export interface CellRoutingEnv { CONTROL: ServiceBinding; TENANT_BINDINGS: string; CELL_ID: string; CUSTOMER_ID?: string; [binding: string]: unknown }
+export interface CellRoutingEnv { CONTROL?: ServiceBinding; TENANT_BINDINGS: string; CELL_ID: string; CUSTOMER_ID?: string; [binding: string]: unknown }
 /** Environment required by the application API: routing plus the source object store. */
 export interface AppEnv extends CellRoutingEnv { SOURCES: ObjectStore }
 export interface TenantContext {id:string;role:Role;db:Database;principal:Principal;active:ActivePack|null;features:Feature[];routeEpoch:number}

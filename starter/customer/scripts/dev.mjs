@@ -8,7 +8,7 @@ import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
 import {createApi} from '@runlumi/core/api.ts';
-import {LocalDatabase, LocalObjects, AppError, stubControl} from '@runlumi/cloudflare/testing.ts';
+import {LocalDatabase, LocalObjects, AppError} from '@runlumi/cloudflare/testing.ts';
 import {manifest} from '../customer/manifest.ts';
 
 const repoRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -32,21 +32,22 @@ try{
  const files=(await readdir(customerMigrations)).filter(f=>f.endsWith('.sql')).sort();
  for(const file of files)db.db.exec(await readFile(path.join(customerMigrations,file),'utf8'));
 }catch{/* no customer-owned migrations */} 
-db.db.prepare('INSERT INTO tenant_identity (singleton,tenant_id) VALUES (1,?)').run(manifest.customerId);
+ db.db.prepare('INSERT INTO tenant_identity (singleton,tenant_id) VALUES (1,?)').run(manifest.customerId);
+ db.db.prepare("INSERT INTO local_entitlements (tenant_id,state,features,revision,updated_at) VALUES (?,?,?,?,?)").run(manifest.customerId,'active',JSON.stringify(['bi.read','dashboard.edit','data.import','git.publish']),1,new Date().toISOString());
+ db.db.prepare("INSERT INTO local_memberships (tenant_id,issuer,subject,role,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run(manifest.customerId,'local-test','local-owner','owner','active',new Date().toISOString(),new Date().toISOString());
 // Seed the deployment's serving identity and the deterministic ops-demo source so
 // the dedicated fence passes and the connector pull has a registered destination.
 db.db.prepare("INSERT INTO serving_identity (singleton,customer_id,deployment_id,environment) VALUES (1,?,?,?)").run(manifest.customerId,'local','local');
 db.db.prepare("INSERT INTO sources VALUES (?,'ops-demo','Synthetic operations snapshot','active')").run(manifest.customerId);
 const env={
  SERVING:db,SOURCES:objects,
- CONTROL:{fetch:stubControl({cellId:'local',memberships:[{tenantId:manifest.customerId,issuer:'local-test',subject:'local-owner',role:'owner'}]})},
  CELL_ID:'local',CUSTOMER_ID:manifest.customerId,DEPLOYMENT_ID:'local',ENVIRONMENT:'local',TENANT_BINDINGS:'["SERVING"]',ACCESS_TEAM:'',ACCESS_AUD:''
 };
 const authenticate=async request=>({issuer:'local-test',subject:request.headers.get('x-demo-user')??'local-owner'});
 const {customMetricExtensions}=await import('../customer/data/server-metrics.ts');
 const {exampleAdapter}=await import('../customer/data/connectors.ts');
 const {decisionRules}=await import('../customer/workflows/decisions.ts');
-const api=createApi(authenticate,true,{customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules:manifest.modules});
+const api=createApi(authenticate,true,{customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules:manifest.modules,standalone:true});
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.woff2':'font/woff2'};
 const server=createServer(async(req,res)=>{
  try{

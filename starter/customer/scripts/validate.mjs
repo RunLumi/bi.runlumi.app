@@ -19,7 +19,7 @@ const ident=v=>typeof v==='string'&&/^[a-z0-9][a-z0-9-]{0,62}$/.test(v)&&!/^0+$/
 
 try{
  const {parseCustomerManifest,assertCompatible,parseDecisionRules}=await import('@runlumi/core/customer-config.ts');
- const {LUMI_CORE_VERSION,LUMI_EXTENSION_API,LUMI_CONTROL_API}=await import('@runlumi/core/version.ts');
+ const {LUMI_CORE_VERSION,LUMI_EXTENSION_API}=await import('@runlumi/core/version.ts');
  const lock=await readJson('lumi.lock.json');
  const manifestModule=await import(pathToFileURL(path.join(repoRoot,'customer/manifest.ts')).href);
  const manifest=parseCustomerManifest(manifestModule.manifest);
@@ -52,8 +52,6 @@ try{
   require_(inventory.workersDev===false&&inventory.previewUrls===false,`${file}: workers.dev and preview URLs must be disabled`);
   require_(ident(inventory.accessTeam),`${file}: accessTeam must be a valid Cloudflare Access team`);
   require_(typeof inventory.accessAudience==='string'&&/^[A-Za-z0-9_-]{20,128}$/.test(inventory.accessAudience),`${file}: each deployment needs its own Access audience`);
-  require_(inventory.controlApiVersion===LUMI_CONTROL_API,`${file}: controlApiVersion must equal the control interface version ${LUMI_CONTROL_API}`);
-  require_(inventory.controlWorker&&ident(inventory.controlWorker),`${file}: controlWorker is required`);
   require_(inventory.servingDatabase?.binding==='SERVING',`${file}: exactly one fixed SERVING binding is required`);
   require_(ident(inventory.servingDatabase?.databaseName),`${file}: serving database name is required`);
   require_(uuid(inventory.servingDatabase?.databaseId),`${file}: serving database id must be a non-zero UUID`);

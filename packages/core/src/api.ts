@@ -7,12 +7,12 @@ import {acceptCommerceExport,readCommerceReceipts} from './commerce-receipts.ts'
 import {commerceReadiness} from './commerce-readiness.ts';
 import {assertDashboardScope,parseBatch,executeQueries} from './query.ts';
 import {controlRequest,controlScope} from './control-client.ts';
-import { AppError, id, object, parseSnapshot, sha256, type Principal, type Query } from './contracts.ts';
+import { AppError, id, object, parseSnapshot, sha256, type Principal, type Query, type Role } from './contracts.ts';
 import { metrics, parseQuery, parseDashboard } from './semantics.ts';
 import { assertCommerceMetricScope, commerceMetricCatalog, parseCommerceQuery, queryCommerceReport } from './commerce-query.ts';
 import { readCommerceCapabilities, reviewCommerceCapability } from './commerce-capabilities.ts';
 import { enqueueCommerceJob, executeCommerceJob, readCommerceJob, readCommerceJobs } from './commerce-jobs.ts';
-import { authorizeTenant, canEdit } from './tenant.ts';
+import { authorizeTenant, canEdit,readLocalMembers,writeLocalMember } from './tenant.ts';
 import { importSnapshot } from './ingest.ts';
 import {CORE_MODULES,parseDecisionRules,type CoreModule,type DecisionRule} from './extension-contracts.ts';
 import {createCommerceInsight,readCommerceInsightsArtifacts,refreshCommerceInsight,promoteCommerceInsight} from './commerce-insight-artifacts.ts';
@@ -50,6 +50,7 @@ export interface ApiOptions {
   /** Enabled product modules from the customer manifest. When present, routes whose
    * family is not enabled are rejected server-side (403 MODULE_DISABLED). */
   modules?: readonly CoreModule[];
+  standalone?: boolean;
 }
 /** Server-owned pull window. A reviewed adapter build defines the real operational
  * range; the API never trusts a browser-suggested horizon. */
@@ -101,6 +102,12 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
       }
       const principal=await authenticate(request,env);
       if(url.pathname==='/api/session' && request.method==='GET'){
+        if(options.standalone){
+          const db=env.SERVING as import('./ports.ts').Database|undefined;if(!db||typeof db.prepare!=='function')throw new AppError(503,'LOCAL_AUTHORITY_UNAVAILABLE');
+          const rows=await db.prepare("SELECT m.tenant_id AS id,m.role,e.features FROM local_memberships m JOIN local_entitlements e ON e.tenant_id=m.tenant_id WHERE m.issuer=? AND m.subject=? AND m.state='active' AND e.state='active' ORDER BY m.tenant_id LIMIT 100").bind(principal.issuer,principal.subject).all<{id:string;role:Role;features:string}>();
+          return secure(json({demo,platformOperator:false,tenants:rows.results.filter(t=>!env.CUSTOMER_ID||t.id===env.CUSTOMER_ID).map(t=>({id:t.id,name:t.id,cell_id:env.CELL_ID,role:t.role,license:null,features:JSON.parse(t.features)}))}),requestId);
+        }
+        if(!env.CONTROL)throw new AppError(503,'CONTROL_UNAVAILABLE');
         const response=await controlRequest(env.CONTROL,request,'/control/session',controlScope(env),undefined,demo);
         const body=await response.json() as {tenants:{cell_id:string;id:string}[];platformOperator:boolean};
         // Dedicated deployments expose exactly their configured customer; cells filter by cell.
@@ -109,11 +116,12 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
       if(url.pathname.startsWith('/api/control/')){
         // Fleet administration is served from the control/cell surface only. A
         // dedicated customer deployment must not proxy unrestricted admin calls.
-        if(env.CUSTOMER_ID!==undefined)throw new AppError(403,'CONTROL_ADMIN_DENIED');
+        if(env.CUSTOMER_ID!==undefined||options.standalone)throw new AppError(403,'CONTROL_ADMIN_DENIED');
         const body=request.method==='GET'?undefined:await readJson(request);
+        if(!env.CONTROL)throw new AppError(503,'CONTROL_UNAVAILABLE');
         return secure(await controlRequest(env.CONTROL,request,url.pathname.replace('/api/control/','/control/admin/'),controlScope(env),body,demo),requestId);
       }
-      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(metrics|query|query-batch|custom-metrics|connector-pull|custom-rules|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname);
+      const match=/^\/api\/tenants\/([a-z0-9_-]{1,64})\/(members|metrics|query|query-batch|custom-metrics|connector-pull|custom-rules|commerce-metrics|commerce-query|commerce-capabilities|commerce-jobs|dashboards|imports|configuration|readiness|commerce-receipts|commerce-normalizations|commerce-mappings|commerce-publications|commerce-connections|commerce-insights|commerce-decisions|commerce-exports|commerce-staging)(?:\/([a-z0-9_.-]{1,128}))?$/.exec(url.pathname);
       if(!match)throw new AppError(404,'NOT_FOUND');
       const tenantId=id(match[1]);const route=match[2];const resource=match[3];
       // Module enablement gates server behavior, never just nav links. A route whose
@@ -123,7 +131,7 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
         if(family&&!options.modules.includes(family))throw new AppError(403,'MODULE_DISABLED');
       }
       const feature=['commerce-receipts','commerce-normalizations','commerce-mappings','commerce-publications','commerce-connections','commerce-capabilities','commerce-jobs','commerce-insights','commerce-decisions','commerce-exports','commerce-staging'].includes(route??'')?'data.import':route==='imports'&&request.method==='POST'?'data.import':route==='connector-pull'&&request.method==='POST'?'data.import':route==='dashboards'&&request.method!=='GET'?'dashboard.edit':'bi.read';
-      const ctx=await authorizeTenant(env,principal,tenantId,request,feature,demo);
+      const ctx=await authorizeTenant(env,principal,tenantId,request,feature,demo,options.standalone===true);
       const active=ctx.active;
       if(route==='custom-metrics'&&request.method==='GET'&&resource){
         const extension=options.customMetrics?.find(item=>item.id===resource);
@@ -162,7 +170,13 @@ export function createApi<E extends AppEnv = AppEnv>(authenticate:Authenticate<E
       if(route==='commerce-jobs'&&request.method==='GET'&&!resource)return secure(json(await readCommerceJobs(ctx)),requestId);
       if(route==='commerce-jobs'&&request.method==='GET'&&resource)return secure(json(await readCommerceJob(ctx,resource)),requestId);
       let response:Response;
-      if(route==='commerce-staging'&&request.method==='GET'&&resource){
+      if(route==='members'&&options.standalone&&request.method==='GET'&&!resource){
+        response=json(await readLocalMembers(ctx));
+      }else if(route==='members'&&options.standalone&&request.method==='POST'&&!resource){
+        response=json(await writeLocalMember(ctx,await readJson(request)),201);
+      }else if(route==='members'){
+        throw new AppError(404,'NOT_FOUND');
+      }else if(route==='commerce-staging'&&request.method==='GET'&&resource){
         response=json(await readCommerceStaging(ctx,resource));
       }else if(route==='commerce-insights'&&request.method==='GET'){
         if(resource) response=json(await readCommerceInsightsArtifacts(ctx,resource));

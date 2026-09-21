@@ -10,7 +10,7 @@ import {manifest} from '../../../customer/manifest.ts';
 // Extensions are reviewed composition: they compile to the same Worker and run
 // through the same tenant authorization. Module gating is server-enforced, so a
 // disabled module denies the route before even attempting tenant routing.
-const api=createApi<DeploymentEnv>(async(request,env)=>verifyAccessToken(request.headers.get('cf-access-jwt-assertion')??'',env.ACCESS_TEAM,env.ACCESS_AUD),false,{customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules:manifest.modules});
+const api=createApi<DeploymentEnv>(async(request,env)=>verifyAccessToken(request.headers.get('cf-access-jwt-assertion')??'',env.ACCESS_TEAM,env.ACCESS_AUD),false,{customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules:manifest.modules,standalone:true});
 
 export default {
  async fetch(request:Request,env:DeploymentEnv):Promise<Response>{

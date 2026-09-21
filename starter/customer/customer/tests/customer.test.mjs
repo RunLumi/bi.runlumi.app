@@ -5,7 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
 import {createApi} from '@runlumi/core/api.ts';
-import {LocalDatabase, LocalObjects, stubControl} from '@runlumi/cloudflare/testing.ts';
+import {LocalDatabase, LocalObjects} from '@runlumi/cloudflare/testing.ts';
 import {parseCustomerManifest, parseCustomerRoutes, RESERVED_ROUTES} from '@runlumi/core/customer-config.ts';
 import {manifest} from '../manifest.ts';
 import {customMetrics} from '../data/metrics.ts';
@@ -39,14 +39,12 @@ async function buildEnv(){
   for(const file of files)db.db.exec(await readFile(path.join(customerMigrations,file),'utf8'));
  }catch{/* no customer-owned migrations */}
  db.db.prepare('INSERT INTO tenant_identity (singleton,tenant_id) VALUES (1,?)').run(manifest.customerId);
+ db.db.prepare("INSERT INTO local_entitlements (tenant_id,state,features,revision,updated_at) VALUES (?,?,?,?,?)").run(manifest.customerId,'active',JSON.stringify(['bi.read','dashboard.edit','data.import','git.publish']),1,new Date().toISOString());
+ for(const [subject,role] of [['local-owner','owner'],['local-viewer','viewer']])db.db.prepare("INSERT INTO local_memberships (tenant_id,issuer,subject,role,state,created_at,updated_at) VALUES (?,?,?,?,?,?,?)").run(manifest.customerId,'local-test',subject,role,'active',new Date().toISOString(),new Date().toISOString());
  db.db.prepare("INSERT INTO serving_identity (singleton,customer_id,deployment_id,environment) VALUES (1,?,?,?)").run(manifest.customerId,'local','local');
  db.db.prepare("INSERT INTO sources VALUES (?,'ops-demo','Synthetic operations snapshot','active')").run(manifest.customerId);
  const env={
   SERVING:db,SOURCES:objects,
-  CONTROL:{fetch:stubControl({cellId:'local',memberships:[
-   {tenantId:manifest.customerId,issuer:'local-test',subject:'local-owner',role:'owner'},
-   {tenantId:manifest.customerId,issuer:'local-test',subject:'local-viewer',role:'viewer'}
-  ]})},
   CELL_ID:'local',CUSTOMER_ID:manifest.customerId,DEPLOYMENT_ID:'local',ENVIRONMENT:'local',TENANT_BINDINGS:'["SERVING"]',ACCESS_TEAM:'',ACCESS_AUD:''
  };
  const authenticate=async request=>({issuer:'local-test',subject:request.headers.get('x-demo-user')??'local-owner'});
@@ -54,7 +52,7 @@ async function buildEnv(){
 }
 function compose(env,modules=manifest.modules){
  return createApi(async request=>({issuer:'local-test',subject:request.headers.get('x-demo-user')??'local-owner'}),true,
-  {customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules});
+  {customMetrics:customMetricExtensions,connectors:[exampleAdapter],decisionRules,modules,standalone:true});
 }
 function call(api,env,path_,{user='local-owner',method='GET',body}={}){
  // The composed API mirrors the real worker entry: fetch(request, env). Omitting
@@ -188,10 +186,16 @@ test('module gating rejects disabled server routes (403) in both directions',asy
 });
 
 test('a viewer cannot pull connector data (403)',async()=>{
- const {env}=await harness();
- const api=compose(env);
- const response=await call(api,env,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST',user:'local-viewer'});
- assert.equal(response.status,403);
+const {env}=await harness();
+const api=compose(env);
+const response=await call(api,env,`/api/tenants/${manifest.customerId}/connector-pull/ops-demo`,{method:'POST',user:'local-viewer'});
+assert.equal(response.status,403);
+});
+test('local authority lists and revokes memberships without CONTROL',async()=>{
+ const {env}=await harness();const api=compose(env);
+ const list=await call(api,env,`/api/tenants/${manifest.customerId}/members`);assert.equal(list.status,200);
+ const write=await call(api,env,`/api/tenants/${manifest.customerId}/members`,{method:'POST',body:{issuer:'local-test',subject:'local-editor',role:'editor',state:'active'}});assert.equal(write.status,201);
+ const revoke=await call(api,env,`/api/tenants/${manifest.customerId}/members`,{method:'POST',body:{issuer:'local-test',subject:'local-editor',role:'editor',state:'revoked'}});assert.equal(revoke.status,201);
 });
 
 process.on('exit',close);

@@ -86,7 +86,10 @@ try{
   const source=`import type {PageContext} from '@runlumi/ui/app.tsx';\nimport {CommerceReportPage} from '@runlumi/ui/features/commerce-report.tsx';\nexport const reportDefinition={metricIds:['net_merchandise_sales'],from:'2026-09-01',toExclusive:'2026-10-01',dataVersion:'cp_reviewed',blocks:[{id:'sales-card',kind:'metric',metricId:'net_merchandise_sales'}]} as const;\nexport function Report({tenant,identity}:Pick<PageContext,'tenant'|'identity'>){return tenant?<CommerceReportPage tenant={tenant} identity={identity}/>:null;}\n`;
   for(const dir of [alpha,beta]){await mkdir(path.join(dir,'customer/reports'),{recursive:true});await writeFile(path.join(dir,'customer/reports/weekly-sales.report.tsx'),source);const out=run(npm,['run','typecheck'],dir);assert(out.ok,'promoted report must typecheck in the customer checkout');const report=await customerFile(dir,'customer/reports/weekly-sales.report.tsx');assert(!report.includes('720000'),'promoted source must not embed fixture financial results');run('git',['add','customer/reports/weekly-sales.report.tsx'],dir);run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','-m','reviewed report proposal'],dir);}
  });
- // ---- I. per-environment deployment identity and the operator review gate ----
+// ---- I. per-environment deployment identity and the operator review gate ----
+ await step('A7 customer runtime has no centralized CONTROL binding',async()=>{
+  for(const dir of [alpha,beta]){const wrangler=await customerFile(dir,'apps/worker/wrangler.jsonc');const worker=await customerFile(dir,'apps/worker/src/index.ts');assert(!wrangler.includes('CONTROL'),'customer Wrangler must not bind CONTROL');assert(!wrangler.includes('lumi-control'),'customer Wrangler must not reference the Lumi control Worker');assert(worker.includes('standalone:true'),'customer Worker must enable local authority mode');const tests=await customerFile(dir,'customer/tests/customer.test.mjs');assert(tests.includes('local authority lists and revokes memberships'),'customer tests must exercise local membership authority');}
+ });
  await step('I1 production and staging own distinct deployment identities',async()=>{
   for(const dir of [alpha,beta]){
    const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
@@ -111,7 +114,7 @@ try{
   for(const dir of [alpha,beta]){
    const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
    assert.equal(lock.deploymentId,undefined);assert.equal(lock.environment,undefined);
-   assert.equal(lock.core.migrations.controlBaseline,5);assert.equal(lock.core.migrations.tenantBaseline,10);
+   assert.equal(lock.core.migrations.controlBaseline,5);assert.equal(lock.core.migrations.tenantBaseline,11);
    run(npm,['run','validate'],dir);
   }
  });
