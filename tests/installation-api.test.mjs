@@ -1,23 +1,70 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
-import {LocalDatabase,request} from '../scripts/local-adapters.mjs';
+import {fixture, call, cookieOf, request, createStaff, emptyInstallation, creds, fixturePasswords, SECRET_FIELD} from './helpers.mjs';
 import {createApi} from '../packages/core/src/api.ts';
+import {readFile} from 'node:fs/promises';
 
-test('standalone API exposes one-time setup and installation session creation', async()=>{
- const db=new LocalDatabase();db.db.exec(await readFile(new URL('../migrations/installation/0001_initial.sql',import.meta.url),'utf8'));
- const env={DB:db,SOURCES:{async get(){return null;},async put(){}},ASSETS:{async fetch(){return new Response('asset');}},DEPLOYMENT_ID:'local',ENVIRONMENT:'test'};
- const api=createApi(async()=>({issuer:'local',subject:'admin'}),false,{standalone:true});
- try{
-  let response=await api(request('/api/setup/status'),env);assert.equal(response.status,200);assert.equal((await response.json()).initialized,false);
-  response=await api(request('/api/setup',{method:'POST',body:{name:'Acme',displayName:'Admin'}}),env);assert.equal(response.status,201);
-  response=await api(request('/api/setup',{method:'POST',body:{name:'Again',displayName:'Admin'}}),env);assert.equal(response.status,409);
-  response=await api(request('/api/auth/session',{method:'POST',body:{}}),env);assert.equal(response.status,200);assert.match(response.headers.get('set-cookie')??'',/^lumi_session=/);
-  response=await api(request('/api/session'),env);assert.equal(response.status,200);const sessionBody=await response.json();assert.equal(sessionBody.user.role,'owner');assert.equal('installations' in sessionBody,false);
-  response=await api(request('/api/users',{method:'GET'}),env);assert.equal(response.status,200);assert.equal((await response.json()).users.length,1);
-  response=await api(request('/api/users',{method:'POST',body:{issuer:'local',subject:'viewer',displayName:'Viewer',role:'viewer'}}),env);assert.equal(response.status,201);const created=await response.json();
-  response=await api(request('/api/users/'+created.user.id,{method:'PUT',body:{state:'disabled'}}),env);assert.equal(response.status,200);
-  const viewerApi=createApi(async()=>({issuer:'local',subject:'viewer'}),false,{standalone:true});
-  response=await viewerApi(request('/api/users',{method:'GET'}),env);assert.equal(response.status,403);
+test('setup, session, user management and authorization across roles and state changes',async()=>{
+ const f=await fixture();try{
+  // Session reports the installation and the signed-in owner.
+  const session=await call(f,'/api/session',{method:'GET'});
+  assert.equal(session.status,200);const sessionBody=await session.json();
+  assert.equal(sessionBody.installation.name,'Acme BI');assert.equal(sessionBody.standalone,true);
+  assert.equal(sessionBody.user.role,'owner');assert.equal('installations' in sessionBody,false);
+
+  // Owner creates local users with credentials; viewers cannot list users.
+  const created=await createStaff(f,'viewer1@acme.test','viewer');
+  assert.equal(created.user.role,'viewer');
+  const viewerList=await call(f,'/api/users',{user:'viewer1@acme.test',pass:fixturePasswords.staff,method:'GET'});
+  assert.equal(viewerList.status,403);
+
+  // Editor can read sources but cannot create users.
+  await createStaff(f,'editor1@acme.test','editor');
+  const editorUsers=await call(f,'/api/users',{user:'editor1@acme.test',pass:fixturePasswords.staff,method:'GET'});
+  assert.equal(editorUsers.status,403);
+
+  // Role change, disablement and session revocation.
+  const roleChange=await call(f,`/api/users/${created.user.id}`,{method:'PUT',body:{role:'editor'}});
+  assert.equal(roleChange.status,200);
+  const disable=await call(f,`/api/users/${created.user.id}`,{method:'PUT',body:{state:'disabled'}});
+  assert.equal(disable.status,200);
+  const disabledLogin=await f.api(request('/api/auth/login',{method:'POST',body:creds('viewer1@acme.test',fixturePasswords.staff)}),f.env);
+  assert.equal(disabledLogin.status,403);assert.equal((await disabledLogin.json()).error.code,'USER_DISABLED');
+
+  // Re-enable with the original credential intact.
+  const reenable=await call(f,`/api/users/${created.user.id}`,{method:'PUT',body:{state:'active'}});
+  assert.equal(reenable.status,200);
+  const reenabledLogin=await f.api(request('/api/auth/login',{method:'POST',body:creds('viewer1@acme.test',fixturePasswords.staff)}),f.env);
+  assert.equal(reenabledLogin.status,200);
+
+  // Password reset by owner; old password stops working.
+  await call(f,`/api/users/${created.user.id}`,{method:'PUT',body:{[SECRET_FIELD]:fixturePasswords.fresh}});
+  const oldPassword=await f.api(request('/api/auth/login',{method:'POST',body:creds('viewer1@acme.test',fixturePasswords.staff)}),f.env);
+  assert.equal(oldPassword.status,401);
+
+  // Local users always require a password.
+  const noPassword=await call(f,'/api/users',{body:{login:'nopass@acme.test',displayName:'NoPass',role:'viewer'}});
+  assert.equal(noPassword.status,422);assert.equal((await noPassword.json()).error.code,'PASSWORD_REQUIRED');
+
+  // Unknown API paths return JSON 404, never an HTML shell.
+  const notFound=await call(f,'/api/does-not-exist',{method:'GET'});
+  assert.equal(notFound.status,404);assert.match(notFound.headers.get('content-type')??'',/application\/json/);
+ }finally{f.close();}
+});
+
+test('health endpoint reports the core release without authentication',async()=>{
+ const f=await fixture();try{
+  const health=await f.api(request('/healthz'),f.env);
+  assert.equal(health.status,200);const body=await health.json();
+  assert.equal(body.status,'ok');assert.ok(body.version);
+ }finally{f.close();}
+});
+
+test('requests before initialization are rejected with a setup-directed error',async()=>{
+ const db=await emptyInstallation();try{
+  const env={DB:db,SOURCES:{async get(){return null;},async put(){}},ASSETS:{async fetch(){return new Response('asset');}}};
+  const api=createApi(async()=>({issuer:'local',subject:'ghost'}),false,{standalone:true});
+  const before=await api(request('/api/query',{method:'POST',body:{metrics:['cases'],from:'2026-09-01',to:'2026-09-02',groupBy:'none'}}),env);
+  assert.equal(before.status,409);assert.equal((await before.json()).error.code,'INSTALLATION_NOT_INITIALIZED');
  }finally{db.close();}
 });

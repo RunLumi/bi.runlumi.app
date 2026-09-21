@@ -10,7 +10,7 @@ test('standalone source registry uses ordinary paths and installation-local auth
  const env={DB:db,SOURCES:{async get(){return null;},async put(){}},ASSETS:{async fetch(){return new Response('asset');}},DEPLOYMENT_ID:'local',ENVIRONMENT:'test'};
  const apiFor=subject=>createApi(async()=>({issuer:'local',subject}),true,{standalone:true});
  try{
-  let response=await apiFor('owner')(request('/api/sources',{method:'POST',body:{id:'erp',name:'ERP export'}}),env);assert.equal(response.status,201,await response.text());
+  let response=await apiFor('owner')(request('/api/sources',{method:'POST',body:{id:'erp',name:'ERP export'}}),env);if(response.status!==201)throw new Error(await response.text());
   response=await apiFor('viewer')(request('/api/sources'),env);assert.equal(response.status,200);assert.equal((await response.json()).sources[0].id,'erp');
   response=await apiFor('viewer')(request('/api/sources',{method:'POST',body:{id:'blocked',name:'No'}}),env);assert.equal(response.status,403);
   response=await apiFor('owner')(request('/api/sources/erp',{method:'PUT',body:{state:'disabled'}}),env);assert.equal(response.status,200);
