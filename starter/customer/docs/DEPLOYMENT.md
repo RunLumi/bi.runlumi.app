@@ -28,8 +28,9 @@ data.
 5. (Optional) Put Cloudflare Access in front of the hostname with the reviewed
    team and audience. Access authenticates in addition to the local user model;
    it is never required for the default journey.
-6. Apply core migrations from `node_modules/@runlumi/core/migrations/installation`,
-   then customer migrations from `customer/migrations`, to the serving D1.
+6. Apply migrations: `npm run migrate -- --remote [--env <env>]` — ledger-checked,
+   ordered, additive. (`--local` targets the local D1; `--adopt` one-time for
+   installations that predate the ledger.)
 7. Deploy the Worker:
    - production (base): `npx wrangler deploy --config apps/worker/wrangler.jsonc`
    - other environments: `npx wrangler deploy --config apps/worker/wrangler.jsonc --env <env>`

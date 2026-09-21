@@ -4,14 +4,20 @@ import {requireInstallationRole,type InstallationUser} from './installation-auth
 import type {Database,ObjectStore} from './ports.ts';
 const primary=(db:Database)=>db.withSession?db.withSession('first-primary'):db;
 export function commerceOwner(actor:InstallationUser):void {requireInstallationRole(actor,'owner');}
+/** Execution authority for retained-evidence work: either a signed-in owner or
+ * the server-owned scheduled runner. There is no fabricated user record for
+ * the system path; audit rows record the system identity explicitly. */
+export type CommerceAuthority={kind:'owner';actor:InstallationUser}|{kind:'system'};
+export function authorityActor(authority:CommerceAuthority):string{return authority.kind==='owner'?authority.actor.id:'system:job-runner';}
+export function assertAuthority(authority:CommerceAuthority):void{if(authority.kind==='owner')requireInstallationRole(authority.actor,'owner');}
 interface RawReceipt {id:string;connection_id:string;content_hash:string;object_key:string;envelope_json:string;received_at:string;connection_revision:number;state:string}
 interface Build {id:string;receipt_id:string;normalizer_version:string;raw_content_hash:string;content_hash:string;state:string;reason_code:string|null;record_count:number;created_at:string}
 const buildFields='id,receipt_id,normalizer_version,raw_content_hash,content_hash,state,reason_code,record_count,created_at';
 const view=(b:Build)=>({normalizationId:b.id,receiptId:b.receipt_id,normalizerVersion:b.normalizer_version,rawContentHash:b.raw_content_hash,contentHash:b.content_hash,state:b.state,reasonCode:b.reason_code,recordCount:b.record_count,createdAt:b.created_at,published:false,sourceCompletenessCertified:false,liveProviderVerified:false});
 /** Bounded synchronous normalization of retained evidence. Caller-supplied
  * job messages never grant authority: scope and state are revalidated here. */
-export async function normalizeCommerceReceipt(db:Database,objects:ObjectStore,actor:InstallationUser,input:unknown,clock:()=>number=Date.now){
-  commerceOwner(actor);const body=object(input,['receiptId']),receiptId=id(body.receiptId),d=primary(db);
+export async function normalizeCommerceReceipt(db:Database,objects:ObjectStore,authority:CommerceAuthority,input:unknown,clock:()=>number=Date.now){
+  assertAuthority(authority);const body=object(input,['receiptId']),receiptId=id(body.receiptId),d=primary(db);
   const r=await d.prepare(`SELECT r.* FROM commerce_receipts r
     JOIN commerce_connections c ON c.id=r.connection_id
     WHERE r.id=? AND c.state='active' AND c.revision=r.connection_revision AND r.state!='REVOKED'`)
@@ -50,7 +56,7 @@ export async function normalizeCommerceReceipt(db:Database,objects:ObjectStore,a
     d.prepare(`UPDATE commerce_receipts SET state=?,normalized_revision=?
       WHERE id=? AND EXISTS (SELECT 1 FROM commerce_normalizations WHERE id=?) AND (normalized_revision IS NULL OR normalized_revision!=?)`)
       .bind(state,reason?null:normalizationId,receiptId,normalizationId,normalizationId),
-    d.prepare('INSERT INTO audit_events (id,actor,event_type,resource_id,occurred_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(),actor.id,'commerce.'+state.toLowerCase(),receiptId,now)
+    d.prepare('INSERT INTO audit_events (id,actor,event_type,resource_id,occurred_at) VALUES (?,?,?,?,?)').bind(crypto.randomUUID(),authorityActor(authority),'commerce.'+state.toLowerCase(),receiptId,now)
   ]);
   if(written.some(s=>!s.success))throw new AppError(503,'NORMALIZATION_PERSISTENCE_FAILED');
   const winner=await d.prepare(`SELECT ${buildFields} FROM commerce_normalizations WHERE id=?`).bind(normalizationId).first<Build>();

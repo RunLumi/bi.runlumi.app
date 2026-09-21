@@ -40,7 +40,7 @@ plus `ASSETS` for the built SPA.
 | Name | Kind | Required | Purpose |
 | --- | --- | --- | --- |
 | `ACCESS_TEAM`, `ACCESS_AUD` | vars | no | Enable optional Cloudflare Access verification. Unset or placeholder values keep Access disabled. |
-| `SETUP_TOKEN` | secret | recommended | When set, first-run setup requires this token, protecting against setup takeover between deploy and initialization. |
+| `SETUP_TOKEN` | secret | **required for production** | One-time operator secret for first-run setup. A production environment (`ENVIRONMENT=production`) refuses initialization without it (`SETUP_PROTECTION_REQUIRED`), closing the takeover race between deploy and setup. |
 
 ```bash
 # working directory: the generated customer repository
@@ -50,25 +50,26 @@ npx wrangler secret put SETUP_TOKEN --config apps/worker/wrangler.jsonc
 ## Apply the schema (explicit, never automatic)
 
 The installation never rewrites or deletes an existing database. Apply
-migrations explicitly, in order, per environment:
+migrations explicitly with the ledger-aware runner:
 
 ```bash
-# working directory: the generated customer repository
-npx wrangler d1 execute DB --remote \
-  --config apps/worker/wrangler.jsonc \
-  --file node_modules/@runlumi/core/migrations/installation/0001_initial.sql
-npx wrangler d1 execute DB --remote \
-  --config apps/worker/wrangler.jsonc \
-  --file node_modules/@runlumi/core/migrations/installation/0002_credentials_and_commerce.sql
+# working directory: the generated customer repository (local D1)
+npm run migrate
+
+# real database of an environment (requires wrangler auth)
+npm run migrate -- --remote
+npm run migrate -- --remote --env staging
 ```
 
-Core migrations ship inside the checksummed core package. Your own migrations
-live in `customer/migrations/` and are applied the same way (or with
-`wrangler d1 migrations apply DB --remote`, which uses `customer/migrations`).
+The runner applies core installation migrations (from the vendored core
+package, e.g. `0001_initial.sql`, `0002_credentials_and_commerce.sql`,
+`0003_account_hardening.sql`) and your own `customer/migrations/*.sql`, in
+order, recording each in the `schema_migrations` ledger. Applied migrations are
+immutable history: a changed or removed file is rejected, never re-run.
+Upgrading an installation that predates the ledger is one-time:
+`npm run migrate -- --remote --adopt` records what is already applied without
+executing anything.
 
-Migrations are additive and never destructive. The application never deletes or
-rewrites an existing customer database automatically; a fresh install on an
-existing database with a populated schema fails fast instead of overwriting
-data. Back up first (chapter 12).
+Migrations are additive and never destructive. Back up first (chapter 12).
 
 Continue to [Initialize and create the administrator](04-initialize-and-administrator.md).

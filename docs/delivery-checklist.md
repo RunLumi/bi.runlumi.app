@@ -99,7 +99,7 @@ claimed**; authorized exports are the supported workflow (guide chapter 1/8).
 
 ## 8. Proof layers summary
 
-- `npm run check` — typecheck + 89 behavioral tests + repo/licensing gates. [T][CI]
+- `npm run check` — typecheck + behavioral tests (100+, including the golden corpus and hardening regressions) + repo/licensing gates. [T][CI]
 - `npm --prefix apps/web run test:e2e` — demo UI checks + strict first-run
   browser journey. [B][CI]
 - `node scripts/workerd-check.mjs` — 7 runtime checks under real workerd with
@@ -108,6 +108,57 @@ claimed**; authorized exports are the supported workflow (guide chapter 1/8).
   one packaged release: build, tests, commerce journey, isolation, real N+1
   upgrade with a behavior change, rollback records, deployment-identity gates.
   [A][CI]
+
+## 9. First-customer hardening round
+
+Findings reproduced against ff58357 and fixed on this branch (all with
+behavioral regression tests):
+
+| Finding | Fix | Evidence |
+| --- | --- | --- |
+| Viewer could read COGS/profit via published queries | `assertCommerceMetricScope` enforced on `/api/commerce/queries` and `/ask`; viewer catalog hides sensitive metrics | [T] commerce-query tests 5, golden corpus |
+| Upsert path demoted/disabled the last active owner | one guarded path for create+update; atomic last-owner guard inside the UPDATE; audit rows | [T] installation-auth 9 |
+| Password reset left old sessions alive | administrative reset and self change revoke all sessions of the user | [T] installation-auth 11 |
+| Known cost/profit became null under a valid date filter | filtered queries recompute the whole order cohort; grain-unfilterable metrics return null + `METRIC_GRAIN_UNFILTERABLE`; out-of-window ranges are marked, never zero-filled | [T] golden corpus |
+| Timezone-naive date comparison | business-day windows resolved to half-open UTC+7 instant intervals | [T] golden corpus (midnight boundary) |
+| `source` dimension grouped per-order hashes | groups by provider account (`sourceProvider:sourceAccount`), `totalGroups`+`truncated` explicit | [T] query tests |
+| No durable login abuse control | `login_throttle` ledger: 5 failures / 15 min per login id, 429 `LOGIN_THROTTLED`, success clears | [T] installation-auth 10 |
+| Open production setup race | production environments refuse initialization without configured `SETUP_TOKEN` (`SETUP_PROTECTION_REQUIRED`) | [T] installation-auth 13 |
+| Ambiguous multi-action user mutations silently guessed | rejected with `AMBIGUOUS_USER_MUTATION` | [T] installation-auth 12 |
+| Saved insight runs returned stale data after source revocation | per-run authority recheck; revoked runs withhold results (`PUBLICATION_SOURCE_REVOKED`) | [T] commerce-insights |
+| Duplicate insight creation attached runs to a different definition | content-bound conflict (`INSIGHT_DEFINITION_CONFLICT`/`INSIGHT_TITLE_CONFLICT`) | [T] golden corpus |
+| Refresh had no explicit semantics | pinned rerun (`basis:"pinned"`) vs latest refresh (`basis:"latest"`, must be the active head) | [T] golden corpus |
+| Promoted TSX ignored its exported definition | generated component queries the pinned publication through the definition | [T] commerce-insights 2, [A] A6 |
+| Scheduled runner used a fabricated owner user | explicit system authority (`kind:"system"`), audit actor `system:job-runner`, no sign-in path | code + starter |
+| Rollback "evidence" was a lock edit | acceptance executes a real artifact rollback (updater + reinstall + runtime assertions + tests) | [A] H1 |
+| Symlink check followed links | `lstat` | [A] A3 |
+| Updater could leave a mixed vendor dir | staged copy with re-verified bytes, then swap | updater |
+| No migration ledger | checksummed `schema_migrations` ledger + `npm run migrate` runner; applied history immutable | tool + guide |
+
+Refuted against current code: the `X-Content-Type-Options` header is spelled
+correctly (`nosniff`).
+
+## Release gates
+
+**Gate 1 — BASE_RELEASE_CANDIDATE: conditions and status.**
+A new customer can be generated from checksummed release artifacts, configured
+safely, run the supported authorized-export commerce/report workflow, and
+survive a demonstrated compatible upgrade AND an executed rollback (updater +
+reinstall + runtime assertions + tests) without losing custom code: exercised
+by `npm run check`, both Playwright suites, `workerd-check`, and
+`acceptance-two-customers` (A1–I2). Status conditions are met locally; the
+formal PASS is declared on the release tag after CI runs on the exact
+candidate.
+
+**Gate 2 — FIRST_CUSTOMER_GO: BLOCKED on external inputs.**
+Missing inputs that no local evidence can substitute: the named pilot's
+identity, authorized source exports and volumes, real credential issuance,
+production Cloudflare authorization, merchant reconciliation sign-off, and an
+explicit product decision on the promised analytics-agent scope. The shipped
+assistant is the curated deterministic path (`mode:"curated-deterministic"`,
+`llmInvolved:false` on every response); no LLM, conversational editing or
+predictions are implemented and none are claimed. Do not proceed to pilot
+onboarding until each input is provided and tested against production.
 
 ## Remaining boundaries (honest)
 

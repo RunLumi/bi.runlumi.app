@@ -13,7 +13,9 @@ After the administrator exists, setup closes permanently.
    - administrator email and password (minimum 10 characters);
    - display name.
 4. If the deployment configured the `SETUP_TOKEN` secret, paste the token into
-   the setup-token field. Setup refuses without it (`SETUP_TOKEN_REQUIRED`).
+   the setup-token field. Production environments REQUIRE it: initialization is
+   blocked with `SETUP_PROTECTION_REQUIRED` until the secret exists, and setup
+   refuses a wrong or missing token (`SETUP_TOKEN_REQUIRED`).
 5. Submit. The app creates the installation row and the first `owner` user,
    signs you in, and setup closes permanently.
 

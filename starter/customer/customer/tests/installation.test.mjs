@@ -12,8 +12,8 @@ import {customMetrics} from '../data/metrics.ts';
 import {customMetricExtensions} from '../data/server-metrics.ts';
 import {decisionRules} from '../workflows/decisions.ts';
 
-const MIGRATIONS=['0001_initial.sql','0002_credentials_and_commerce.sql'];
-async function fresh(){const db=new LocalDatabase();for(const f of MIGRATIONS)db.db.exec(await readFile(new URL(`../../node_modules/@runlumi/core/migrations/installation/${f}`,import.meta.url),'utf8'));return db;}
+const MIGRATION_DIR=new URL('../../node_modules/@runlumi/core/migrations/installation/',import.meta.url);
+async function fresh(){const db=new LocalDatabase();const {readdir}=await import('node:fs/promises');for(const f of (await readdir(MIGRATION_DIR)).filter(name=>name.endsWith('.sql')).sort())db.db.exec(await readFile(new URL(f,MIGRATION_DIR),'utf8'));return db;}
 function apiFor(db){return createApi(async()=>({issuer:'local',subject:'no-one'}),false,{customMetrics:customMetricExtensions,decisionRules,modules:manifest.modules,standalone:true});}
 const req=(path,{method='GET',body,headers={}}={})=>new Request(`http://localhost:8787${path}`,{method,...(body!==undefined?{body:JSON.stringify(body)}:{}),headers:{...(body!==undefined?{'content-type':'application/json'}:{}),...headers}});
 const cookieOf=r=>(r.headers.get('set-cookie')??'').split(';')[0];
@@ -81,7 +81,7 @@ test('full commerce journey: connection -> receipt -> job -> publication -> expo
  const published=await r.json();
  assert.equal(published.replayed,false);
  const query=await (await api(req('/api/commerce/queries',{method:'POST',headers:{cookie},body:{contract:'lumi.query.v1',metrics:[{id:'net_merchandise_sales',version:1}],dimensions:[],filters:[],limit:10,consistency:'published',dataVersion:published.publicationId}}),env)).json();
- assert.equal(query.result.net_merchandise_sales.value,'720000');
+ assert.equal(query.result.metrics.net_merchandise_sales.value,'720000');
  const csv=await api(req(`/api/commerce/publications/${published.publicationId}/export?format=csv`,{headers:{cookie}}),env);
  assert.equal(csv.status,200);
 });

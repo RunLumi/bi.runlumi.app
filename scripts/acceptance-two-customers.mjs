@@ -16,7 +16,7 @@
  *   H. One customer's rollback leaves the other unchanged and reports DB limits.
  *   I. Per-environment deployment identity and the operator review gate.
  */
-import {mkdtemp, cp, readFile, writeFile, rm, readdir, stat, mkdir} from 'node:fs/promises';
+import {mkdtemp, cp, readFile, writeFile, rm, readdir, stat, lstat, mkdir} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -63,7 +63,9 @@ import {LocalDatabase,LocalObjects} from '@runlumi/cloudflare/testing.ts';
 import {createApi} from '@runlumi/core/api.ts';
 import {commerceSchemaFingerprint} from '@runlumi/core/commerce-model.ts';
 const db=new LocalDatabase();
-for(const file of ['0001_initial.sql','0002_credentials_and_commerce.sql'])db.db.exec(await readFile(new URL('../node_modules/@runlumi/core/migrations/installation/'+file,import.meta.url),'utf8'));
+const migrationDir='../node_modules/@runlumi/core/migrations/installation/';
+const {readdir}=await import('node:fs/promises');
+for(const file of (await readdir(new URL(migrationDir,import.meta.url))).filter(f=>f.endsWith('.sql')).sort())db.db.exec(await readFile(new URL(migrationDir+file,import.meta.url),'utf8'));
 const objects=new LocalObjects();
 const env={DB:db,SOURCES:objects};
 const api=createApi(async()=>({issuer:'local',subject:'no-one'}),false,{standalone:true});
@@ -101,8 +103,8 @@ assert.equal(r.status,201);const published=await r.json();
 // Typed query over the pinned publication: exact arithmetic, no epsilon drift.
 r=await call('/api/commerce/queries',{method:'POST',headers:{cookie:ownerCookie},body:{contract:'lumi.query.v1',metrics:[{id:'net_merchandise_sales',version:1},{id:'contribution_pre_ads',version:1}],dimensions:[],filters:[],limit:10,consistency:'published',dataVersion:published.publicationId}});
 const query=await r.json();
-assert.equal(query.result.net_merchandise_sales.value,'720000');
-assert.equal(query.result.contribution_pre_ads.value,'240000');
+assert.equal(query.result.metrics.net_merchandise_sales.value,'720000');
+assert.equal(query.result.metrics.contribution_pre_ads.value,'240000');
 // Saved report with a reproducible run.
 r=await call('/api/commerce/insights',{method:'POST',headers:{cookie:ownerCookie},body:{id:'weekly',title:'Weekly',definition:{metricIds:['net_merchandise_sales'],from:'2026-09-01',toExclusive:'2026-09-20',dataVersion:published.publicationId,blocks:[{id:'s',kind:'metric',metricId:'net_merchandise_sales'}]}}});
 assert.equal(r.status,201);
@@ -143,8 +145,9 @@ try{
  await step('A3 both install from real tarballs (not symlinks)',async()=>{
   for(const dir of [alpha,beta]){
    for(const pkg of ['core','cloudflare','ui']){
-    const info=await stat(path.join(dir,'node_modules/@runlumi',pkg));
-    assert(info.isDirectory()&&!info.isSymbolicLink(),`${dir} @runlumi/${pkg} must be an installed directory`);
+    // lstat does not follow symlinks: a linked package would fail here.
+    const info=await lstat(path.join(dir,'node_modules/@runlumi',pkg));
+    assert(info.isDirectory()&&!info.isSymbolicLink(),`${dir} @runlumi/${pkg} must be an installed directory, not a link`);
    }
   }
  });
@@ -167,7 +170,9 @@ try{
   }
  });
  await step('A6 promoted report compiles in a fresh customer checkout without embedded results',async()=>{
-  const source=`import type {PageContext} from '@runlumi/ui/app.tsx';\nimport {CommerceReportPage} from '@runlumi/ui/features/commerce-report.tsx';\nexport const reportDefinition={metricIds:['net_merchandise_sales'],from:'2026-09-01',toExclusive:'2026-10-01',dataVersion:'cp_reviewed',blocks:[{id:'sales-card',kind:'metric',metricId:'net_merchandise_sales'}]} as const;\nexport function Report(context:PageContext){return context.user?<CommerceReportPage user={context.user} identity={context.identity}/>:null;}\n`;
+  // Mirror of what promoteCommerceInsight emits: the component consumes the
+  // exported definition through the pinned publication query at request time.
+  const source=`import type {PageContext} from '@runlumi/ui/app.tsx';\nimport {api} from '@runlumi/ui/lib/api.ts';\nimport {Card,CardHeader,CardTitle,CardContent} from '@runlumi/ui/components/ui/card.tsx';\nimport {Loading,ErrorState} from '@runlumi/ui/components/states.tsx';\nimport {useQuery} from '@tanstack/react-query';\nimport {useState} from 'react';\nexport const reportDefinition={metricIds:['net_merchandise_sales'],from:'2026-09-01',toExclusive:'2026-10-01',dataVersion:'cp_reviewed',blocks:[{id:'sales-card',kind:'metric',metricId:'net_merchandise_sales'}]} as const;\nexport const reportTitle='Weekly sales';\nexport function Report({user,identity}:PageContext){\n const run=useQuery({queryKey:['promoted',user?.id],enabled:!!user,retry:false,queryFn:()=>api<{result:{metrics:Record<string,{value:string|null;unit:string}>}}>('/api/commerce/queries',identity,{method:'POST',body:{contract:'lumi.query.v1',metrics:reportDefinition.metricIds.map(id=>({id,version:1})),dimensions:[],filters:[{field:'business_date',op:'range',value:[reportDefinition.from,reportDefinition.toExclusive]}],limit:50,consistency:'published',dataVersion:reportDefinition.dataVersion}})});\n if(!user)return null;\n if(run.isPending)return <Loading/>;\n if(run.isError)return <ErrorState error={run.error}/>;\n const cell=run.data.result.metrics[reportDefinition.blocks[0].metricId];\n return <Card><CardHeader><CardTitle>{reportTitle}</CardTitle></CardHeader><CardContent>{cell?.value??'Chua xac dinh'}</CardContent></Card>;\n}\n`;
   for(const dir of [alpha,beta]){
    await mkdir(path.join(dir,'customer/reports'),{recursive:true});
    await writeFile(path.join(dir,'customer/reports/weekly-sales.report.tsx'),source);
@@ -175,6 +180,7 @@ try{
    assert(out.ok,'promoted report must typecheck in the customer checkout');
    const report=await customerFile(dir,'customer/reports/weekly-sales.report.tsx');
    assert(!report.includes('720000'),'promoted source must not embed fixture financial results');
+   assert(report.includes('reportDefinition.metricIds'),'the component must consume the exported definition');
    run('git',['add','customer/reports/weekly-sales.report.tsx'],dir);
    run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m','reviewed report proposal'],dir);
   }
@@ -216,7 +222,9 @@ import {readFile} from 'node:fs/promises';
 import {LocalDatabase,LocalObjects} from '@runlumi/cloudflare/testing.ts';
 import {createApi} from '@runlumi/core/api.ts';
 const db=new LocalDatabase();
-for(const f of ['0001_initial.sql','0002_credentials_and_commerce.sql'])db.db.exec(await readFile(new URL('../node_modules/@runlumi/core/migrations/installation/'+f,import.meta.url),'utf8'));
+const migDir='../node_modules/@runlumi/core/migrations/installation/';
+const {readdir}=await import('node:fs/promises');
+for(const f of (await readdir(new URL(migDir,import.meta.url))).filter(name=>name.endsWith('.sql')).sort())db.db.exec(await readFile(new URL(migDir+f,import.meta.url),'utf8'));
 const api=createApi(async()=>({issuer:'local',subject:'no-one'}),false,{standalone:true});
 const env={DB:db,SOURCES:new LocalObjects()};
 const login=await api(new Request('http://localhost/api/setup',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:'B',login:'o@b.test',displayName:'O',password:['isolation','owner','1'].join('-')})}),env);
@@ -245,7 +253,7 @@ console.log('ISOLATION-OK');
   await writeFile(path.join(bump,'packages/core/src/version.ts'),"export const LUMI_CORE_VERSION = '0.1.1';\nexport const LUMI_EXTENSION_API = 1;\n");
   // The N+1 release carries a REAL behavior change: the operations caveat text.
   const semantics=path.join(bump,'packages/core/src/semantics.ts');
-  await writeFile(semantics,(await readFile(semantics,'utf8')).replace('Đồng Việt Nam.','Đồng Việt Nam (cập nhật N+1).'));
+  await writeFile(semantics,(await readFile(semantics,'utf8')).replace('đồng Việt Nam.','đồng Việt Nam (cập nhật N+1).'));
   run(npm,['install','--ignore-scripts','--save-exact'],bump);
   run(npm,['run','build:packages'],bump);
   const artifacts=path.join(bump,'artifacts/core');
@@ -256,13 +264,29 @@ console.log('ISOLATION-OK');
    assert(/0\.1\.0 -> 0\.1\.1/.test(out.stdout),`upgrade plan must report N -> N+1 for ${dir}`);
    const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
    assert.equal(lock.core.version,'0.1.1',`${dir} lock must record N+1`);
+   // Reinstall so the installed packages are the upgraded release, not the old one.
+   run(npm,['ci','--ignore-scripts'],dir);
   }
   assert.equal(await customerFile(alpha,'customer/ui/pages.tsx'),before.alpha,'alpha customer page must be byte-identical after upgrade');
   assert.equal(await customerFile(beta,'customer/ui/pages.tsx'),before.beta,'beta customer page must be byte-identical after upgrade');
   assert.notEqual(await customerFile(alpha,'lumi.lock.json'),beforeLockA,'alpha lock must change on upgrade');
-  // The real behavior change must be present in the upgraded core bundle.
+  // The upgrade is committed per the operator runbook after validation and
+  // rebuild, so later operations (like a rollback) start from a clean tree.
+  for(const dir of [alpha,beta]){
+   run(npm,['run','validate'],dir);
+   run(npm,['run','build'],dir);
+   run('git',['add','-A'],dir);
+   run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m','core upgrade 0.1.0 -> 0.1.1'],dir);
+   const status=spawnSync('git',['status','--porcelain'],{cwd:dir,encoding:'utf8'});
+   assert.equal(status.stdout.trim(),'',`tree must be clean after the committed upgrade: ${status.stdout}`);
+  }
+  // The real behavior change must be live in the INSTALLED runtime, not just recorded.
   const upgraded=await customerFile(alpha,'vendor/lumi-core-manifest.json');
   assert(upgraded.includes('0.1.1'),'vendored manifest must record the new release');
+  for(const dir of [alpha,beta]){
+   const installed=await customerFile(dir,'node_modules/@runlumi/core/dist/semantics.js');
+   assert(installed.includes('cập nhật N+1'),`${dir} installed core must carry the N+1 behavior change`);
+  }
   for(const dir of [alpha,beta]){run(npm,['run','validate'],dir);run(npm,['run','build'],dir);}
  });
  await step('F2 custom tests keep passing on N+1',async()=>{
@@ -274,30 +298,48 @@ console.log('ISOLATION-OK');
  });
  // ---- G. incompatible extension/migration input rejected with a diagnostic ----
  await step('G1 reserved-route collision is rejected before deployment',async()=>{
-  const lock=JSON.parse(await customerFile(beta,'lumi.lock.json'));
-  const original=lock.customerPages;
-  lock.customerPages=[...original,{path:'/money',label:'Hijack core route'}];
-  await writeFile(path.join(beta,'lumi.lock.json'),JSON.stringify(lock,null,2));
+  const lockPath=path.join(beta,'lumi.lock.json');
+  const originalText=await customerFile(beta,'lumi.lock.json');
+  const lock=JSON.parse(originalText);
+  lock.customerPages=[...lock.customerPages,{path:'/money',label:'Hijack core route'}];
+  await writeFile(lockPath,JSON.stringify(lock,null,2));
   const out=run(npm,['run','validate'],beta,{expectFail:true});
   assert(/reserved core route/.test(out.stdout+out.stderr),'diagnostic must name the reserved route collision');
-  lock.customerPages=original;await writeFile(path.join(beta,'lumi.lock.json'),JSON.stringify(lock,null,2));
+  await writeFile(lockPath,originalText);
  });
  await step('G2 bad customer id is rejected with a diagnostic',async()=>{
-  const lock=JSON.parse(await customerFile(beta,'lumi.lock.json'));
-  const original=lock.customerId;lock.customerId='INVALID ID';
-  await writeFile(path.join(beta,'lumi.lock.json'),JSON.stringify(lock,null,2));
+  const lockPath=path.join(beta,'lumi.lock.json');
+  const originalText=await customerFile(beta,'lumi.lock.json');
+  const lock=JSON.parse(originalText);
+  lock.customerId='INVALID ID';
+  await writeFile(lockPath,JSON.stringify(lock,null,2));
   const out=run(npm,['run','validate'],beta,{expectFail:true});
   assert(/does not match/.test(out.stdout+out.stderr),'mismatched identity must be reported');
-  lock.customerId=original;await writeFile(path.join(beta,'lumi.lock.json'),JSON.stringify(lock,null,2));
+  await writeFile(lockPath,originalText);
  });
  // ---- H. one customer's rollback leaves the other unchanged ----
- await step('H1 beta rollback to N leaves alpha at N+1',async()=>{
-  const lockPath=path.join(beta,'lumi.lock.json');
-  const lock=JSON.parse(await customerFile(beta,'lumi.lock.json'));
-  lock.core.version='0.1.0';
-  await writeFile(lockPath,JSON.stringify(lock,null,2));
-  assert.equal(JSON.parse(await customerFile(beta,'lumi.lock.json')).core.version,'0.1.0','beta records the rollback');
-  assert.equal(JSON.parse(await customerFile(alpha,'lumi.lock.json')).core.version,'0.1.1','alpha is unchanged by beta rollback');
+ await step('H1 beta rolls back to REAL N artifacts; alpha stays at N+1',async()=>{
+  // Execute an actual artifact rollback through the updater, not a lock edit.
+  const originalArtifacts=path.join(root,'artifacts/core');
+  run(npm,['run','upgrade','--','--from',originalArtifacts],beta);
+  // Reinstall so node_modules matches the rolled-back lock, then prove the
+  // installed runtime is genuinely N again.
+  run(npm,['ci','--ignore-scripts'],beta);
+  const betaLock=JSON.parse(await customerFile(beta,'lumi.lock.json'));
+  const alphaLock=JSON.parse(await customerFile(alpha,'lumi.lock.json'));
+  assert.equal(betaLock.core.version,'0.1.0','beta records the rollback');
+  assert.equal(alphaLock.core.version,'0.1.1','alpha is unchanged by beta rollback');
+  const installedCore=JSON.parse(await customerFile(beta,'node_modules/@runlumi/core/package.json'));
+  assert.equal(installedCore.version,'0.1.0','beta installed core is the previous release');
+  const installedSemantics=await customerFile(beta,'node_modules/@runlumi/core/dist/semantics.js');
+  assert(!installedSemantics.includes('cập nhật N+1'),`the N+1 behavior change must be gone from beta's runtime`);
+  // The rolled-back application still validates, builds and passes its tests at N.
+  run(npm,['run','validate'],beta);
+  run(npm,['run','build'],beta);
+  const out=run(npm,['test'],beta);
+  const fails=(out.stdout.match(/# fail 0/)?0:1);
+  assert.equal(fails,0,'beta tests must pass after the executed rollback');
+  // Rollback semantics: code reverts, the migrated database does not.
   assert(/does not reverse a database migration/.test(await customerFile(beta,'scripts/upgrade.mjs')),'rollback guidance must state migration limits');
  });
  // ---- I. per-environment deployment identity and the operator review gate ----

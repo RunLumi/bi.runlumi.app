@@ -1,5 +1,5 @@
 import {AppError,id,object} from './contracts.ts';
-import {normalizeCommerceReceipt} from './commerce-normalization.ts';
+import {normalizeCommerceReceipt,type CommerceAuthority} from './commerce-normalization.ts';
 import {requireInstallationRole,type InstallationUser} from './installation-auth.ts';
 import type {Database,ObjectStore} from './ports.ts';
 const primary=(db:Database)=>db.withSession?db.withSession('first-primary'):db;
@@ -8,7 +8,9 @@ type Job={id:string;kind:string;receipt_id:string;state:string;attempts:number;l
 const jobStates=new Set(['PENDING','RUNNING','RETRY_PENDING','COMPLETED','DEAD_LETTERED','CANCELLED']);
 const publicState=(state:string)=>state==='PENDING'?'QUEUED':state==='COMPLETED'?'SUCCEEDED':state==='DEAD_LETTERED'?'FAILED':jobStates.has(state)?state:'FAILED';
 const view=(j:Job)=>({jobId:j.id,kind:j.kind,receiptId:j.receipt_id,state:publicState(j.state),attempts:j.attempts,leaseUntil:j.lease_until,lastError:j.last_error,createdAt:j.created_at,updatedAt:j.updated_at});
-const requireCommerceOwner=(actor:InstallationUser)=>requireInstallationRole(actor,'owner');
+type JobAuthority={kind:'owner';actor:InstallationUser}|{kind:'system'};
+const requireAuthority=(authority:JobAuthority)=>{if(authority.kind==='owner')requireInstallationRole(authority.actor,'owner');};
+const authorityActor=(authority:JobAuthority)=>authority.kind==='owner'?authority.actor.id:'system:job-runner';
 const readJob=async(db:ReturnType<typeof primary>,jobId:string)=>db.prepare('SELECT * FROM commerce_jobs WHERE id=?').bind(jobId).first<Job>();
 const readActiveReceipt=async(db:ReturnType<typeof primary>,receiptId:string)=>db.prepare(`SELECT r.id,r.state,r.connection_id,r.connection_revision FROM commerce_receipts r
  JOIN commerce_connections c ON c.id=r.connection_id
@@ -18,8 +20,8 @@ const retryable=(error:unknown)=>{
  if(error.status<500)return false;
  return !new Set(['RAW_EVIDENCE_INTEGRITY','RAW_EVIDENCE_IDENTITY_MISMATCH','NORMALIZER_VERSION_CONFLICT','SOURCE_OR_STATE_CHANGED','RECEIPT_SCOPE_UNAVAILABLE']).has(error.code);
 };
-export async function enqueueCommerceJob(db:Database,actor:InstallationUser,input:unknown,clock=Date.now){
- requireCommerceOwner(actor);const b=object(input,['receiptId']),receiptId=id(b.receiptId),d=primary(db),now=new Date(clock()).toISOString(),jobId='cj_'+receiptId;
+export async function enqueueCommerceJob(db:Database,authority:JobAuthority,input:unknown,clock=Date.now){
+ requireAuthority(authority);const b=object(input,['receiptId']),receiptId=id(b.receiptId),d=primary(db),now=new Date(clock()).toISOString(),jobId='cj_'+receiptId;
  const receipt=await readActiveReceipt(d,receiptId);if(!receipt)throw new AppError(409,'RECEIPT_SCOPE_UNAVAILABLE');
  if(!['ACCEPTED','RETRY_PENDING'].includes(receipt.state))throw new AppError(409,'RECEIPT_NOT_PENDING');
  const prior=await readJob(d,jobId);if(prior)return {...view(prior),replayed:true};
@@ -40,10 +42,10 @@ export async function enqueueCommerceJob(db:Database,actor:InstallationUser,inpu
  }
  const job=await readJob(d,jobId);if(!job)throw new AppError(503,'JOB_PERSISTENCE_FAILED');return {...view(job),replayed:false};
 }
-export async function readCommerceJobs(db:Database,actor:InstallationUser){requireCommerceOwner(actor);const rows=await primary(db).prepare('SELECT * FROM commerce_jobs ORDER BY created_at DESC,id DESC LIMIT 50').all<Job>();return {jobs:rows.results.map(view),limit:50};}
-export async function readCommerceJob(db:Database,actor:InstallationUser,jobIdValue:string){requireCommerceOwner(actor);const job=await readJob(primary(db),id(jobIdValue));if(!job)throw new AppError(404,'JOB_NOT_FOUND');return view(job);}
-export async function executeCommerceJob(db:Database,actor:InstallationUser,jobIdValue:string,objects:ObjectStore,clock=Date.now){
- requireCommerceOwner(actor);const jobId=id(jobIdValue),d=primary(db),now=clock(),nowIso=new Date(now).toISOString();
+export async function readCommerceJobs(db:Database,authority:JobAuthority){requireAuthority(authority);const rows=await primary(db).prepare('SELECT * FROM commerce_jobs ORDER BY created_at DESC,id DESC LIMIT 50').all<Job>();return {jobs:rows.results.map(view),limit:50};}
+export async function readCommerceJob(db:Database,authority:JobAuthority,jobIdValue:string){requireAuthority(authority);const job=await readJob(primary(db),id(jobIdValue));if(!job)throw new AppError(404,'JOB_NOT_FOUND');return view(job);}
+export async function executeCommerceJob(db:Database,authority:JobAuthority,jobIdValue:string,objects:ObjectStore,clock=Date.now){
+ requireAuthority(authority);const jobId=id(jobIdValue),d=primary(db),now=clock(),nowIso=new Date(now).toISOString();
  let job=await readJob(d,jobId);if(!job)throw new AppError(404,'JOB_NOT_FOUND');
  if(job.state==='COMPLETED')return {...view(job),replayed:true};if(job.state==='DEAD_LETTERED'||job.state==='CANCELLED')throw new AppError(409,'JOB_NOT_EXECUTABLE');
  const leaseUntil=job.lease_until?Date.parse(job.lease_until):NaN;
@@ -86,7 +88,7 @@ export async function executeCommerceJob(db:Database,actor:InstallationUser,jobI
    throw new AppError(409,'RECEIPT_SCOPE_UNAVAILABLE');
  }
  try {
-  const result=await normalizeCommerceReceipt(d,objects,actor,{receiptId:job.receipt_id},clock);
+  const result=await normalizeCommerceReceipt(d,objects,authority,{receiptId:job.receipt_id},clock);
   const completedAt=new Date(clock()).toISOString(),finished=await d.batch([d.prepare("UPDATE commerce_jobs SET state='COMPLETED',lease_token=NULL,lease_until=NULL,last_error=NULL,updated_at=? WHERE id=? AND state='RUNNING' AND lease_token=?").bind(completedAt,jobId,token)]);
   if(finished[0]?.meta.changes!==1)throw new AppError(409,'JOB_LEASE_LOST');return {...view({...job,state:'COMPLETED',attempts:job.attempts+1,lease_token:null,lease_until:null,last_error:null,updated_at:completedAt} as Job),result,replayed:false};
  } catch(error) {

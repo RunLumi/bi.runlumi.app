@@ -3,7 +3,7 @@
  * and extension incompatibilities, and preserves customer-owned files. Refuses unsafe
  * dirty-tree or conflicting updates. Never contacts a registry: it installs the exact
  * tarballs supplied in --from <artifacts/core directory> or already vendored. */
-import {readFile, writeFile, readdir, cp, rm, access, mkdtemp} from 'node:fs/promises';
+import {readFile, writeFile, readdir, cp, rm, access, mkdtemp, mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
@@ -77,13 +77,24 @@ if(checkOnly){console.log('Check only: no files changed. Rerun without --check t
 //    in place for the @runlumi packages only. Registry dependencies never change
 //    during a core upgrade, so there is nothing to re-resolve: `npm ci` installs
 //    the exact reviewed graph and verifies integrity. No registry is contacted.
+// Stage every artifact into vendor/.staging and only then swap it in: an
+// interrupted apply can never leave a mixed vendor directory.
+const staging=path.join(repoRoot,'vendor','.staging');
+await rm(staging,{recursive:true,force:true});
+await mkdir(staging,{recursive:true});
 for(const[name,info]of Object.entries(next.packages)){
- await cp(path.join(path.dirname(manifestPath),info.file),path.join(repoRoot,'vendor',info.file));
+ await cp(path.join(path.dirname(manifestPath),info.file),path.join(staging,info.file));
+ // Re-verify the staged bytes: the copy, not the source, becomes the vendored truth.
+ const staged=await readFile(path.join(staging,info.file));
+ if(sha256(staged)!==info.sha256)throw new Error(`Staged artifact ${info.file} diverged from the verified bytes; refusing to apply.`);
  lock.core.packages[name]={version:info.version,sha256:info.sha256};
 }
-// The vendored manifest is the release provenance record: it must describe the
-// release actually vendored, not the previous one.
-await cp(path.join(path.dirname(manifestPath),'lumi-core-manifest.json'),path.join(repoRoot,'vendor','lumi-core-manifest.json'));
+await cp(path.join(path.dirname(manifestPath),'lumi-core-manifest.json'),path.join(staging,'lumi-core-manifest.json'));
+for(const[name,info]of Object.entries(next.packages)){
+ await cp(path.join(staging,info.file),path.join(repoRoot,'vendor',info.file));
+}
+await cp(path.join(staging,'lumi-core-manifest.json'),path.join(repoRoot,'vendor','lumi-core-manifest.json'));
+await rm(staging,{recursive:true,force:true});
 lock.core.version=next.release;
 lock.core.sourceCommit=next.sourceCommit;
 lock.core.releaseDigest=sha256(Buffer.from(JSON.stringify(next.packages))).slice(0,32);

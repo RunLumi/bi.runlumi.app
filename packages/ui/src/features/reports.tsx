@@ -37,9 +37,9 @@ export function ReportsPage({user,identity}:{user:InstallationUser;identity:stri
     <Button type="submit" disabled={create.isPending||!publication.data?.publication}>Lưu báo cáo</Button>
    </form></CardContent></Card>}
   {!insights.data.insights.length?<Empty>Chưa có báo cáo nào được lưu.</Empty>:insights.data.insights.map(insight=><Card key={insight.id}><CardHeader><CardTitle>{insight.title}</CardTitle></CardHeader><CardContent>
-   <p className="metric-definition">Kỳ {insight.definition.from} → {insight.definition.toExclusive} · bản công bố <code>{insight.definition.dataVersion.slice(0,14)}…</code> · v{insight.revision}</p>
-   {insight.runs[0]&&<div className="table-scroll"><table><thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Đơn vị</th></tr></thead><tbody>
-    {Object.entries(insight.runs[0].result).map(([metricId,cell])=><tr key={metricId}><td>{metricId}</td><td className="numeric">{fmt(cell.value)}</td><td>{cell.unit}</td></tr>)}
+   <p className="metric-definition">Kỳ {insight.definition.from} → {insight.definition.toExclusive} · bản công bố <code>{insight.definition.dataVersion.slice(0,14)}…</code> · v{insight.revision}{insight.runs[0]?.basis?` · lần chạy: ${insight.runs[0].basis==='latest'?'làm mới trên bản hiện hành':'chạy lại trên bản đã ghim'}`:''}</p>
+   {insight.runs[0]&&insight.runs[0].authority==='REVOKED'?<p className="quality-note" role="status">Nguồn của lần chạy này đã thu hồi. Dữ liệu đã lưu bị đóng; lịch sử vẫn được giữ lại.</p>:insight.runs[0]&&<div className="table-scroll"><table><thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Đơn vị</th></tr></thead><tbody>
+    {Object.entries(insight.runs[0].result?.metrics??{}).map(([metricId,cell])=>cell?<tr key={metricId}><td>{metricId}</td><td className="numeric">{fmt(cell.value)}</td><td>{cell.unit}</td></tr>:null)}
    </tbody></table></div>}
    {owner&&<div style={{display:'flex',gap:8,marginTop:10}}>
     <Button size="sm" variant="outline" disabled={refresh.isPending} onClick={()=>refresh.mutate(insight)}>Chạy lại</Button>

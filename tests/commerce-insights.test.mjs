@@ -29,8 +29,9 @@ test('saved insights run against a pinned publication and refresh reproducibly',
   if(create.status!==201)throw new Error(await create.text());
   const insight=await create.json();
   assert.equal(insight.publicationId,publicationId);
-  assert.equal(insight.result.net_merchandise_sales.value,'720000');
-  assert.equal(insight.result.available_units.value,null,'period-filtered runs resolve recognized-order metrics only');
+  assert.equal(insight.result.metrics.net_merchandise_sales.value,'720000');
+  assert.equal(insight.result.metrics.available_units.value,null,'settlement/stock metrics have their own grain');
+  assert.equal(insight.result.metrics.available_units.reason,'METRIC_GRAIN_UNFILTERABLE');
   // Reproducible run identity and stored result.
   const list=await (await call(f,'/api/commerce/insights?insightId=weekly-commerce',{method:'GET'})).json();
   assert.equal(list.insights[0].runs.length,1);

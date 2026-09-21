@@ -123,3 +123,78 @@ test('session endpoints: login sets cookie, session reads user, logout clears it
   assert.equal(wrongPassword.status,401);assert.equal((await wrongPassword.json()).error.code,'INVALID_CREDENTIALS');
  }finally{f.close();}
 });
+
+test('the last owner cannot be demoted or disabled through the upsert path either',async()=>{
+ const f=await fixture();try{
+  // upsert with a password used to bypass the last-owner invariant entirely.
+  const demote=await call(f,'/api/users',{body:{login:'admin@acme.test',displayName:'X',role:'viewer',password:['whatever','pw','1'].join('-')}});
+  assert.equal(demote.status,409);assert.equal((await demote.json()).error.code,'LAST_ACTIVE_OWNER');
+  const disable=await call(f,'/api/users',{body:{login:'admin@acme.test',displayName:'X',role:'owner',state:'disabled',password:['whatever','pw','1'].join('-')}});
+  assert.equal(disable.status,409);
+  const session=await call(f,'/api/session',{method:'GET'});
+  assert.equal((await session.json()).user.role,'owner','the owner must be untouched');
+ }finally{f.close();}
+});
+
+test('login failures are budgeted durably; success clears the count',async()=>{
+ const f=await fixture();try{
+  await createStaff(f,'fresh@acme.test','viewer');
+  for(let i=0;i<5;i++){
+   const r=await f.api(request('/api/auth/login',{method:'POST',body:{login:'admin@acme.test',password:['wrong','guess',String(i)].join('-')}}),f.env);
+   assert.equal(r.status,401);
+  }
+  const blocked=await f.api(request('/api/auth/login',{method:'POST',body:{login:'admin@acme.test',password:['owner','password','1'].join('-')}}),f.env);
+  assert.equal(blocked.status,429);assert.equal((await blocked.json()).error.code,'LOGIN_THROTTLED');
+  // A different login id has its own budget.
+  const other=await f.api(request('/api/auth/login',{method:'POST',body:{login:'fresh@acme.test',password:['staff','password','1'].join('-')}}),f.env);
+  assert.equal(other.status,200,'other accounts keep their own budget');
+  // The window is durable application state, not in-memory.
+  const row=f.db.db.prepare('SELECT failures FROM login_throttle WHERE login=?').get('admin@acme.test');
+  assert.ok(row&&row.failures>=5);
+ }finally{f.close();}
+});
+
+test('password reset revokes existing sessions; self change revokes all sessions of the user',async()=>{
+ const f=await fixture();try{
+  const staff=await createStaff(f,'resetme@acme.test','editor');
+  const staffLogin=await f.api(request('/api/auth/login',{method:'POST',body:{login:'resetme@acme.test',password:['staff','password','1'].join('-')}}),f.env);
+  const cookie=cookieOf(staffLogin);
+  assert.equal((await f.api(request('/api/session',{headers:{cookie}}),f.env)).status,200);
+  const reset=await call(f,`/api/users/${staff.user.id}`,{method:'PUT',body:{[SECRET_FIELD]:fixturePasswords.fresh}});
+  assert.equal(reset.status,200);
+  const afterReset=await f.api(request('/api/session',{headers:{cookie}}),f.env);
+  assert.equal(afterReset.status,401,'an administrative reset must revoke outstanding sessions');
+  // Self change also revokes (re-sign-in required with the new password).
+  const second=await createStaff(f,'selfchange@acme.test','editor');
+  const selfLogin=await f.api(request('/api/auth/login',{method:'POST',body:{login:'selfchange@acme.test',password:['staff','password','1'].join('-')}}),f.env);
+  const selfCookie=cookieOf(selfLogin);
+  const change=await f.api(request('/api/auth/password',{method:'POST',headers:{'content-type':'application/json',cookie:selfCookie},body:{currentPassword:'staff-password-1',newPassword:'brand-new-pw-9'}}),f.env);
+  assert.equal(change.status,200);
+  assert.equal((await f.api(request('/api/session',{headers:{cookie:selfCookie}}),f.env)).status,401,'self change must revoke the current session too');
+  const reLogin=await f.api(request('/api/auth/login',{method:'POST',body:{login:'selfchange@acme.test',password:['brand','new','pw','9'].join('-')}}),f.env);
+  assert.equal(reLogin.status,200);
+  assert.notEqual(second.user.password,'never-present','fixture does not expose credentials');
+ }finally{f.close();}
+});
+
+test('ambiguous multi-action user mutations are rejected',async()=>{
+ const f=await fixture();try{
+  const staff=await createStaff(f,'ambig@acme.test','viewer');
+  const r=await call(f,`/api/users/${staff.user.id}`,{method:'PUT',body:{state:'disabled',role:'editor'}});
+  assert.equal(r.status,422);assert.equal((await r.json()).error.code,'AMBIGUOUS_USER_MUTATION');
+  const unchanged=await (await call(f,'/api/users',{method:'GET'})).json();
+  const row=unchanged.users.find(u=>u.id===staff.user.id);
+  assert.equal(row.role,'viewer');assert.equal(row.state,'active');
+ }finally{f.close();}
+});
+
+test('production deployments refuse initialization without a configured setup secret',async()=>{
+ const f=await fixture({seed:false});try{
+  const prodEnv={...f.env,ENVIRONMENT:'production',SETUP_TOKEN:undefined};
+  const blocked=await f.api(request('/api/setup',{method:'POST',body:{name:'A',login:'a@a.test',displayName:'A',password:['owner','password','1'].join('-')}}),prodEnv);
+  assert.equal(blocked.status,503);assert.equal((await blocked.json()).error.code,'SETUP_PROTECTION_REQUIRED');
+  const prodWithToken={...f.env,ENVIRONMENT:'production'};
+  const withToken=await f.api(request('/api/setup',{method:'POST',body:{name:'A',login:'a@a.test',displayName:'A',password:['owner','password','1'].join('-'),setupToken:'setup-token-xyz'}}),prodWithToken);
+  assert.equal(withToken.status,201,'with the secret configured, production setup proceeds');
+ }finally{f.close();}
+});
