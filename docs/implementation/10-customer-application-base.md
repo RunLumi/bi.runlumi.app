@@ -82,6 +82,10 @@ Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md)
   metrics from canonical published orders. Unsupported dimensions, sensitive metric
   combinations and unbounded limits remain rejected; aggregate and breakdown results
   retain the same publication pin and authorization scope.
+- **Explicit comparable periods.** A query may pin a second explicit date window;
+  the server executes current and comparison windows independently against the same
+  publication and returns separate exact cells. Invalid dates and reversed windows
+  fail closed; relative labels and implicit period inference are not accepted.
 
 ## Verified environments
 

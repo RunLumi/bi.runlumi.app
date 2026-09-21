@@ -43,6 +43,12 @@ test('source breakdown is bounded, filtered and uses the same exact order metric
  const result=queryCommerceReport(report,parseCommerceQuery(query('cp_1',[{id:'net_merchandise_sales',version:1}],{dimensions:['source'],filters:[{field:'business_date',op:'range',value:['2026-09-01','2026-10-01']}],limit:10})));
  assert.deepEqual(result.map(row=>[row.dimension,row.metrics.net_merchandise_sales.value]),[['so_a','1000000'],['so_b','2000000']]);
 });
+test('comparison periods require equal explicit windows and return separate exact cells',()=>{
+ const report={orders:[{sourceKey:'so_a',recognizedAt:'2026-09-03T00:00:00.000Z',merchandise:'1000000',sellerDiscount:'0',merchandiseReversal:'0',cogs:null,variableFees:null,shippingIncome:null,earnedSubsidy:null},{sourceKey:'so_a',recognizedAt:'2026-08-03T00:00:00.000Z',merchandise:'500000',sellerDiscount:'0',merchandiseReversal:'0',cogs:null,variableFees:null,shippingIncome:null,earnedSubsidy:null}],metrics:{net_merchandise_sales:'1000000'}};
+ const q=parseCommerceQuery(query('cp_1',[{id:'net_merchandise_sales',version:1}],{filters:[{field:'business_date',op:'range',value:['2026-09-01','2026-10-01']}],comparison:{from:'2026-08-01',toExclusive:'2026-09-01'}}));
+ assert.equal(queryCommerceReport(report,q).current.net_merchandise_sales.value,'1000000');assert.equal(queryCommerceReport(report,q).comparison.net_merchandise_sales.value,'500000');
+ assert.throws(()=>parseCommerceQuery(query('cp_1',undefined,{comparison:{from:'2026-09-01',toExclusive:'2026-08-15'}})));
+});
 
 test('API serves one published context and denies cross-tenant or stale publication access',async t=>{
  const f=await commerceFixture(t),publication=await publish(f);
