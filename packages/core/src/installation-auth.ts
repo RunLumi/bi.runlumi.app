@@ -130,7 +130,7 @@ export function requireInstallationRole(user:InstallationUser,minimum:Role):void
  * so direct sign-in works immediately. */
 export async function upsertInstallationUser(db:Database,input:{id?:unknown;issuer:unknown;subject:unknown;displayName:unknown;role:unknown;state?:unknown;password?:unknown}):Promise<InstallationUser>{
   const issuer=text(input.issuer,200,'ISSUER'),subject=input.issuer===LOCAL_ISSUER?normalizeLogin(input.subject):text(input.subject,200,'SUBJECT');
-  const displayName=input.displayName===undefined||input.displayName===null?'':text(input.displayName,160,'DISPLAY_NAME');
+  const displayName=input.displayName===undefined||input.displayName===null||input.displayName===''?'':text(input.displayName,160,'DISPLAY_NAME');
   const userRole=role(input.role);const state=input.state===undefined?'active':input.state;
   if(state!=='active'&&state!=='disabled')throw new AppError(422,'INVALID_USER_STATE');
   const idValue=input.id===undefined?crypto.randomUUID():text(input.id,80,'USER_ID');const now=new Date().toISOString();
