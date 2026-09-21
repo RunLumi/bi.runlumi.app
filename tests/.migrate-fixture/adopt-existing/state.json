@@ -1,0 +1,1 @@
+{"ledger":{"core/0001_initial.sql":"1bd1503056671ed570350aa5959598d45d4ed12e58fedee8b2cd5e885efc1f4d","core/0002_more.sql":"630017a6333d723ba3cf177acd7266264eb7c5bd726e7a6aa027eb124141b4f6","customer/0001_customer.sql":"da78b889689b6a5677e468eddc43aab374fb38ff34e6954223c8dd9c313607c3"},"tables":["schema_migrations","installation","users","commerce_receipts"],"executedFiles":[]}

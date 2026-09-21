@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseDashboard } from '@runlumi/core/semantics.ts';
@@ -51,6 +54,15 @@ for(const name of ['@runlumi/core','@runlumi/cloudflare','@runlumi/ui']){
  assert.equal(entry.version,coreVersion,`Starter lock pins ${name} ${entry?.version} but packages/${name.replace('@runlumi/','')} is ${coreVersion}. Regenerate with npm run refresh:customer-lock.`);
  assert.match(entry.resolved,/^file:vendor\/runlumi-[a-z]+-\d+\.\d+\.\d+\.tgz$/,'Starter lock @runlumi entries must resolve to vendored release tarballs');
  assert.match(entry.integrity,/^sha512-/,'Starter lock @runlumi entries must carry sha512 integrity');
+ // npm does not re-check integrity for file: dependencies: the lock must carry
+ // the sha512 of the actual release tarball, or a stale lock would silently
+ // install different bytes than the release describes.
+ const tarballName=entry.resolved.replace('file:vendor/','');
+ const artifactPath=path.join(root,'artifacts','core',tarballName);
+ if(existsSync(artifactPath)){
+  const actual='sha512-'+createHash('sha512').update(readFileSync(artifactPath)).digest('base64');
+  assert.equal(entry.integrity,actual,`Starter lock integrity for ${name} does not match artifacts/core/${tarballName}. Run npm run core:pack && npm run refresh:customer-lock.`);
+ }
 }
 // The customer template lock declares the core installation schema baseline.
 const templateMeta=JSON.parse(await read('starter/customer/lumi.lock.json.template'));
@@ -87,4 +99,40 @@ for(const file of await walk(root)){
   await readFile(target).catch(()=>{throw new Error(`Broken local link: ${file} -> ${link}`);});
  }
 }
+
+// Public-surface freeze: application and extension code may only import the
+// documented, supported @runlumi/* modules (docs/public-surface.md). New
+// imports require a deliberate surface addition, not an accidental dependency.
+const publicSurface=new Set([
+ '@runlumi/core/api.ts','@runlumi/core/contracts.ts','@runlumi/core/installation-auth.ts','@runlumi/core/ports.ts',
+ '@runlumi/core/semantics.ts','@runlumi/core/query.ts','@runlumi/core/ingest.ts','@runlumi/core/commerce-model.ts',
+ '@runlumi/core/commerce-jobs.ts','@runlumi/core/customer-config.ts','@runlumi/core/version.ts',
+ '@runlumi/cloudflare/auth.ts','@runlumi/cloudflare/request-auth.ts','@runlumi/cloudflare/testing.ts',
+ '@runlumi/ui/app.tsx','@runlumi/ui/lib/api.ts',
+ '@runlumi/ui/components/glyphs.tsx','@runlumi/ui/components/states.tsx',
+ '@runlumi/ui/components/ui/card.tsx','@runlumi/ui/components/ui/button.tsx','@runlumi/ui/components/ui/input.tsx',
+ '@runlumi/ui/features/dashboard.tsx','@runlumi/ui/features/sources.tsx','@runlumi/ui/features/commerce.tsx',
+ '@runlumi/ui/features/commerce-report.tsx','@runlumi/ui/features/decisions.tsx','@runlumi/ui/features/reports.tsx',
+ '@runlumi/ui/features/admin.tsx','@runlumi/ui/features/auth.tsx'
+]);
+{
+ const {globSync}=await import('node:fs');
+ void globSync;
+ const scanRoots=['apps','starter','examples','tests'];
+ const {execFileSync}=await import('node:child_process');
+ const tracked=execFileSync('git',['ls-files',...scanRoots],{cwd:root,encoding:'utf8'}).split('\n').filter(f=>/\.(ts|tsx|mjs)$/.test(f));
+ const importPattern=/'@runlumi\/(core|cloudflare|ui)\/[^']+'/g;
+ let checked=0;
+ for(const file of tracked){
+  const text=await readFile(path.join(root,file),'utf8').catch(()=>null);
+  if(text===null)continue;
+  for(const match of text.matchAll(importPattern)){
+   const spec=match[0].slice(1,-1);
+   checked++;
+   assert(publicSurface.has(spec),`${file}: import "${spec}" is not part of the documented public surface (docs/public-surface.md). Add it deliberately or use a supported module.`);
+  }
+ }
+ console.log(`Public surface: ${checked} @runlumi imports verified against docs/public-surface.md.`);
+}
+
 console.log('Repository checks passed: dependency inventory, dashboard contract, production entry, security headers and local documentation links.');

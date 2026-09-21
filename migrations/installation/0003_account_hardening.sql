@@ -11,12 +11,12 @@ CREATE TABLE login_throttle (
 ) STRICT;
 
 -- Checksummed migration ledger: applied migrations are immutable history.
-CREATE TABLE schema_migrations (
+CREATE TABLE IF NOT EXISTS schema_migrations (
   name TEXT PRIMARY KEY,
   checksum TEXT NOT NULL,
   applied_at TEXT NOT NULL
 ) STRICT;
-CREATE TRIGGER schema_migrations_immutable_update BEFORE UPDATE ON schema_migrations
+CREATE TRIGGER IF NOT EXISTS schema_migrations_immutable_update BEFORE UPDATE ON schema_migrations
 BEGIN SELECT RAISE(ABORT,'MIGRATION_HISTORY_IMMUTABLE'); END;
-CREATE TRIGGER schema_migrations_immutable_delete BEFORE DELETE ON schema_migrations
+CREATE TRIGGER IF NOT EXISTS schema_migrations_immutable_delete BEFORE DELETE ON schema_migrations
 BEGIN SELECT RAISE(ABORT,'MIGRATION_HISTORY_IMMUTABLE'); END;

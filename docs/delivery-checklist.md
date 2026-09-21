@@ -109,7 +109,18 @@ claimed**; authorized exports are the supported workflow (guide chapter 1/8).
   upgrade with a behavior change, rollback records, deployment-identity gates.
   [A][CI]
 
-## 9. First-customer hardening round
+## 9. Platform-v1 hardening round (packaging, migrations, surface)
+
+| Finding | Fix | Evidence |
+| --- | --- | --- |
+| Package build did not clear dist; obsolete build output (e.g. a deleted tenant router) could ship | build clears the owned dist before emit; regression test seeds a stale file and proves removal | [T] packaging test 1 |
+| Packaged artifacts could carry retired multi-installation constructs | core-pack scans the actual packaged bytes against a narrow allowlist; pack fails closed | pack run log + [T] packaging test 2 |
+| Migrate runner: shell-joined ledger reads, ledger failures treated as fresh DB, recording before the ledger table exists, no missing-history detection, unverified adopt | rewritten: argument-array invocations with pinned wrangler resolution, ledger bootstrap before recording, refusals on ledger read/parse failure and missing applied history, adopt verifies a compatible schema and never executes files; starter migration has a real statement | [T] migrate-runner suite (fresh/repeat/changed/missing/ledger-failure/adopt on a fake-wrangler adapter) + [A] A5b real local D1 |
+| commerce-query comparison cleared the caller's current-period filters; coverage sliced UTC dates | comparison keeps the supplied query; coverage computed in declared business time (UTC+7) | [T] golden corpus + commerce-query |
+| Wildcard package exports promised every implementation detail | documented supported surface (docs/public-surface.md) + check-repo gate freezing all application/extension @runlumi imports to it | [CI] check-repo "Public surface" line |
+| SOURCE_CHECKSUMS listed retired cell-era paths; LICENSING named apps/control | checksums regenerated from tracked files; licensing inventory updated to the current tree | [CI] check-repo |
+
+## 10. First-customer hardening round (previous)
 
 Findings reproduced against ff58357 and fixed on this branch (all with
 behavioral regression tests):

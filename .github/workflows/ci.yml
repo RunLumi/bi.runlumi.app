@@ -37,10 +37,25 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Package the reviewed core release from this commit
         run: npm run core:pack
+      - name: Prove packing is reproducible (byte-identical rerun)
+        run: |
+          sha256sum artifacts/core/*.tgz > /tmp/pack-a.txt
+          npm run core:pack
+          sha256sum artifacts/core/*.tgz > /tmp/pack-b.txt
+          diff /tmp/pack-a.txt /tmp/pack-b.txt
+      - name: Align starter lock with the CI-packed artifacts
+        run: npm run refresh:customer-lock
       - name: Behavioral checks under real local workerd with local D1
         run: node scripts/workerd-check.mjs
       - name: Two-customer acceptance from the packaged release
         run: node scripts/acceptance-two-customers.mjs
+      - name: Upload packed artifacts (failure diagnostics)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: packed-artifacts
+          path: artifacts/core
+          retention-days: 7
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 20

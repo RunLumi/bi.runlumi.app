@@ -185,6 +185,18 @@ try{
    run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m','reviewed report proposal'],dir);
   }
  });
+ // Real local-D1 migration runner: applies, records, and is idempotent.
+ await step('A5b npm run migrate applies to real local D1 and is idempotent',async()=>{
+  for(const dir of [beta]){
+   const wranglerOverride=path.join(root,'node_modules','wrangler');
+   const first=run(npm,['run','migrate'],dir,{env:{WRANGLER_SEND_METRICS:'false',CI:'true',LUMI_WRANGLER_BIN:wranglerOverride}});
+   assert(/Applied \d+ of \d+ migrations/.test(first.stdout),`first migrate must apply: ${first.stdout}${first.stderr}`);
+   const ledgerFile=await customerFile(dir,'.wrangler/state/v3/d1/miniflare-D1DatabaseObject.sqlite').catch(()=>null);
+   void ledgerFile;
+   const second=run(npm,['run','migrate'],dir,{env:{WRANGLER_SEND_METRICS:'false',CI:'true',LUMI_WRANGLER_BIN:wranglerOverride}});
+   assert(/All \d+ migrations are applied and unchanged/.test(second.stdout),`repeat migrate must be a no-op: ${second.stdout}${second.stderr}`);
+  }
+ });
  // ---- B. package-consumer commerce journey in each checkout ----
  await step('B1 full commerce journey runs in alpha against packaged artifacts',()=>runJourney(alpha,'alpha'));
  await step('B2 full commerce journey runs in beta against packaged artifacts',()=>runJourney(beta,'beta'));

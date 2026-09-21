@@ -8,7 +8,7 @@ to use the whole product under either ELv2 or Apache-2.0.
 
 | Material | Current license / boundary |
 | --- | --- |
-| Original product source, including `packages/core/`, `apps/api/`, `apps/control/`, `apps/web/`, migrations, packs, tests and tooling | [Elastic-2.0](LICENSE) |
+| Original product source, including `packages/`, `apps/`, `migrations/`, `packs/`, `tests/`, `scripts/` and tooling | [Elastic-2.0](LICENSE) |
 | Original documentation, design implementation and `web/` marketing source | Elastic-2.0; third-party notices and trademark law still apply |
 | Thin SDK/client interfaces and customer starter scaffolding | Apache-2.0 **only after explicit, file/path-scoped approval**; none has been designated in this revision |
 | Third-party code, adapted components, icons and fonts | Their existing licenses and notices; see [third-party provenance](THIRD_PARTY_NOTICES.md) |
