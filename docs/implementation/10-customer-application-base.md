@@ -71,6 +71,12 @@ Canonical decision: [ADR 0010](../adr/0010-customer-application-repositories.md)
   shapes and missing AI prompt references; AI deployment stays disabled until its
   provider, model and credential references are reviewed. The included connector is
   a deterministic synthetic operations fixture, not a live commerce integration.
+- **Saved insight lifecycle (first vertical slice).** Owner-only insight artifacts
+  persist a validated definition and stable block IDs, with each run pinned to one
+  published report, content hash, resolved period, query definition and exact result
+  cells. Reload returns the artifact and all runs; refresh appends a new run under an
+  optimistic revision check instead of rewriting history. This is the deterministic
+  publication-backed path, not model inference or a general report language.
 
 ## Verified environments
 
