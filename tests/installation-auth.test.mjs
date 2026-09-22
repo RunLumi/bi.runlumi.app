@@ -198,3 +198,11 @@ test('production deployments refuse initialization without a configured setup se
   assert.equal(withToken.status,201,'with the secret configured, production setup proceeds');
  }finally{f.close();}
 });
+
+test('password hashing stays within the production Workers PBKDF2 ceiling',async()=>{
+ // The production runtime rejects PBKDF2 above 100,000 iterations with
+ // NotSupportedError; local workerd does not enforce the cap, so this
+ // constraint can only be pinned here (see Sentry baga-production issue).
+ const {PBKDF2_ITERATIONS}=await import('../packages/core/src/password.ts');
+ assert.ok(PBKDF2_ITERATIONS<=100_000,`PBKDF2_ITERATIONS ${PBKDF2_ITERATIONS} exceeds the Workers cap of 100,000`);
+});
