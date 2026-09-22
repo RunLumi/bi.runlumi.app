@@ -21,7 +21,7 @@
     "build": "node ../../scripts/build-package.mjs cloudflare"
   },
   "dependencies": {
-    "@runlumi/core": "0.1.0"
+    "@runlumi/core": "0.1.1"
   },
   "devDependencies": {
     "typescript": "5.8.3"

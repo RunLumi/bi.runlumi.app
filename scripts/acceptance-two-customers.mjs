@@ -259,10 +259,10 @@ console.log('ISOLATION-OK');
   await cp(root,bump,{recursive:true,filter:source=>!source.includes('node_modules')&&!source.includes('/.git/')&&!source.includes('/artifacts/')&&!source.endsWith('/artifacts')});
   for(const pkg of ['core','cloudflare','ui']){
    const file=path.join(bump,'packages',pkg,'package.json');const j=JSON.parse(await readFile(file,'utf8'));
-   j.version='0.1.1';if(pkg==='cloudflare'||pkg==='ui')j.dependencies['@runlumi/core']='0.1.1';
+   j.version='0.1.2';if(pkg==='cloudflare'||pkg==='ui')j.dependencies['@runlumi/core']='0.1.2';
    await writeFile(file,JSON.stringify(j,null,2));
   }
-  await writeFile(path.join(bump,'packages/core/src/version.ts'),"export const LUMI_CORE_VERSION = '0.1.1';\nexport const LUMI_EXTENSION_API = 1;\n");
+  await writeFile(path.join(bump,'packages/core/src/version.ts'),"export const LUMI_CORE_VERSION = '0.1.2';\nexport const LUMI_EXTENSION_API = 1;\n");
   // The N+1 release carries a REAL behavior change: the operations caveat text.
   const semantics=path.join(bump,'packages/core/src/semantics.ts');
   await writeFile(semantics,(await readFile(semantics,'utf8')).replace('đồng Việt Nam.','đồng Việt Nam (cập nhật N+1).'));
@@ -273,9 +273,9 @@ console.log('ISOLATION-OK');
   run(process.execPath,['scripts/core-pack.mjs'],bump,{env:{LUMI_SOURCE_COMMIT:syntheticCommit}});
   for(const dir of [alpha,beta]){
    const out=run(npm,['run','upgrade','--','--from',artifacts],dir);
-   assert(/0\.1\.0 -> 0\.1\.1/.test(out.stdout),`upgrade plan must report N -> N+1 for ${dir}`);
+   assert(/0\.1\.1 -> 0\.1\.2/.test(out.stdout),`upgrade plan must report N -> N+1 for ${dir}`);
    const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
-   assert.equal(lock.core.version,'0.1.1',`${dir} lock must record N+1`);
+   assert.equal(lock.core.version,'0.1.2',`${dir} lock must record N+1`);
    // Reinstall so the installed packages are the upgraded release, not the old one.
    run(npm,['ci','--ignore-scripts'],dir);
   }
@@ -288,13 +288,13 @@ console.log('ISOLATION-OK');
    run(npm,['run','validate'],dir);
    run(npm,['run','build'],dir);
    run('git',['add','-A'],dir);
-   run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m','core upgrade 0.1.0 -> 0.1.1'],dir);
+   run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m','core upgrade 0.1.1 -> 0.1.2'],dir);
    const status=spawnSync('git',['status','--porcelain'],{cwd:dir,encoding:'utf8'});
    assert.equal(status.stdout.trim(),'',`tree must be clean after the committed upgrade: ${status.stdout}`);
   }
   // The real behavior change must be live in the INSTALLED runtime, not just recorded.
   const upgraded=await customerFile(alpha,'vendor/lumi-core-manifest.json');
-  assert(upgraded.includes('0.1.1'),'vendored manifest must record the new release');
+  assert(upgraded.includes('0.1.2'),'vendored manifest must record the new release');
   for(const dir of [alpha,beta]){
    const installed=await customerFile(dir,'node_modules/@runlumi/core/dist/semantics.js');
    assert(installed.includes('cập nhật N+1'),`${dir} installed core must carry the N+1 behavior change`);
@@ -339,10 +339,10 @@ console.log('ISOLATION-OK');
   run(npm,['ci','--ignore-scripts'],beta);
   const betaLock=JSON.parse(await customerFile(beta,'lumi.lock.json'));
   const alphaLock=JSON.parse(await customerFile(alpha,'lumi.lock.json'));
-  assert.equal(betaLock.core.version,'0.1.0','beta records the rollback');
-  assert.equal(alphaLock.core.version,'0.1.1','alpha is unchanged by beta rollback');
+  assert.equal(betaLock.core.version,'0.1.1','beta records the rollback');
+  assert.equal(alphaLock.core.version,'0.1.2','alpha is unchanged by beta rollback');
   const installedCore=JSON.parse(await customerFile(beta,'node_modules/@runlumi/core/package.json'));
-  assert.equal(installedCore.version,'0.1.0','beta installed core is the previous release');
+  assert.equal(installedCore.version,'0.1.1','beta installed core is the previous release');
   const installedSemantics=await customerFile(beta,'node_modules/@runlumi/core/dist/semantics.js');
   assert(!installedSemantics.includes('cập nhật N+1'),`the N+1 behavior change must be gone from beta's runtime`);
   // The rolled-back application still validates, builds and passes its tests at N.

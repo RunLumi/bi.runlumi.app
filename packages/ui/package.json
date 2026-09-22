@@ -21,7 +21,7 @@
     "build": "node ../../scripts/build-package.mjs ui"
   },
   "dependencies": {
-    "@runlumi/core": "0.1.0"
+    "@runlumi/core": "0.1.1"
   },
   "peerDependencies": {
     "react": "^19.0.0",
