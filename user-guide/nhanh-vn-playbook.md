@@ -131,7 +131,36 @@ start: the customer's Nhanh API credentials (per https://apidocs.nhanh.vn/v3),
 written permission to pull their data, and the reconciled export baseline from
 step 3. Until that ships, keep selling the authorized-export workflow.
 
-## 5. Go-live checklist
+## 5. Ongoing: updating this customer when core releases
+
+The customer consumes pinned artifacts, so updates are explicit and reviewable:
+
+```bash
+# 1) platform repository — clean tree, latest main, fresh artifacts
+cd /Volumes/SSD/lumi-bi && git pull
+npm run core:pack
+
+# 2) customer repository — read-only check, then apply
+cd /Volumes/SSD/lumi-customers/baga && git pull
+npm run upgrade -- --check --from /Volumes/SSD/lumi-bi/artifacts/core
+npm run upgrade -- --from /Volumes/SSD/lumi-bi/artifacts/core
+
+# 3) verify everything, commit the reviewed diff
+npm ci --ignore-scripts
+npm run validate && npm run typecheck && npm test && npm run build
+git add -A && git commit -m "core upgrade"
+
+# 4) apply any new installation migrations, then redeploy
+npm run migrate -- --remote
+npx wrangler deploy --config apps/worker/wrangler.jsonc
+```
+
+`--check` writes nothing. The updater preserves every file under `customer/`
+and your `apps/` composition, updates only `vendor/` + lock metadata, and
+leaves a reviewable Git diff. Rollback = re-run the updater with the previous
+artifacts directory and redeploy; migrations are never reversed (chapter 12).
+
+## 6. Go-live checklist
 
 - [ ] Setup closed permanently; owner + at least one backup owner active
 - [ ] Staff accounts created with least-privilege roles (chapter 7)
