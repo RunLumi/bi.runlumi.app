@@ -1,6 +1,6 @@
 {
   "name": "@runlumi/cloudflare",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Cloudflare Access verification, deployment identity, cell/Worker assembly and local testing adapters for Lumi BI applications.",
   "license": "Elastic-2.0",
   "private": true,
