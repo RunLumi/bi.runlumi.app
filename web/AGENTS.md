@@ -2,7 +2,9 @@
 
 This directory is the Astro static marketing site for `https://about.bi.runlumi.app`,
 not the authenticated React BI application in `apps/web` at `https://bi.runlumi.app`.
-Root AGENTS.md and DESIGN.md remain authoritative. Do not couple this build to the
+Root AGENTS.md and DESIGN.md remain authoritative; their shadcn/Tailwind component
+rules govern the authenticated React application only — this static Astro site stays
+plain HTML/CSS with no React, Tailwind or shadcn runtime. Do not couple this build to the
 installation operations, installation database, application session, or a Cloudflare API token.
 
 Preserve these outcomes:
