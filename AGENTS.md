@@ -17,6 +17,16 @@ Keep customer customization in the customer repository and public composition
 interfaces. Core packages are versioned build-time artifacts. Do not patch core
 internals from an installation repository.
 
+## Frontend is shadcn/ui on Tailwind
+
+Build application UI with shadcn/ui on Tailwind v4. `@runlumi/ui` owns the shared
+primitives under `src/components/ui` (Radix behavior, cva variants, `cn` from
+`src/lib/utils`) and the shared screens; extend them there instead of styling
+around them in an app. New components follow the shadcn recipe and the DESIGN.md
+tokens — no bespoke CSS or one-off markup where a shadcn component already
+applies. Brand differences are theme tokens (`--background`, `--primary`,
+`--radius-*`, …), never forked components.
+
 ## API connectors are read-only
 
 Interact with external API connectors only to pull or fetch data. Never put, update,
