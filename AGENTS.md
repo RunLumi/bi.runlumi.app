@@ -35,6 +35,12 @@ deletes, and schema or configuration writes on the remote system. The only excep
 is an explicit user request during development and operations, in which case do exactly
 what was asked and nothing more.
 
+## Nhanh API documentation
+
+Before implementing or changing a Nhanh API integration, read
+[the Nhanh API documentation index](https://apidocs.nhanh.vn/llms.txt) and follow
+its links to the documentation for the relevant API.
+
 Before completing a meaningful change, run the typecheck, focused installation
 tests, repository checks, and the relevant browser or Worker check. Report what
 was verified and what remains unknown. Never put secrets or real customer data in
