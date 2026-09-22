@@ -1,8 +1,9 @@
 import {Component,useEffect,useState,type ReactNode,type ComponentType} from 'react';
 import {QueryClient,QueryClientProvider,useQuery,useQueryClient} from '@tanstack/react-query';
-import {BrowserRouter,NavLink,Route,Routes} from 'react-router-dom';
+import {BrowserRouter,Route,Routes} from 'react-router-dom';
 import {api,type Session,type InstallationUser} from './lib/api.ts';
 import {Empty,ErrorState,Loading} from './components/states.tsx';
+import {AppNavigation,type AppNavGroup} from './components/app-navigation.tsx';
 import {SetupScreen,SignInScreen} from './features/auth.tsx';
 
 export interface NavContext {user:InstallationUser|null;platformOperator:boolean}
@@ -20,7 +21,7 @@ export interface AppLabels {
   skipToContent:string;installationLabel:string;installationAriaLabel:string;navAriaLabel:string;
   noUsersOption:string;operatorBar:string;notFound:string;demoNotice:string;demoIdentityAriaLabel:string;
 }
-export interface AppConfig {brand:AppBrand;labels:AppLabels;pages:AppPage[];demoIdentities:string[]}
+export interface AppConfig {brand:AppBrand;labels:AppLabels;pages:AppPage[];navGroups?:AppNavGroup[];demoIdentities:string[]}
 
 class Boundary extends Component<{children:ReactNode},{failed:boolean}>{state={failed:false};static getDerivedStateFromError(){return {failed:true};}componentDidCatch(error:unknown){console.error('Lumi UI boundary',error);}render(){return this.state.failed?<main className="state" role="alert">Giao diện chưa sẵn sàng. Tải lại trang để bắt đầu phiên mới.</main>:this.props.children;}}
 
@@ -50,7 +51,7 @@ function Gate({identity,onIdentity,epoch,onEpoch,config}:{identity:string;onIden
  const signOut=async()=>{try{await api('/api/auth/logout',undefined,{method:'POST'});}catch{/* session is gone either way */}client.removeQueries();onEpoch();};
  return <div className="app-shell"><a className="skip-link" href="#main-content">{config.labels.skipToContent}</a><aside className="sidebar"><a className="brand" href="/"><img src={config.brand.logoSrc} width="28" height="28" alt={config.brand.logoAlt}/><strong>{config.brand.name}</strong></a><p className="workspace-label">{config.brand.workspaceLabel}</p>
  <p className="user-label">{session.installation.name??user.name}</p>
- <nav aria-label={config.labels.navAriaLabel}>{visible.map(p=><NavLink key={p.path} to={p.path} end={p.path==='/'}>{p.glyph?<p.glyph/>:null}{p.label}</NavLink>)}</nav>
+ <AppNavigation pages={visible} groups={config.navGroups??[]} label={config.labels.navAriaLabel}/>
  <div className="sidebar-footer">{config.brand.footer}<p className="user-label">{user.displayName||user.name} · {user.role}</p><button type="button" className="link" onClick={signOut}>Đăng xuất</button></div></aside><div className="main-shell"><header className="topbar"><span>{`${user.displayName||user.name} / ${user.role}`}</span><div>{session.demo&&<label className="demo-switch"><span>DEMO</span><select aria-label={config.labels.demoIdentityAriaLabel} value={identity||(config.demoIdentities[0]??'')} onChange={e=>onIdentity(e.target.value)}>{config.demoIdentities.map(x=><option key={x}>{x}</option>)}</select></label>}</div></header>
  {session.demo&&<div className="demo-notice">{config.labels.demoNotice}</div>}
  <main id="main-content" key={`${epoch}:${identity}:${user.id}`}><Routes>{config.pages.map(p=><Route key={p.path} path={p.path} element={p.render({user,identity,demo:session.demo,session})}/>)}<Route path="*" element={<Empty>{config.labels.notFound}</Empty>}/></Routes></main></div></div>;

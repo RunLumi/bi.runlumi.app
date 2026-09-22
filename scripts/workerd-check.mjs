@@ -24,7 +24,7 @@ try{
  await mkdir(path.join(work,'src'),{recursive:true});
  const worker=await readFile(path.join(root,'scripts/fixtures/workerd-worker.ts'),'utf8');
  await writeFile(path.join(work,'src/index.ts'),worker);
- await writeFile(path.join(work,'package.json'),JSON.stringify({name:'workerd-check',private:true,type:'module',dependencies:{'@runlumi/core':`file:${artifacts}/runlumi-core-0.1.3.tgz`,'@runlumi/cloudflare':`file:${artifacts}/runlumi-cloudflare-0.1.3.tgz`},devDependencies:{'@types/node':'22.18.6'}},null,2));
+ await writeFile(path.join(work,'package.json'),JSON.stringify({name:'workerd-check',private:true,type:'module',dependencies:{'@runlumi/core':`file:${artifacts}/runlumi-core-0.1.4.tgz`,'@runlumi/cloudflare':`file:${artifacts}/runlumi-cloudflare-0.1.4.tgz`},devDependencies:{'@types/node':'22.18.6'}},null,2));
  await writeFile(path.join(work,'wrangler.jsonc'),JSON.stringify({
   name:'workerd-check',main:'src/index.ts',compatibility_date:'2026-08-18',workers_dev:false,preview_urls:false,routes:[],
   assets:{directory:'public',binding:'ASSETS',not_found_handling:'single-page-application',run_worker_first:['/api/*','/healthz']},

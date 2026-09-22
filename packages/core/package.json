@@ -1,6 +1,6 @@
 {
   "name": "@runlumi/core",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Lumi BI domain contracts, semantic plane, governed commerce application services and customer configuration schema.",
   "license": "Elastic-2.0",
   "private": true,
