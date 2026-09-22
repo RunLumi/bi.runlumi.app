@@ -17,6 +17,14 @@ Keep customer customization in the customer repository and public composition
 interfaces. Core packages are versioned build-time artifacts. Do not patch core
 internals from an installation repository.
 
+## API connectors are read-only
+
+Interact with external API connectors only to pull or fetch data. Never put, update,
+or create any data through API connectors — this includes inserts, upserts, updates,
+deletes, and schema or configuration writes on the remote system. The only exception
+is an explicit user request during development and operations, in which case do exactly
+what was asked and nothing more.
+
 Before completing a meaningful change, run the typecheck, focused installation
 tests, repository checks, and the relevant browser or Worker check. Report what
 was verified and what remains unknown. Never put secrets or real customer data in
