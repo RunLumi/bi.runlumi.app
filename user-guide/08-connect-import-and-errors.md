@@ -31,6 +31,10 @@ records after the watermark are rejected; a stale snapshot is rejected
 the original result (`replayed: true`). Raw bytes are stored immutably in R2
 with a checksum.
 
+**Nhanh.vn customer?** The [Nhanh.vn playbook](nhanh-vn-playbook.md) walks the
+full loop for your store: which Nhanh UI exports to pull, how to map them to
+the envelope below, and the reconciliation step before go-live.
+
 ## Register a commerce connection (owner)
 
 In the app: **Commerce** → *Kết nối nguồn*. A connection binds one provider

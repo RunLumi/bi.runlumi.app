@@ -22,6 +22,12 @@ Read in order:
 12. [Back up, restore and roll back](12-backup-restore-rollback.md)
 13. [Troubleshooting and operational handoff](13-troubleshooting-and-handoff.md)
 
+## Nhanh.vn customers
+
+Selling through Nhanh.vn? Follow the [Nhanh.vn playbook](nhanh-vn-playbook.md)
+alongside chapters 3–9: it covers the operator-managed deployment model, the
+supported authorized-export workflow, and the planned live v3 adapter.
+
 ## Important boundaries
 
 - Every command in this guide runs against **your own** Cloudflare resources.

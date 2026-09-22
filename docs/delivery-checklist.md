@@ -161,15 +161,18 @@ by `npm run check`, both Playwright suites, `workerd-check`, and
 formal PASS is declared on the release tag after CI runs on the exact
 candidate.
 
-**Gate 2 — FIRST_CUSTOMER_GO: BLOCKED on external inputs.**
-Missing inputs that no local evidence can substitute: the named pilot's
-identity, authorized source exports and volumes, real credential issuance,
-production Cloudflare authorization, merchant reconciliation sign-off, and an
-explicit product decision on the promised analytics-agent scope. The shipped
-assistant is the curated deterministic path (`mode:"curated-deterministic"`,
-`llmInvolved:false` on every response); no LLM, conversational editing or
-predictions are implemented and none are claimed. Do not proceed to pilot
-onboarding until each input is provided and tested against production.
+**Gate 2 — FIRST_CUSTOMER_GO: BLOCKED on external inputs (pilot named).**
+Pilot: **Baga Official** (`bagaofficial.com`), source **Nhanh.vn**, under the
+operator-managed model — RunLumi owns the Cloudflare account and pays the
+bill; the customer reimburses recorded costs (service agreement to reference).
+Deployment plan: `user-guide/nhanh-vn-playbook.md`. Still blocked on external
+inputs, none substitutable by local evidence: the customer's Nhanh export
+baseline and API credentials (live v3 sync is not implemented — exports only
+until the adapter ships), DNS/hostname confirmation, the reconciled first
+publication signed by the bookkeeper, and the managed-hosting service
+agreement reference. The shipped assistant is the curated deterministic path
+(`mode:"curated-deterministic"`, `llmInvolved:false` on every response); no
+LLM is implemented and none is claimed.
 
 ## Remaining boundaries (honest)
 
