@@ -132,7 +132,7 @@ export async function generateCustomer({customerId,displayName,envs=['production
  const generatedLock=JSON.parse(lockText);
  const rootPkg=generatedLock.packages[''];
  if(rootPkg.name!==customerId+'-lumi-app')throw new Error(`Starter lock root name ${rootPkg.name} does not match customer id ${customerId}`);
- if(rootPkg.version!=='0.1.1')throw new Error(`Starter lock root version ${rootPkg.version} is not 0.1.1`);
+ if(rootPkg.version!=='0.1.2')throw new Error(`Starter lock root version ${rootPkg.version} is not 0.1.2`);
  if(generatedLock.packages['node_modules/@runlumi/core']?.version!==manifest.release)throw new Error(`Starter lock pins core ${generatedLock.packages['node_modules/@runlumi/core']?.version} but artifacts are release ${manifest.release}. Regenerate the starter lock (npm run refresh:customer-lock) after core:pack.`);
  for(const[name,info]of Object.entries(manifest.packages)){
   const expected=`file:vendor/${info.file}`;
