@@ -1,11 +1,12 @@
 import {AppError} from './contracts.ts';
 
 /** Password credential format: pbkdf2-sha256 with a per-user random salt.
- * Iterations are high enough to be expensive yet bounded for the Worker CPU
- * budget; the count is stored per credential so future versions can raise it
- * without invalidating existing hashes. Verification is constant-time. */
+ * The count is the production Workers runtime ceiling: it rejects PBKDF2
+ * above 100,000 iterations (NotSupportedError), and local workerd does not
+ * enforce that cap. It is stored per credential, so a future version can
+ * raise it without invalidating existing hashes. Verification is constant-time. */
 const ALGORITHM='pbkdf2-sha256';
-const ITERATIONS=210_000;
+export const PBKDF2_ITERATIONS=100_000;
 const SALT_BYTES=16;
 const KEY_BYTES=32;
 const MIN_PASSWORD_LENGTH=10;
@@ -28,8 +29,8 @@ const unb64=(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
 
 export async function hashPassword(password:string):Promise<string>{
  const salt=new Uint8Array(SALT_BYTES);crypto.getRandomValues(salt);
- const derived=await derive(password,salt,ITERATIONS);
- return `${ALGORITHM}$${ITERATIONS}$${b64(salt)}$${b64(derived)}`;
+ const derived=await derive(password,salt,PBKDF2_ITERATIONS);
+ return `${ALGORITHM}$${PBKDF2_ITERATIONS}$${b64(salt)}$${b64(derived)}`;
 }
 
 export async function verifyPassword(password:string,stored:unknown):Promise<boolean>{
