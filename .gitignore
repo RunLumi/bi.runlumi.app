@@ -25,3 +25,6 @@ playwright-report/
 test-results/
 .DS_Store
 packages/core/migrations/
+
+# Customer repositories are independent Git repos, never part of this repository.
+/customers/

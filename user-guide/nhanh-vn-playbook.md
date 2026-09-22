@@ -34,19 +34,27 @@ authorized-export workflow keeps that guarantee while the live adapter is built.
 
 ## 1. One-time: customer repository
 
+Generate the customer repository **outside the platform repository** — it is
+an independent Git repo, not a folder of this one:
+
 ```bash
 # working directory: the Lumi BI platform repository
 npm run core:pack                      # immutable release artifacts
+
+# destination: a sibling directory (or anywhere outside the platform repo)
 npm run customer:new -- \
   --customer baga \
   --name 'Baga Official' \
   --env production \
-  --dest ./customers/baga
+  --dest ../lumi-customers/baga
 ```
 
-Then, in the generated repository: `npm ci --ignore-scripts`, `npm run validate`,
-`npm run typecheck`, `npm run build`, `npm test` — all must pass before any
-Cloudflare resource exists.
+Then, in the generated repository: `git init && git add -A && git commit -m
+"initial customer application"`, followed by `npm ci --ignore-scripts`,
+`npm run validate`, `npm run typecheck`, `npm run build`, `npm test` — all must
+pass before any Cloudflare resource exists. The platform repo also ignores
+`/customers/` as a guardrail, but do not rely on that: keep customer repos out
+of it.
 
 ## 2. One-time: resources, secrets, schema, deploy
 

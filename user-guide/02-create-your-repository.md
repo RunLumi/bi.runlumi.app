@@ -36,7 +36,7 @@ npm run customer:new -- \
   hostname scaffold, Access audience scaffold, D1 database and R2 bucket.
 - `--dest` must not exist or must be empty.
 
-The generated directory is a complete, independent Git repository containing:
+Generate the destination **outside the platform repository** (a sibling directory such as `../lumi-customers/<customer>`). The generated directory is a complete, independent Git repository containing:
 
 - `apps/web` — the React application (compose your pages here);
 - `apps/worker` — the Worker entry (register your server extensions here);
