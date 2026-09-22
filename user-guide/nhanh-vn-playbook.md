@@ -133,7 +133,9 @@ step 3. Until that ships, keep selling the authorized-export workflow.
 
 ## 5. Ongoing: updating this customer when core releases
 
-The customer consumes pinned artifacts, so updates are explicit and reviewable:
+The customer consumes pinned artifacts, so updates are explicit and reviewable.
+This is the operator-facing summary of [chapter 11](11-update-core-and-migrations.md)
+and [chapter 12](12-backup-restore-rollback.md), specialized for this repository:
 
 ```bash
 # 1) platform repository — clean tree, latest main, fresh artifacts
@@ -166,6 +168,6 @@ artifacts directory and redeploy; migrations are never reversed (chapter 12).
 - [ ] Staff accounts created with least-privilege roles (chapter 7)
 - [ ] First publication reconciled against Nhanh and the bookkeeper; record
       the signed comparison
-- [ ] Backup executed once (`wrangler d1 export`) and restore rehearsed (chapter 12)
+- [ ] Backup executed once (`wrangler d1 export`) and restore rehearsed ([chapter 12](12-backup-restore-rollback.md))
 - [ ] Billing inventory updated (resource ids, dates, plan)
 - [ ] Service agreement reference recorded (managed-hosting grant)
