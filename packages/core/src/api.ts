@@ -25,7 +25,7 @@ export interface CustomMetricExtension {id:string;version:number;execute:(contex
 export type ConnectorResourceType='orders'|'settlements'|'inventory'|'workflow_facts';
 export interface ConnectorPullRequest {connectionId:string;resourceType:ConnectorResourceType;window:{from:string;toExclusive:string};observedAt:string}
 export interface ConnectorAdapter {provider:string;resources:readonly ConnectorResourceType[];transport:'authorized-export';pull(request:ConnectorPullRequest):Promise<unknown>}
-export interface ApiOptions {customMetrics?:readonly CustomMetricExtension[];connectors?:readonly ConnectorAdapter[];decisionRules?:readonly DecisionRule[];modules?:readonly CoreModule[];standalone?:boolean}
+export interface ApiOptions {customMetrics?:readonly CustomMetricExtension[];connectors?:readonly ConnectorAdapter[];decisionRules?:readonly DecisionRule[];modules?:readonly CoreModule[];standalone?:boolean;onError?:(error:unknown,context:{request:Request;requestId:string})=>void|Promise<void>}
 const MAX_BODY=131_072;
 const SETUPS=[['setupToken','SETUP_TOKEN']] as const;
 async function readJson(request:Request):Promise<unknown>{
@@ -120,7 +120,7 @@ export function createApi<E extends AppEnv=AppEnv>(authenticate:Authenticate<E>,
    const customMetric=/^\/api\/custom-metrics\/([a-z0-9_.-]{1,128})$/.exec(url.pathname);if(customMetric&&request.method==='GET'){const extension=options.customMetrics?.find(item=>item.id===customMetric[1]);if(!extension)throw new AppError(404,'CUSTOM_METRIC_NOT_FOUND');const result=await extension.execute({request,db,principal:principalOf(actor),role:actor.role,query:q=>executeInstallationQueries(db,principalOf(actor),actor.role,[q])});return secure(json({id:extension.id,version:extension.version,...result,role:actor.role,coreVersion:LUMI_CORE_VERSION}),requestId)}
    if(url.pathname==='/api/custom-rules'&&request.method==='GET')return secure(json({version:'operations-v1',rules:options.decisionRules??[],role:actor.role,coreVersion:LUMI_CORE_VERSION}),requestId);
    throw new AppError(404,'NOT_FOUND');
-  }catch(error){const appError=error instanceof AppError?error:new AppError(500,'INTERNAL_ERROR');return secure(json({error:{code:appError.code,requestId}},appError.status),requestId)}
+  }catch(error){const appError=error instanceof AppError?error:new AppError(500,'INTERNAL_ERROR');if(!(error instanceof AppError)||appError.status>=500){try{await options.onError?.(error,{request,requestId})}catch{/* observability must never change the response */}}return secure(json({error:{code:appError.code,requestId}},appError.status),requestId)}
  }
 }
 interface CommerceArgs<E extends AppEnv>{db:Database;store:ObjectStore;actor:InstallationUser;requestId:string;options:ApiOptions}

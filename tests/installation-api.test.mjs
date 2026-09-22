@@ -68,3 +68,45 @@ test('requests before initialization are rejected with a setup-directed error',a
   assert.equal(before.status,409);assert.equal((await before.json()).error.code,'INSTALLATION_NOT_INITIALIZED');
  }finally{db.close();}
 });
+
+test('the onError hook observes infrastructure failures without changing the response',async()=>{
+ const db=await emptyInstallation();try{
+  const seen=[];
+  const api=createApi(async()=>({issuer:'local',subject:'ghost'}),false,{standalone:true,onError:(error,context)=>{seen.push({error,context});}});
+  const env={SOURCES:{async get(){return null;},async put(){}},ASSETS:{async fetch(){return new Response('asset');}}};
+
+  // A missing database binding is a known degraded state, surfaced as 503.
+  const noDb=await api(request('/healthz'),env);
+  assert.equal(noDb.status,200,'healthz must not touch the database');
+  const probe=await api(request('/api/setup/status'),env);
+  assert.equal(probe.status,503);assert.equal((await probe.json()).error.code,'INSTALLATION_DATABASE_UNAVAILABLE');
+  assert.equal(seen.length,1);
+  assert.equal(seen[0].error.code,'INSTALLATION_DATABASE_UNAVAILABLE');
+  assert.equal(seen[0].context.requestId,probe.headers.get('x-request-id'));
+
+  // Expected request errors (4xx AppErrors) are handled states, never reported.
+  const missingDbEnv={SOURCES:{async get(){return null;},async put(){}},ASSETS:{async fetch(){return new Response('asset');}}};
+  const notFound=await api(request('/api/does-not-exist'),missingDbEnv);
+  assert.equal(notFound.status,503,'database is resolved before routing');
+  assert.equal(seen.length,2);
+
+  // An unexpected exception becomes an opaque 500 and reaches onError intact.
+  const brokenDb={prepare(){throw new TypeError('driver exploded');}};
+  const brokenEnv={DB:brokenDb,SOURCES:{async get(){return null;},async put(){}},ASSETS:{async fetch(){return new Response('asset');}}};
+  const crash=await api(request('/api/setup/status'),brokenEnv);
+  assert.equal(crash.status,500);assert.equal((await crash.json()).error.code,'INTERNAL_ERROR');
+  assert.equal(seen.length,3);
+  assert.ok(seen[2].error instanceof TypeError,'the original unexpected error is passed through');
+  assert.equal(seen[2].context.request instanceof Request,true);
+  assert.equal(seen[2].context.requestId,crash.headers.get('x-request-id'));
+ }finally{db.close();}
+});
+
+test('a throwing onError observer cannot break the error response',async()=>{
+ const db=await emptyInstallation();try{
+  const api=createApi(async()=>({issuer:'local',subject:'ghost'}),false,{standalone:true,onError:()=>{throw new Error('observer down');}});
+  const env={SOURCES:{async get(){return null;},async put(){}},ASSETS:{async fetch(){return new Response('asset');}}};
+  const probe=await api(request('/api/setup/status'),env);
+  assert.equal(probe.status,503);assert.equal((await probe.json()).error.code,'INSTALLATION_DATABASE_UNAVAILABLE');
+ }finally{db.close();}
+});
