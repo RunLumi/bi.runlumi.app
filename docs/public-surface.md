@@ -39,6 +39,13 @@ composition), `testing.ts` (local SQLite adapter for customer tests).
 `components/ui/*`, `components/states.tsx`, `components/glyphs.tsx`,
 `features/{dashboard,sources,commerce,commerce-report,decisions,reports,admin,auth}.tsx`.
 
+`AppConfig.navGroups` optionally defines ordered parent menus as
+`{id, label, paths: string[]}`. Paths refer to registered pages; their existing
+`nav` predicates still control visibility. Empty groups are omitted, the first
+assignment wins if a path appears twice, and unassigned pages remain direct
+links. A group's active route (including nested paths) opens it automatically.
+Group buttons support keyboard toggling and expose their expanded state.
+
 ## Migration ledger
 
 `core/*` migrations are immutable after apply; `customer/*` migrations are
