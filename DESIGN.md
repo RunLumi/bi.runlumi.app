@@ -107,6 +107,198 @@ hierarchy, affordance, or provenance.
 The serious-SaaS standard: less chrome and more judgment; fewer panels and better-ranked
 information; more evidence and less performance; tactile enough to trust, quiet enough for daily use.
 
+
+## 1.6 Civic Liquid Glass — 2026 Material Layer
+
+Lumi adopts the **principles** of the latest Liquid Glass direction without copying an
+Apple skin or replacing its own identity. The governing model is two-layer:
+
+1. **Content layer = Civic Intelligence.** Paper, sheets, charts, tables, evidence,
+   narrative, and operational data carry Lumi's brand, color, hierarchy, and trust.
+2. **Interface layer = Liquid Glass.** Navigation, floating controls, contextual
+   actions, filters, inspectors, search, toolbars, and transient overlays may use
+   adaptive glass when it improves hierarchy and preserves content focus.
+
+The content is the institution; glass is the instrument panel above it.
+
+### 1.6.1 Non-negotiable identity
+
+Liquid Glass must **inherit** the existing Lumi system:
+
+* Keep the canonical Paper White, Surface White, Lumi Blue, Civic Navy, Slate,
+  Amber, Red, and Green values unchanged.
+* Keep Geist / Geist Mono and the editorial hierarchy unchanged.
+* Keep the light-only warm-paper canvas.
+* Keep folded-L geometry, disciplined alignment, restrained radii, evidence-first
+  semantics, and chart legibility.
+* Do not introduce rainbow refraction, iridescent chroma, neon edges, aurora
+  backgrounds, glossy 3D ornaments, or transparent content cards.
+* Do not imitate macOS/iOS chrome literally on the web. Translate the material
+  logic into Lumi's visual language.
+
+### 1.6.2 Functional-layer rule
+
+Glass is permitted where the interface acts **on** content, not where content is
+**read**.
+
+**Preferred glass surfaces**
+
+* global top bar and compact page toolbar;
+* sidebar / navigation rail when visually floating above scrolling content;
+* filter and date-range command bars;
+* search / command palette;
+* floating action clusters;
+* chart hover controls and contextual tool trays;
+* inspector / detail rail;
+* popovers, dropdowns, menus, dialogs, and transient overlays;
+* mobile bottom navigation / action trays where applicable.
+
+**Opaque by default**
+
+* KPI cards and scorecards;
+* charts, plots, legends, annotations, and data labels;
+* tables, pivots, cohorts, funnels, heatmaps, and matrices;
+* narrative insight blocks and evidence/source panels;
+* forms and long input surfaces;
+* alerts, error states, audit trails, provenance, and compliance records;
+* printable/exportable report surfaces.
+
+A BI screen that turns every card into glass is a design failure even if it looks
+polished. Data needs a stable visual ground.
+
+### 1.6.3 Glass hierarchy
+
+Use only three glass strengths:
+
+| Role | Material | Typical use |
+|---|---|---|
+| **Glass subtle** | high-opacity tint, low blur | docked navigation, filter strip |
+| **Glass standard** | balanced tint + blur + saturation | floating toolbar, inspector, popover |
+| **Glass focused** | strongest tint, blur, edge definition | command palette, modal, critical transient action |
+
+The stronger the glass, the shorter its lifetime on screen. Persistent chrome must
+be quieter than transient overlays.
+
+### 1.6.4 Optical behavior
+
+Liquid Glass should feel adaptive, not merely transparent:
+
+* A **soft inner highlight** defines the lit upper edge.
+* A **quiet lower edge** or navy-tinted shadow separates glass from the content plane.
+* Background blur removes detail but must preserve the broad color field beneath.
+* Saturation may increase slightly so the paper/brand content subtly informs the
+  glass, but never enough to recolor text or controls.
+* Glass tint increases automatically over dense charts, photos, high-contrast
+  regions, or moving content.
+* Text and icons never rely on blur for legibility. If contrast is unstable, raise
+  tint opacity or use the opaque fallback.
+* Large contiguous glass slabs are discouraged. Prefer compact, purposeful control
+  islands or edge-attached chrome.
+
+### 1.6.5 Concentric geometry
+
+Modern glass feels coherent when nested shapes share a common curvature logic.
+
+* A control inside a glass container must use a smaller, visually concentric radius.
+* Do not stack unrelated pills inside rounded glass pills.
+* Preserve the existing modest Lumi geometry: rectangular civic structure first,
+  softness second.
+* Floating controls may become slightly rounder than content sheets, but the product
+  must not drift into bubble UI.
+* Adjacent glass controls that function as one group should read as one physical
+  object, with separators or segmented selection rather than several floating bubbles.
+
+### 1.6.6 BI-specific composition
+
+For analytics pages, use the following visual stack:
+
+```text
+Paper canvas
+  ↓
+Opaque analytical sheets
+  ↓
+Charts / tables / evidence
+  ↓
+Glass control plane
+  ↓
+Transient glass overlays
+```
+
+This creates a clear perceptual hierarchy: **the data is solid; the controls are fluid**.
+
+Recommended dashboard pattern:
+
+* Page title, metric context, and narrative remain on paper.
+* KPI row uses opaque sheets with restrained elevation.
+* Primary chart panels stay opaque white.
+* A compact sticky glass bar may hold period, channel, store, comparison, export,
+  and saved-view controls.
+* Crosshair/hover information may appear in a compact glass overlay.
+* Drill-down inspector may use standard glass while open, but its detailed tables
+  remain opaque inside the inspector.
+* Full-screen exploration keeps the chart itself opaque/clean and floats controls
+  above it.
+
+### 1.6.7 Color behavior
+
+Glass never creates a new brand palette.
+
+* Neutral glass is derived from Surface White + Paper White.
+* Lumi Blue appears only for selected state, primary action, focus, or trusted
+  interactive emphasis.
+* Semantic Amber / Red / Green remain semantic, never decorative glass tints.
+* Never tint an entire toolbar blue merely to make it feel branded.
+* Let the underlying content provide subtle color through translucency; use direct
+  accent color only where it communicates interaction or state.
+
+### 1.6.8 Accessibility and user preference
+
+Every glass implementation requires:
+
+* readable contrast over the **worst-case real content** beneath it;
+* a no-`backdrop-filter` opaque fallback;
+* a reduced-transparency mode that resolves to an opaque/near-opaque material;
+* reduced-motion behavior with no fluid morphing dependency;
+* keyboard-visible focus independent of material edges;
+* no information encoded only by translucency, blur, tint, or depth;
+* testing at 100%, 125%, 150%, and 200% zoom for web BI;
+* testing over dense charts, red/green series, heatmaps, and table text.
+
+### 1.6.9 Motion
+
+Glass may feel fluid without becoming animated decoration.
+
+Allowed:
+
+* 120–220ms opacity / transform transitions;
+* subtle scale or shape interpolation between related control states;
+* toolbar compaction on scroll;
+* contextual controls entering from the surface they belong to.
+
+Avoid:
+
+* wobble, jelly, elastic bounce, lens distortion, continuously animated refraction;
+* background-following shimmer;
+* motion whose only purpose is to advertise the glass effect.
+
+When `prefers-reduced-motion: reduce` is active, remove morphing and nonessential
+movement while preserving state clarity.
+
+### 1.6.10 The removal test
+
+Before adding glass, ask:
+
+> If this surface were opaque white, would its role still be clear?
+
+If **no**, fix information architecture first. Glass cannot rescue weak hierarchy.
+
+Then ask:
+
+> Does translucency help the user maintain spatial/contextual connection to the data beneath?
+
+If **no**, use the opaque recipe.
+
+
 ---
 
 # 2. Logo Interpretation
@@ -803,9 +995,9 @@ Every UI object must use one of these recipes. Do not invent one-off material.
 | Raised sheet | `--color-surface-white` | 1px `--color-border-strong` | 8px | `--shadow-raised` | sticky bars, hovered interactive cards |
 | Overlay | `--color-surface-white` | 1px `--color-border-strong` | 12px | `--shadow-overlay` | popovers, menus, tooltips |
 | Modal sheet | `--color-surface-white` | 1px `--color-border-strong` | 16px | `--shadow-modal` | dialogs, command palette, bottom sheets |
-| Glass chrome | `--glass-tint` + backdrop `--glass-blur` | 1px `--glass-border` | 0 (flush) | `--shadow-raised` | sidebar, docked side panels |
-| Glass overlay | `--glass-tint-strong` + backdrop `--glass-blur-strong` | 1px `--glass-border` | 12px | `--shadow-overlay` | popovers, menus, tooltips over content |
-| Glass modal | `--glass-tint-strong` + backdrop `--glass-blur-strong` | 1px `--glass-border` | 16px | `--shadow-modal` | dialogs, command palette over content |
+| Glass subtle | `--glass-tint-subtle` + backdrop `--glass-blur-subtle` | 1px `--glass-border` | role-dependent | `--glass-shadow` | persistent sidebar, compact filter strip |
+| Glass standard | `--glass-tint` + backdrop `--glass-blur` | 1px `--glass-border` | 12px | `--glass-shadow` | floating toolbar, inspector, popover |
+| Glass focused | `--glass-tint-strong` + backdrop `--glass-blur-strong` | 1px `--glass-border` | 16px | `--glass-shadow-overlay` | command palette, modal, transient high-focus UI |
 | Recessed well | `--color-surface-white` | 1px `--color-border` | 8px | `--shadow-input` | inputs, textareas, search fields |
 | Lit token | status soft token | 1px same-hue inset ring | 999px | `--shadow-lit` | badges, chips, tabs |
 | Authority seal | `--color-lumi-blue` + `--gradient-primary` | 1px blue-active mix | 8px | `--shadow-button` | primary action |
@@ -821,21 +1013,29 @@ Rules:
 * The background glow is part of the canvas only. Never attach glows to
   individual components.
 
-Liquid-glass rules (the §1.5 Glass cue):
+Civic Liquid Glass rules (the §1.5 Glass cue and §1.6 functional-layer contract):
 
-* Glass recipes apply to floating chrome only — sidebar, side panels, popovers,
-  menus, dialogs, command palette. Content surfaces (cards, tables, inputs,
-  lists, badges) stay on their opaque recipes; the §10.2/§10.3 bans on glass
+* Glass belongs to the interface/control plane: sidebar, navigation, filter bars,
+  inspectors, floating toolbars, popovers, menus, dialogs, and command palette.
+  Analytical content surfaces (KPI cards, charts, tables, evidence, long-form
+  insights, inputs, audit records) remain opaque; the §10.2/§10.3 bans on glass
   content stand.
 * Glass is derived from surface white and existing border tokens only. It adds
   no new palette; §5 governs every color it shows.
-* Blur budget: at most three glass layers visible per screen. Never nest
-  `backdrop-filter` inside another glass surface.
+* Blur budget: normally one persistent glass plane plus one transient overlay;
+  hard maximum three visible glass layers. Never nest `backdrop-filter` inside
+  another glass surface.
 * Every glass surface has an opaque twin: when `backdrop-filter` is unsupported
   or the user prefers reduced transparency, render the equivalent opaque recipe
   at the same radius, border, and shadow.
-* Text on glass must pass §16.1 contrast measured over the busiest content
-  beneath it; raise the tint opacity until it does.
+* Text on glass must pass §16.1 contrast measured over the busiest real content
+  beneath it; raise tint opacity until it does. Dense charts, heatmaps, red/green
+  series, and table text are mandatory stress-test backgrounds.
+* Persistent glass should use the subtle recipe; stronger glass is reserved for
+  shorter-lived overlays.
+* Keep glass control groups visually coherent and concentric. Prefer one grouped
+  control island over a constellation of unrelated translucent pills.
+* Glass must not alter chart series colors, semantic colors, or evidence meaning.
 
 ## 8.1 Border Radius
 
@@ -2314,15 +2514,25 @@ Use this base token file.
      the background reads as a lit surface in a calm room, never a dead sheet (§1.2). */
   --canvas-glow: radial-gradient(115% 50% at 50% -6%, color-mix(in oklch, white 60%, transparent) 0%, transparent 58%);
 
-  /* Liquid glass — translucent floating-chrome materials (§8.0). Derived from the
-     existing surface/border tokens; adds no palette. Web/desktop-webview materials,
-     deliberately OUTSIDE the §19.1 palette-parity table (see its scope note). */
-  --glass-tint: color-mix(in oklch, var(--color-surface-white) 72%, transparent);
-  --glass-tint-strong: color-mix(in oklch, var(--color-surface-white) 88%, transparent);
-  --glass-border: color-mix(in oklch, var(--color-border) 60%, transparent);
-  --glass-blur: 18px;
+  /* Civic Liquid Glass — functional UI layer, never the data/content layer (§1.6, §8.0). */
+  --glass-tint-subtle: color-mix(in oklch, var(--color-surface-white) 82%, transparent);
+  --glass-tint: color-mix(in oklch, var(--color-surface-white) 74%, transparent);
+  --glass-tint-strong: color-mix(in oklch, var(--color-surface-white) 90%, transparent);
+  --glass-border: color-mix(in oklch, var(--color-border) 52%, transparent);
+  --glass-border-lit: color-mix(in oklch, white 78%, transparent);
+  --glass-edge-low: color-mix(in oklch, var(--color-civic-navy) 7%, transparent);
+  --glass-blur-subtle: 12px;
+  --glass-blur: 20px;
   --glass-blur-strong: 32px;
-  --glass-saturate: 1.4;
+  --glass-saturate: 1.25;
+  --glass-shadow:
+    inset 0 1px 0 var(--glass-border-lit),
+    inset 0 -1px 0 var(--glass-edge-low),
+    0 8px 30px -12px color-mix(in oklch, var(--color-civic-navy) 16%, transparent);
+  --glass-shadow-overlay:
+    inset 0 1px 0 var(--glass-border-lit),
+    inset 0 -1px 0 var(--glass-edge-low),
+    0 18px 48px -14px color-mix(in oklch, var(--color-civic-navy) 22%, transparent);
 
   /* Motion */
   --motion-fast: 120ms;
@@ -2577,7 +2787,10 @@ A documentation-only edit checks contracts and examples; it does not certify UI.
 - [ ] Large text, reflow, Vietnamese/long labels, supported RTL, and reduced-motion settings are checked.
 - [ ] User input, scroll, and focus survive refresh/recovery; overlays do not hide the active control.
 - [ ] Materials follow §8, severity rails use the 3px token, and only approved lighting treatments appear.
-- [ ] Glass surfaces follow the §8.0 liquid-glass rules: floating chrome only, blur budget respected, opaque fallback verified (reduced transparency / no `backdrop-filter`), text contrast measured over real content.
+- [ ] Glass follows the §1.6/§8.0 functional-layer rule: controls/navigation may be fluid, analytical content remains opaque and stable.
+- [ ] Blur budget is respected (normally one persistent + one transient layer; max three), no nested backdrop filters, and grouped controls use coherent/concentric geometry.
+- [ ] Opaque fallback is verified for reduced transparency / no `backdrop-filter`; reduced motion removes nonessential morphing.
+- [ ] Glass text/control contrast is measured over worst-case real content, including dense charts, heatmaps, red/green series, and table text.
 - [ ] No new dependency, visual feature, or runtime-readiness claim is hidden in a polish change.
 
 If a required check fails, fix or explicitly block the affected scope; do not mark
@@ -2592,7 +2805,7 @@ values stable when fixing a pairing, hierarchy, or interaction defect.
 
 Lumi’s design should be:
 
-> Calm enough for daily use, serious enough for executive decisions, warm enough for teams, and precise enough to trust.
+> Calm enough for daily use, serious enough for executive decisions, warm enough for teams, precise enough to trust, with fluid controls that never compete with the data.
 
 The logo supplies institutional blue, geometric structure, and disciplined negative space. Do not
 decorate it; build the whole product around what it says:
