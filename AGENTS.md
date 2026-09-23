@@ -19,10 +19,10 @@ internals from an installation repository.
 
 ## Frontend is shadcn/ui on Tailwind
 
-Build application UI with shadcn/ui on Tailwind v4. `@runlumi/ui` owns the shared
-primitives under `src/components/ui` (Radix behavior, cva variants, `cn` from
-`src/lib/utils`) and the shared screens; extend them there instead of styling
-around them in an app. New components follow the shadcn recipe and the DESIGN.md
+Build application UI with shadcn/ui on Tailwind v4 and Base UI primitives.
+`@runlumi/ui` owns the shared primitives under `src/components/ui` (Base UI
+behavior, cva variants, `cn` from `src/lib/utils`) and the shared screens;
+extend them there instead of styling around them in an app. New components follow the shadcn recipe and the DESIGN.md
 tokens — no bespoke CSS or one-off markup where a shadcn component already
 applies. Brand differences are theme tokens (`--background`, `--primary`,
 `--radius-*`, …), never forked components.

@@ -16,6 +16,8 @@ const root=fileURLToPath(new URL('../',import.meta.url));
 const npm=process.env.npm_execpath??process.env.LUMI_NPM_BIN??'npm';
 const wrangler=process.env.LUMI_WRANGLER_BIN??path.join(root,'node_modules','.bin','wrangler');
 const artifacts=path.join(root,'artifacts/core');
+const coreVersion=JSON.parse(await readFile(path.join(root,'packages/core/package.json'),'utf8')).version;
+const cloudflareVersion=JSON.parse(await readFile(path.join(root,'packages/cloudflare/package.json'),'utf8')).version;
 const work=await mkdtemp(path.join(tmpdir(),'lumi-workerd-'));
 const port=8799;
 
@@ -24,7 +26,7 @@ try{
  await mkdir(path.join(work,'src'),{recursive:true});
  const worker=await readFile(path.join(root,'scripts/fixtures/workerd-worker.ts'),'utf8');
  await writeFile(path.join(work,'src/index.ts'),worker);
- await writeFile(path.join(work,'package.json'),JSON.stringify({name:'workerd-check',private:true,type:'module',dependencies:{'@runlumi/core':`file:${artifacts}/runlumi-core-0.1.4.tgz`,'@runlumi/cloudflare':`file:${artifacts}/runlumi-cloudflare-0.1.4.tgz`},devDependencies:{'@types/node':'22.18.6'}},null,2));
+ await writeFile(path.join(work,'package.json'),JSON.stringify({name:'workerd-check',private:true,type:'module',dependencies:{'@runlumi/core':`file:${path.join(artifacts,`runlumi-core-${coreVersion}.tgz`)}`,'@runlumi/cloudflare':`file:${path.join(artifacts,`runlumi-cloudflare-${cloudflareVersion}.tgz`)}`},devDependencies:{'@types/node':'22.18.6'}},null,2));
  await writeFile(path.join(work,'wrangler.jsonc'),JSON.stringify({
   name:'workerd-check',main:'src/index.ts',compatibility_date:'2026-08-18',workers_dev:false,preview_urls:false,routes:[],
   assets:{directory:'public',binding:'ASSETS',not_found_handling:'single-page-application',run_worker_first:['/api/*','/healthz']},

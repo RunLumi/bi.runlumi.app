@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "shadcn/tailwind.css";
 @source "./apps/web/src";
 @source "./node_modules/@runlumi/ui/dist";
 @theme inline {

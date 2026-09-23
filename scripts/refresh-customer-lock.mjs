@@ -7,12 +7,9 @@
  * changes (version bump or package set change), this script must be re-run and its
  * diff reviewed before generation produces a graph that can run `npm ci`.
  *
- * Why --before: this registry resolves packuments through npm's release-age guard
- * (a 7-day "min-release-age" style default in npm >= 11). Fresh package metadata is
- * indistinguishable from a moving target to that guard, so the lock refresh pins an
- * explicit future cutoff to take the newest reviewed metadata while still writing a
- * fully version-pinned lock. The emitted lock is exact and immutable for consumers;
- * determinism lives in the committed file, not in the resolution environment. */
+ * Uses the configured npm release-age policy without overriding it. The emitted lock
+ * is exact and immutable for consumers; determinism lives in the committed file,
+ * while newly resolved transitive packages still respect the repository's admission window. */
 import {mkdtemp, cp, readFile, writeFile, readdir, rm} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
@@ -63,7 +60,7 @@ try{
  await cp(path.join(artifacts,'lumi-core-manifest.json'),path.join(scratch,'vendor','lumi-core-manifest.json'));
  for(const info of Object.values(manifest.packages))await cp(path.join(artifacts,info.file),path.join(scratch,'vendor',info.file));
  const npmCommand=process.env.LUMI_NPM_BIN??'npm';
- const npmArgs=['install','--package-lock-only','--ignore-scripts','--no-audit','--no-fund','--before','2099-12-31'];
+ const npmArgs=['install','--package-lock-only','--ignore-scripts','--no-audit','--no-fund'];
  const r=process.env.npm_execpath
   ? spawnSync(process.env.npm_node_execpath??process.execPath,[process.env.npm_execpath,...npmArgs],{cwd:scratch,stdio:'inherit'})
   : spawnSync(npmCommand,npmArgs,{cwd:scratch,stdio:'inherit'});

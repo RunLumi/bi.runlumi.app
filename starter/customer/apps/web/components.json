@@ -5,5 +5,11 @@
   "tsx": true,
   "tailwind": {"config": "", "css": "src/styles.css", "baseColor": "neutral", "cssVariables": true},
   "iconLibrary": "tabler",
-  "aliases": {"components": "@/components", "utils": "@/lib/utils", "ui": "@/components/ui", "hooks": "@/hooks", "lib": "@/lib"}
+  "aliases": {
+    "components": "@/customer/ui",
+    "utils": "@runlumi/ui/lib/utils.ts",
+    "ui": "@/customer/ui",
+    "hooks": "@/customer/ui",
+    "lib": "@runlumi/ui/lib"
+  }
 }

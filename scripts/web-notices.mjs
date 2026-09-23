@@ -10,10 +10,6 @@ for(const[path,p]of Object.entries(lock.packages)){
  for(const name of ['LICENSE','LICENSE.md','LICENSE.txt','license','license.md','LICENSE-MIT']){
   const file=new URL(path+'/'+name,root);try{await access(file);found=await readFile(file,'utf8');break;}catch{}
  }
- if(!found&&path==='node_modules/@radix-ui/react-compose-refs'&&p.license==='MIT'){
-  // Same radix-ui/primitives upstream; compose-refs omits the shared WorkOS notice in its tarball.
-  found=await readFile(new URL('node_modules/@radix-ui/react-slot/LICENSE',root),'utf8');
- }
  if(!found)throw new Error(`Missing runtime notice for ${path}`);
  sections.push(`\n--- ${path} @ ${p.version} (${p.license}) ---\n${found}`);
 }
