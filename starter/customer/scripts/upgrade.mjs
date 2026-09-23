@@ -1,8 +1,9 @@
 /** Reviewed core upgrade for a customer application.
  * Updates packaged core dependencies and compatibility metadata, reports migrations
  * and extension incompatibilities, and preserves customer-owned files. Refuses unsafe
- * dirty-tree or conflicting updates. Never contacts a registry: it installs the exact
- * tarballs supplied in --from <artifacts/core directory> or already vendored. */
+ * dirty-tree or conflicting updates. It installs exact core tarballs supplied in --from
+ * <artifacts/core directory> or already vendored and lets npm reconcile their new
+ * dependency edges using the normal package-age policy. */
 import {readFile, writeFile, readdir, cp, rm, access, mkdtemp, mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -10,6 +11,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
+import {gunzipSync} from 'node:zlib';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const repoRoot=path.resolve(root,'..');
 const args=process.argv.slice(2);
@@ -23,6 +25,24 @@ const npm=process.env.LUMI_NPM_BIN??'npm';
 function sha256(buffer){return createHash('sha256').update(buffer).digest('hex');}
 function sha512B64(buffer){return createHash('sha512').update(buffer).digest('base64');}
 function run(command,commandArgs,cwd){const r=spawnSync(command,commandArgs,{cwd,stdio:'inherit'});if(r.status!==0)process.exit(r.status??1);}
+function readPackedPackage(bytes,expectedName){
+ const archive=gunzipSync(bytes);let offset=0;
+ while(offset+512<=archive.length){
+  const header=archive.subarray(offset,offset+512);
+  if(header.every(byte=>byte===0))break;
+  const name=header.subarray(0,100).toString('utf8').split('\0',1)[0];
+  const rawSize=header.subarray(124,136).toString('ascii').split('\0',1)[0].trim();
+  const size=Number.parseInt(rawSize,8);
+  if(!Number.isSafeInteger(size)||size<0)throw new Error(`Invalid tar entry size in ${expectedName}`);
+  if(name==='package/package.json'){
+   const manifest=JSON.parse(archive.subarray(offset+512,offset+512+size).toString('utf8'));
+   if(manifest.name!==expectedName)throw new Error(`Artifact package name ${manifest.name} does not match ${expectedName}`);
+   return manifest;
+  }
+  offset+=512+Math.ceil(size/512)*512;
+ }
+ throw new Error(`Artifact for ${expectedName} is missing package/package.json`);
+}
 
 // 1. Refuse to upgrade a dirty tree. Core updates arrive as reviewable diffs.
 //    A git failure is a failure: a non-Git or broken repository is never silently
@@ -42,6 +62,7 @@ const next=JSON.parse(await readFile(manifestPath,'utf8'));
 //     accepted; traversal, absolute paths and foreign filenames fail closed.
 const ARTIFACT_FILE=/^runlumi-(core|cloudflare|ui)-\d+\.\d+\.\d+\.tgz$/;
 const packageBytes={};
+const packageManifests={};
 for(const [name,info]of Object.entries(next.packages)){
  if(!info?.file||!ARTIFACT_FILE.test(info.file)||info.file.includes('/')||info.file.includes('\\')||info.file!==path.basename(info.file))throw new Error(`Unsafe artifact path in release metadata: ${String(info.file)}`);
  const source=path.join(path.dirname(manifestPath),info.file);
@@ -49,6 +70,8 @@ for(const [name,info]of Object.entries(next.packages)){
  const digest=sha256(bytes);
  if(digest!==info.sha256)throw new Error(`Artifact ${info.file} does not match the recorded sha256 (got ${digest.slice(0,12)}, expected ${String(info.sha256).slice(0,12)}). Refusing to upgrade.`);
  packageBytes[name]=bytes;
+ packageManifests[name]=readPackedPackage(bytes,name);
+ if(packageManifests[name].version!==info.version)throw new Error(`Artifact ${info.file} contains ${packageManifests[name].version}, expected ${info.version}`);
 }
 
 // 2. Compatibility gate runs before any file is written.
@@ -112,13 +135,25 @@ for(const[name,info]of Object.entries(next.packages)){
  entry.version=info.version;
  entry.resolved=spec;
  entry.integrity=`sha512-${sha512B64(packageBytes[name])}`;
- // Core-internal dependencies (packages depending on @runlumi/core) stay coordinated.
- for(const dep of Object.keys(entry.dependencies??{})){
-  if(dep.startsWith('@runlumi/'))entry.dependencies[dep]=next.packages[dep]?.version??info.version;
+ // Carry the exact dependency contract from the verified tarball into the npm lock.
+ const packed=packageManifests[name];
+ for(const field of ['dependencies','optionalDependencies','peerDependencies','peerDependenciesMeta','engines','license']){
+  if(packed[field]===undefined)delete entry[field];else entry[field]=packed[field];
  }
 }
 await writeFile(path.join(repoRoot,'package.json'),JSON.stringify(pkg,null,2)+'\n');
 await writeFile(path.join(repoRoot,'package-lock.json'),JSON.stringify(pkgLock,null,2)+'\n');
+// A shared package may add or update runtime dependencies. Reconcile those exact
+// edges in the customer lock before npm ci; no install scripts or audit service run.
+run(npm,['install','--package-lock-only','--ignore-scripts','--no-audit','--no-fund'],repoRoot);
+const reconciled=JSON.parse(await readFile(path.join(repoRoot,'package-lock.json'),'utf8'));
+for(const[name,info]of Object.entries(next.packages)){
+ const spec=`file:vendor/${info.file}`;
+ const entry=reconciled.packages[`node_modules/${name}`];
+ if(pkg.dependencies[name]!==spec||reconciled.packages[''].dependencies?.[name]!==spec||entry?.version!==info.version||entry?.resolved!==spec||entry?.integrity!==`sha512-${sha512B64(packageBytes[name])}`){
+  throw new Error(`Resolved lock entry for ${name} diverged from the verified core artifact.`);
+ }
+}
 run(npm,['ci','--ignore-scripts'],repoRoot);
 console.log(`Upgraded to core ${next.release}. Customer-owned files were not modified.`);
 console.log('Next: npm run validate && npm run build, then deploy. Reverting the Worker version does not reverse a database migration.');

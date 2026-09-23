@@ -10,6 +10,7 @@
 - `cn` now comes from the shadcn `cn` package; app and starter configuration use `base-nova` and Tabler icons.
 - Released coordinated core packages as 0.1.5 with Base UI as a direct UI-package dependency.
 - Updated starter customer package metadata, generated lock, package creation checks, and version-aware Worker checks.
+- Updated the starter upgrade tool to derive exact dependency metadata from the verified core tarballs and reconcile lockfiles before clean install.
 
 ## Left alone
 
