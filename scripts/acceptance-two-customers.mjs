@@ -25,6 +25,9 @@ import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const npm=process.env.npm_execpath??process.env.LUMI_NPM_BIN??'npm';
+const currentCoreVersion=JSON.parse(await readFile(path.join(root,'packages/core/package.json'),'utf8')).version;
+const [coreMajor,coreMinor,corePatch]=currentCoreVersion.split('.').map(Number);
+const nextCoreVersion=`${coreMajor}.${coreMinor}.${corePatch+1}`;
 const work=await mkdtemp(path.join(tmpdir(),'lumi-acceptance-'));
 const results=[];
 const step=async(name,fn)=>{try{const value=await fn();results.push(`PASS ${name}`);return value;}catch(error){results.push(`FAIL ${name}: ${error.message}`);throw error;}};
@@ -259,10 +262,10 @@ console.log('ISOLATION-OK');
   await cp(root,bump,{recursive:true,filter:source=>!source.includes('node_modules')&&!source.includes('/.git/')&&!source.includes('/artifacts/')&&!source.endsWith('/artifacts')});
   for(const pkg of ['core','cloudflare','ui']){
    const file=path.join(bump,'packages',pkg,'package.json');const j=JSON.parse(await readFile(file,'utf8'));
-   j.version='0.1.5';if(pkg==='cloudflare'||pkg==='ui')j.dependencies['@runlumi/core']='0.1.5';
+   j.version=nextCoreVersion;if(pkg==='cloudflare'||pkg==='ui')j.dependencies['@runlumi/core']=nextCoreVersion;
    await writeFile(file,JSON.stringify(j,null,2));
   }
-  await writeFile(path.join(bump,'packages/core/src/version.ts'),"export const LUMI_CORE_VERSION = '0.1.5';\nexport const LUMI_EXTENSION_API = 1;\n");
+  await writeFile(path.join(bump,'packages/core/src/version.ts'),`export const LUMI_CORE_VERSION = '${nextCoreVersion}';\nexport const LUMI_EXTENSION_API = 1;\n`);
   // The N+1 release carries a REAL behavior change: the operations caveat text.
   const semantics=path.join(bump,'packages/core/src/semantics.ts');
   await writeFile(semantics,(await readFile(semantics,'utf8')).replace('đồng Việt Nam.','đồng Việt Nam (cập nhật N+1).'));
@@ -273,9 +276,9 @@ console.log('ISOLATION-OK');
   run(process.execPath,['scripts/core-pack.mjs'],bump,{env:{LUMI_SOURCE_COMMIT:syntheticCommit}});
   for(const dir of [alpha,beta]){
    const out=run(npm,['run','upgrade','--','--from',artifacts],dir);
-   assert(/0\.1\.4 -> 0\.1\.5/.test(out.stdout),`upgrade plan must report N -> N+1 for ${dir}`);
+   assert(out.stdout.includes(`${currentCoreVersion} -> ${nextCoreVersion}`),`upgrade plan must report ${currentCoreVersion} -> ${nextCoreVersion} for ${dir}`);
    const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
-   assert.equal(lock.core.version,'0.1.5',`${dir} lock must record N+1`);
+   assert.equal(lock.core.version,nextCoreVersion,`${dir} lock must record N+1`);
    // Reinstall so the installed packages are the upgraded release, not the old one.
    run(npm,['ci','--ignore-scripts'],dir);
   }
@@ -288,25 +291,22 @@ console.log('ISOLATION-OK');
    run(npm,['run','validate'],dir);
    run(npm,['run','build'],dir);
    run('git',['add','-A'],dir);
-   run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m','core upgrade 0.1.4 -> 0.1.5'],dir);
+   run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m',`core upgrade ${currentCoreVersion} -> ${nextCoreVersion}`],dir);
    const status=spawnSync('git',['status','--porcelain'],{cwd:dir,encoding:'utf8'});
    assert.equal(status.stdout.trim(),'',`tree must be clean after the committed upgrade: ${status.stdout}`);
   }
   // The real behavior change must be live in the INSTALLED runtime, not just recorded.
   const upgraded=await customerFile(alpha,'vendor/lumi-core-manifest.json');
-  assert(upgraded.includes('0.1.5'),'vendored manifest must record the new release');
+  assert(upgraded.includes(nextCoreVersion),'vendored manifest must record the new release');
   for(const dir of [alpha,beta]){
    const installed=await customerFile(dir,'node_modules/@runlumi/core/dist/semantics.js');
-   assert(installed.includes('cập nhật N+1'),`${dir} installed core must carry the N+1 behavior change`);
+   assert(installed.includes('cập nhật N+1'),`${dir} installed core ${nextCoreVersion} must carry the N+1 behavior change`);
   }
   for(const dir of [alpha,beta]){run(npm,['run','validate'],dir);run(npm,['run','build'],dir);}
  });
  await step('F2 custom tests keep passing on N+1',async()=>{
-  for(const dir of [alpha,beta]){
-   const out=run(npm,['test'],dir);
-   const all=[...(out.stdout.match(/# (pass|fail) \d+/g)??[])];
-   assert(!all.some(x=>x.startsWith('# fail ')&&x!=='# fail 0'),`${dir} tests must pass after upgrade`);
-  }
+  // The test command's exit code is authoritative across Node reporter formats.
+  for(const dir of [alpha,beta])run(npm,['test'],dir);
  });
  // ---- G. incompatible extension/migration input rejected with a diagnostic ----
  await step('G1 reserved-route collision is rejected before deployment',async()=>{
@@ -330,7 +330,7 @@ console.log('ISOLATION-OK');
   await writeFile(lockPath,originalText);
  });
  // ---- H. one customer's rollback leaves the other unchanged ----
- await step('H1 beta rolls back to REAL N artifacts; alpha stays at N+1',async()=>{
+ await step(`H1 beta rolls back to REAL ${currentCoreVersion} artifacts; alpha stays at N+1`,async()=>{
   // Execute an actual artifact rollback through the updater, not a lock edit.
   const originalArtifacts=path.join(root,'artifacts/core');
   run(npm,['run','upgrade','--','--from',originalArtifacts],beta);
@@ -339,18 +339,17 @@ console.log('ISOLATION-OK');
   run(npm,['ci','--ignore-scripts'],beta);
   const betaLock=JSON.parse(await customerFile(beta,'lumi.lock.json'));
   const alphaLock=JSON.parse(await customerFile(alpha,'lumi.lock.json'));
-  assert.equal(betaLock.core.version,'0.1.4','beta records the rollback');
-  assert.equal(alphaLock.core.version,'0.1.5','alpha is unchanged by beta rollback');
+  assert.equal(betaLock.core.version,currentCoreVersion,'beta records the rollback');
+  assert.equal(alphaLock.core.version,nextCoreVersion,'alpha is unchanged by beta rollback');
   const installedCore=JSON.parse(await customerFile(beta,'node_modules/@runlumi/core/package.json'));
-  assert.equal(installedCore.version,'0.1.4','beta installed core is the previous release');
+  assert.equal(installedCore.version,currentCoreVersion,'beta installed core is the previous release');
   const installedSemantics=await customerFile(beta,'node_modules/@runlumi/core/dist/semantics.js');
   assert(!installedSemantics.includes('cập nhật N+1'),`the N+1 behavior change must be gone from beta's runtime`);
   // The rolled-back application still validates, builds and passes its tests at N.
   run(npm,['run','validate'],beta);
   run(npm,['run','build'],beta);
-  const out=run(npm,['test'],beta);
-  const fails=(out.stdout.match(/# fail 0/)?0:1);
-  assert.equal(fails,0,'beta tests must pass after the executed rollback');
+  // npm test exit status is stable across TAP and spec reporter output formats.
+  run(npm,['test'],beta);
   // Rollback semantics: code reverts, the migrated database does not.
   assert(/does not reverse a database migration/.test(await customerFile(beta,'scripts/upgrade.mjs')),'rollback guidance must state migration limits');
  });
