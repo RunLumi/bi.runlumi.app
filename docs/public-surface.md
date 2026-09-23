@@ -35,7 +35,7 @@ composition), `testing.ts` (local SQLite adapter for customer tests).
 ## @runlumi/ui
 
 `app.tsx` (`createApp`, `AppPage`/`PageContext`/`NavContext`),
-`lib/api.ts` (typed client + error messages),
+`lib/api.ts` (typed client + error messages), `lib/utils.ts` (`cn` class helper),
 `components/ui/*`, `components/states.tsx`, `components/glyphs.tsx`,
 `features/{dashboard,sources,commerce,commerce-report,decisions,reports,admin,auth}.tsx`.
 

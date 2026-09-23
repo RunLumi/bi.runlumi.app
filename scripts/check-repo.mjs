@@ -30,8 +30,14 @@ for(const [key,p]of Object.entries(lock.packages)){
  assert.match(p.resolved??'',/^https:\/\/registry\.npmjs\.org\//,`Unreviewed origin: ${key}`);
  assert.match(p.integrity??'',/^sha512-/,`Missing integrity: ${key}`);
  const optionalLgpl=p.optional===true&&p.dev===true&&/^node_modules\/@img\/sharp-/.test(key);
+ // Exact nonstandard licenses in the dev-only shadcn CLI graph; nothing is runtime.
+ const shadcnDevLicense=p.dev===true&&(
+  key==='node_modules/argparse'&&p.version==='2.0.1'&&p.license==='Python-2.0'||
+  key==='node_modules/isexe'&&p.version==='3.1.5'&&p.license==='BlueOak-1.0.0'||
+  key==='node_modules/minimatch'&&p.version==='10.2.6'&&p.license==='BlueOak-1.0.0'
+ );
  const common=['MIT','Apache-2.0','ISC','BSD-3-Clause','BSD-2-Clause','0BSD','CC0-1.0','CC-BY-4.0','MIT OR Apache-2.0','Apache-2.0 AND MIT'].includes(p.license);
- assert(common||optionalLgpl,`Unreviewed license/package: ${key} (${p.license})`);
+ assert(common||optionalLgpl||shadcnDevLicense,`Unreviewed license/package: ${key} (${p.license})`);
 }
 for(const workspace of ['packages/core','packages/cloudflare','packages/ui']){
  const pkg=JSON.parse(await read(`${workspace}/package.json`));
@@ -80,10 +86,16 @@ for(const[key,p]of Object.entries(templateLock.packages)){
   assert.match(p.integrity??'',/^sha512-/,`Missing template-lock integrity: ${key}`);
  }
  const common=['MIT','Apache-2.0','ISC','BSD-3-Clause','BSD-2-Clause','0BSD','CC0-1.0','OFL-1.1','MIT OR Apache-2.0'].includes(p.license);
+ // Exact nonstandard licenses in the dev-only shadcn CLI graph; nothing is runtime.
+ const shadcnDevLicense=p.dev===true&&(
+  key==='node_modules/argparse'&&p.version==='2.0.1'&&p.license==='Python-2.0'||
+  key==='node_modules/isexe'&&p.version==='3.1.5'&&p.license==='BlueOak-1.0.0'||
+  key==='node_modules/minimatch'&&p.version==='10.2.6'&&p.license==='BlueOak-1.0.0'
+ );
  const data=key==='node_modules/caniuse-lite'&&p.dev===true&&p.license==='CC-BY-4.0';
  const css=/^node_modules\/lightningcss(?:-[a-z0-9-]+)?$/.test(key)&&p.dev===true&&p.license==='MPL-2.0';
  const font=key==='node_modules/@fontsource-variable/geist'&&p.license==='OFL-1.1';
- assert(common||data||css||font,`Unreviewed template-lock license/package: ${key} (${p.license})`);
+ assert(common||data||css||font||shadcnDevLicense,`Unreviewed template-lock license/package: ${key} (${p.license})`);
 }
 const production=await read('apps/api/src/index.ts');
 assert(!/x-demo-user|local-adapters|fixtures\/|DEV_AUTH|DEMO_AUTH/.test(production));
@@ -108,7 +120,7 @@ const publicSurface=new Set([
  '@runlumi/core/semantics.ts','@runlumi/core/query.ts','@runlumi/core/ingest.ts','@runlumi/core/commerce-model.ts',
  '@runlumi/core/commerce-jobs.ts','@runlumi/core/customer-config.ts','@runlumi/core/version.ts',
  '@runlumi/cloudflare/auth.ts','@runlumi/cloudflare/request-auth.ts','@runlumi/cloudflare/testing.ts',
- '@runlumi/ui/app.tsx','@runlumi/ui/lib/api.ts',
+ '@runlumi/ui/app.tsx','@runlumi/ui/lib/api.ts','@runlumi/ui/lib/utils.ts',
  '@runlumi/ui/components/glyphs.tsx','@runlumi/ui/components/states.tsx',
  '@runlumi/ui/components/ui/card.tsx','@runlumi/ui/components/ui/button.tsx','@runlumi/ui/components/ui/input.tsx',
  '@runlumi/ui/features/dashboard.tsx','@runlumi/ui/features/sources.tsx','@runlumi/ui/features/commerce.tsx',

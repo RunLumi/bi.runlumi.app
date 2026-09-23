@@ -42,8 +42,8 @@ npm test                       # customer tests under customer/tests
    and indexes; it never alters or drops core schema.
 6. **Deployment identity is server-owned.** `CUSTOMER_ID`, `DEPLOYMENT_ID` and the
    `SERVING` binding come from deployment configuration, never from a request.
-7. **Keep the visual language — build with shadcn.** Frontend work uses
-   shadcn/ui on Tailwind v4: compose screens from the shadcn components, tokens
+7. **Keep the visual language — build with shadcn and Base UI.** Frontend work uses
+   shadcn/ui on Tailwind v4 with Base UI primitives: compose screens from the shared components, tokens
    and states in `@runlumi/ui` (`components/ui`, cva variants, `cn`), and add
    new pieces as shadcn-style components rather than bespoke CSS or one-off
    markup. Override brand only through theme tokens in `customer/ui/theme.ts`
