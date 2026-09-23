@@ -10,6 +10,6 @@
     "utils": "@runlumi/ui/lib/utils.ts",
     "ui": "@/customer/ui",
     "hooks": "@/customer/ui",
-    "lib": "@runlumi/ui/lib"
+    "lib": "@/customer/ui"
   }
 }

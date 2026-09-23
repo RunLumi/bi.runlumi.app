@@ -256,6 +256,29 @@ console.log('ISOLATION-OK');
  });
  // ---- F. N+1 upgrade preserves customer-owned files ----
  await step('F1 both upgrade to N+1 without altering customer files',async()=>{
+  // Simulate an existing 0.1.0 customer that predates the Base UI authoring layer.
+  // The versioned template migration must add the missing pieces without replacing pages.
+  const legacyLock=JSON.parse(await customerFile(alpha,'lumi.lock.json'));
+  legacyLock.core.templateVersion='0.1.0';
+  await writeFile(path.join(alpha,'lumi.lock.json'),JSON.stringify(legacyLock,null,2));
+  const legacyPackage=JSON.parse(await customerFile(alpha,'package.json'));
+  delete legacyPackage.devDependencies.shadcn;
+  await writeFile(path.join(alpha,'package.json'),JSON.stringify(legacyPackage,null,2)+'\n');
+  const legacyCss=await customerFile(alpha,'tailwind.css');
+  assert(legacyCss.includes('@import "shadcn/tailwind.css";'),'current starter must include its shadcn authoring layer');
+  await writeFile(path.join(alpha,'tailwind.css'),legacyCss.replace('@import "shadcn/tailwind.css";\n',''));
+  const legacyVite=await customerFile(alpha,'apps/web/vite.config.ts');
+  const rootAlias="{find:'@',replacement:fileURLToPath(new URL('../../',import.meta.url))}";
+  assert(legacyVite.includes(rootAlias),'current starter must include the customer-root Vite alias');
+  await writeFile(path.join(alpha,'apps/web/vite.config.ts'),legacyVite.replace(rootAlias,''));
+  const legacyTsconfig=JSON.parse(await customerFile(alpha,'apps/web/tsconfig.json'));
+  delete legacyTsconfig.compilerOptions.baseUrl;
+  delete legacyTsconfig.compilerOptions.paths;
+  await writeFile(path.join(alpha,'apps/web/tsconfig.json'),JSON.stringify(legacyTsconfig,null,2)+'\n');
+  await rm(path.join(alpha,'apps/web/components.json'),{force:true});
+  run('git',['add','-A'],alpha);
+  run('git',['-c','user.email=acceptance@lumi.invalid','-c','user.name=Lumi Acceptance','commit','-q','--no-verify','-m','fixture legacy template 0.1.0'],alpha);
+
   const before={alpha:await customerFile(alpha,'customer/ui/pages.tsx'),beta:await customerFile(beta,'customer/ui/pages.tsx')};
   const beforeLockA=await customerFile(alpha,'lumi.lock.json');
   const bump=path.join(work,'upstream-n1');
@@ -279,12 +302,19 @@ console.log('ISOLATION-OK');
    assert(out.stdout.includes(`${currentCoreVersion} -> ${nextCoreVersion}`),`upgrade plan must report ${currentCoreVersion} -> ${nextCoreVersion} for ${dir}`);
    const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
    assert.equal(lock.core.version,nextCoreVersion,`${dir} lock must record N+1`);
+   assert.equal(lock.core.templateVersion,'0.1.1',`${dir} must record the current template baseline`);
    // Reinstall so the installed packages are the upgraded release, not the old one.
    run(npm,['ci','--ignore-scripts'],dir);
   }
   assert.equal(await customerFile(alpha,'customer/ui/pages.tsx'),before.alpha,'alpha customer page must be byte-identical after upgrade');
   assert.equal(await customerFile(beta,'customer/ui/pages.tsx'),before.beta,'beta customer page must be byte-identical after upgrade');
   assert.notEqual(await customerFile(alpha,'lumi.lock.json'),beforeLockA,'alpha lock must change on upgrade');
+  const migratedPackage=JSON.parse(await customerFile(alpha,'package.json'));
+  assert.equal(migratedPackage.devDependencies.shadcn,'4.21.0','legacy customer receives the pinned shadcn CLI');
+  assert((await customerFile(alpha,'tailwind.css')).includes('@import "shadcn/tailwind.css";'),'legacy customer receives the shadcn Tailwind layer');
+  assert((await customerFile(alpha,'apps/web/vite.config.ts')).includes(rootAlias),'legacy customer receives the Vite root alias');
+  assert.deepEqual(JSON.parse(await customerFile(alpha,'apps/web/tsconfig.json')).compilerOptions.paths['@/*'],['../../*'],'legacy customer receives the TypeScript root alias');
+  assert.equal(JSON.parse(await customerFile(alpha,'apps/web/components.json')).style,'base-nova','legacy customer receives the shadcn component configuration');
   // The upgrade is committed per the operator runbook after validation and
   // rebuild, so later operations (like a rollback) start from a clean tree.
   for(const dir of [alpha,beta]){

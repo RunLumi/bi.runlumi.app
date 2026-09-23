@@ -120,7 +120,7 @@ const publicSurface=new Set([
  '@runlumi/core/semantics.ts','@runlumi/core/query.ts','@runlumi/core/ingest.ts','@runlumi/core/commerce-model.ts',
  '@runlumi/core/commerce-jobs.ts','@runlumi/core/customer-config.ts','@runlumi/core/version.ts',
  '@runlumi/cloudflare/auth.ts','@runlumi/cloudflare/request-auth.ts','@runlumi/cloudflare/testing.ts',
- '@runlumi/ui/app.tsx','@runlumi/ui/lib/api.ts',
+ '@runlumi/ui/app.tsx','@runlumi/ui/lib/api.ts','@runlumi/ui/lib/utils.ts',
  '@runlumi/ui/components/glyphs.tsx','@runlumi/ui/components/states.tsx',
  '@runlumi/ui/components/ui/card.tsx','@runlumi/ui/components/ui/button.tsx','@runlumi/ui/components/ui/input.tsx',
  '@runlumi/ui/features/dashboard.tsx','@runlumi/ui/features/sources.tsx','@runlumi/ui/features/commerce.tsx',

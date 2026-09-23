@@ -1,6 +1,6 @@
 /** Reviewed core upgrade for a customer application.
  * Updates packaged core dependencies and compatibility metadata, reports migrations
- * and extension incompatibilities, and preserves customer-owned files. Refuses unsafe
+ * and extension incompatibilities, and preserves customer-owned pages and data. Refuses unsafe
  * dirty-tree or conflicting updates. It installs exact core tarballs supplied in --from
  * <artifacts/core directory> or already vendored and lets npm reconcile their new
  * dependency edges using the normal package-age policy. */
@@ -76,10 +76,49 @@ for(const [name,info]of Object.entries(next.packages)){
 
 // 2. Compatibility gate runs before any file is written.
 const parseSemver=v=>{const m=/^(\d+)\.(\d+)\.(\d+)$/.exec(v);if(!m)throw new Error(`Invalid core version ${v}`);return {major:Number(m[1]),minor:Number(m[2]),patch:Number(m[3])};};
+const compareSemver=(a,b)=>{const x=parseSemver(a),y=parseSemver(b);return x.major-y.major||x.minor-y.minor||x.patch-y.patch;};
 const current=parseSemver(lock.core.version),target=parseSemver(next.release);
 if(target.major!==current.major)throw new Error(`Core major upgrade ${lock.core.version} -> ${next.release} requires a documented migration; refusing an automatic upgrade.`);
 if(next.extensionApi!==lock.core.extensionApi)throw new Error(`Extension API ${lock.core.extensionApi} -> ${next.extensionApi} is incompatible with this customer application. Update the extensions first.`);
-if(next.templateVersion!==lock.core.templateVersion)console.warn(`Template moved ${lock.core.templateVersion} -> ${next.templateVersion}: review generated-file changes via three-way merge.`);
+
+// Template migrations are forward-only and idempotent. A core rollback keeps
+// the customer's newer generated-file baseline rather than undoing UI config.
+const templateMigrationSteps={'0.1.0':{to:'0.1.1',label:'shadcn Base UI authoring setup'}};
+function planTemplateMigrations(from,to){
+ const plan=[];let version=from;
+ while(version!==to){
+  const step=templateMigrationSteps[version];
+  if(!step||compareSemver(step.to,version)<=0)throw new Error(`No reviewed customer template migration from ${version} to ${to}; apply the generated-file changes manually before upgrading.`);
+  plan.push({from:version,...step});version=step.to;
+ }
+ return plan;
+}
+const templateVersionTarget=compareSemver(next.templateVersion,lock.core.templateVersion)>0?next.templateVersion:lock.core.templateVersion;
+const templateMigrations=planTemplateMigrations(lock.core.templateVersion,templateVersionTarget);
+const pkg=await readJson('package.json');
+async function inspectTemplateMigration010To011(){
+ const css=await readFile(path.join(repoRoot,'tailwind.css'),'utf8');
+ const hasShadcnImport=/@import\s+["']shadcn\/tailwind\.css["']/.test(css);
+ if(!hasShadcnImport&&!/@import\s+["']tailwindcss["']\s*;/.test(css))throw new Error('Template migration 0.1.0 -> 0.1.1 cannot find the Tailwind import in tailwind.css; resolve the stylesheet manually.');
+ const vite=await readFile(path.join(repoRoot,'apps/web/vite.config.ts'),'utf8');
+ const hasRootAlias=/find:\s*["']@["']\s*,\s*replacement:\s*fileURLToPath\(new URL\(["']\.\.\/\.\.\/["']\s*,\s*import\.meta\.url\)\)/.test(vite);
+ if(!hasRootAlias&&(/find:\s*["']@["']/.test(vite)||!/alias\s*:\s*\[/.test(vite)))throw new Error('Template migration 0.1.0 -> 0.1.1 cannot safely update the Vite @ alias; resolve apps/web/vite.config.ts manually.');
+ const tsconfig=await readJson('apps/web/tsconfig.json');
+ const compiler=tsconfig.compilerOptions??{};const paths=compiler.paths??{};const alias=paths['@/*'];
+ if(compiler.baseUrl!==undefined&&compiler.baseUrl!=='.')throw new Error('Template migration 0.1.0 -> 0.1.1 cannot replace the existing TypeScript baseUrl.');
+ if(alias!==undefined&&(!Array.isArray(alias)||!alias.includes('../../*')))throw new Error('Template migration 0.1.0 -> 0.1.1 conflicts with the existing TypeScript @/* alias.');
+ const shadcn=pkg.devDependencies?.shadcn;
+ if(shadcn!==undefined&&shadcn!=='4.21.0')throw new Error(`Template migration expects shadcn 4.21.0; found ${shadcn}. Review the CLI version manually.`);
+ let components=null;
+ if(await exists('apps/web/components.json'))components=JSON.parse(await readFile(path.join(repoRoot,'apps/web/components.json'),'utf8'));
+ else if(!(await exists('apps/web/src/styles.css')))throw new Error('Template migration cannot create apps/web/components.json because apps/web/src/styles.css is missing.');
+ return {css,hasShadcnImport,vite,hasRootAlias,tsconfig,components};
+}
+let templateMigrationState=null;
+for(const migration of templateMigrations){
+ if(migration.from==='0.1.0'&&migration.to==='0.1.1')templateMigrationState=await inspectTemplateMigration010To011();
+ else throw new Error(`Template migration ${migration.from} -> ${migration.to} has no implementation.`);
+}
 
 // 3. Report migration and extension deltas without applying anything in --check mode.
 function countInstallationMigrations(migrations){return Object.keys(migrations??{}).filter(k=>k.startsWith('migrations/installation/')).length;}
@@ -94,12 +133,10 @@ console.log(`Upgrade plan: core ${report.from} -> ${report.to} (commit ${String(
 console.log(`Core installation migrations in target release: ${report.migrations.installation}`);
 console.log(`Customer-owned migrations preserved: ${report.customerMigrations.length}`);
 console.log(`Extension API: ${report.extensionApi.from} -> ${report.extensionApi.to}`);
+for(const migration of templateMigrations)console.log(`Customer template migration: ${migration.from} -> ${migration.to} (${migration.label})`);
 if(checkOnly){console.log('Check only: no files changed. Rerun without --check to apply.');process.exit(0);}
 
-// 4. Apply: copy verified tarballs, then update package.json and the npm lockfile
-//    in place for the @runlumi packages only. Registry dependencies never change
-//    during a core upgrade, so there is nothing to re-resolve: `npm ci` installs
-//    the exact reviewed graph and verifies integrity. No registry is contacted.
+// 4. Apply verified core tarballs and any reviewed, versioned template migration.
 // Stage every artifact into vendor/.staging and only then swap it in: an
 // interrupted apply can never leave a mixed vendor directory.
 const staging=path.join(repoRoot,'vendor','.staging');
@@ -121,8 +158,7 @@ await rm(staging,{recursive:true,force:true});
 lock.core.version=next.release;
 lock.core.sourceCommit=next.sourceCommit;
 lock.core.releaseDigest=sha256(Buffer.from(JSON.stringify(next.packages))).slice(0,32);
-await writeFile(path.join(repoRoot,'lumi.lock.json'),JSON.stringify(lock,null,2)+'\n');
-const pkg=await readJson('package.json');
+lock.core.templateVersion=templateVersionTarget;
 const pkgLock=JSON.parse(await readFile(path.join(repoRoot,'package-lock.json'),'utf8'));
 const lockRoot=pkgLock.packages[''];
 if(lockRoot.name!==pkg.name||lockRoot.version!==pkg.version)throw new Error(`package-lock.json root (${lockRoot.name}@${lockRoot.version}) does not match package.json (${pkg.name}@${pkg.version}); regenerate the lock instead of upgrading.`);
@@ -141,7 +177,33 @@ for(const[name,info]of Object.entries(next.packages)){
   if(packed[field]===undefined)delete entry[field];else entry[field]=packed[field];
  }
 }
-await writeFile(path.join(repoRoot,'package.json'),JSON.stringify(pkg,null,2)+'\n');
+ if(templateMigrationState){
+  const state=templateMigrationState;
+  if(!pkg.devDependencies)pkg.devDependencies={};
+  if(pkg.devDependencies.shadcn===undefined)pkg.devDependencies.shadcn='4.21.0';
+  if(!state.hasShadcnImport){
+   const marker=/@import\s+["']tailwindcss["']\s*;/;
+   await writeFile(path.join(repoRoot,'tailwind.css'),state.css.replace(marker,match=>`${match}\n@import "shadcn/tailwind.css";`));
+  }
+  if(!state.hasRootAlias){
+   const marker=/alias\s*:\s*\[/;
+   await writeFile(path.join(repoRoot,'apps/web/vite.config.ts'),state.vite.replace(marker,match=>`${match}{find:'@',replacement:fileURLToPath(new URL('../../',import.meta.url))},`));
+  }
+  const compiler=state.tsconfig.compilerOptions??{};const paths=compiler.paths??{};let tsconfigChanged=false;
+  if(compiler.baseUrl===undefined){compiler.baseUrl='.';tsconfigChanged=true;}
+  if(paths['@/*']===undefined){paths['@/*']=['../../*'];tsconfigChanged=true;}
+  if(tsconfigChanged){compiler.paths=paths;state.tsconfig.compilerOptions=compiler;await writeFile(path.join(repoRoot,'apps/web/tsconfig.json'),JSON.stringify(state.tsconfig,null,2)+'\n');}
+  if(state.components===null){
+   const components={
+    '$schema':'https://ui.shadcn.com/schema.json',style:'base-nova',rsc:false,tsx:true,
+    tailwind:{config:'',css:'src/styles.css',baseColor:'neutral',cssVariables:true},iconLibrary:'tabler',
+    aliases:{components:'@/customer/ui',utils:'@runlumi/ui/lib/utils.ts',ui:'@/customer/ui',hooks:'@/customer/ui',lib:'@/customer/ui'}
+   };
+   await writeFile(path.join(repoRoot,'apps/web/components.json'),JSON.stringify(components,null,2)+'\n');
+  }
+ }
+ await writeFile(path.join(repoRoot,'lumi.lock.json'),JSON.stringify(lock,null,2)+'\n');
+ await writeFile(path.join(repoRoot,'package.json'),JSON.stringify(pkg,null,2)+'\n');
 await writeFile(path.join(repoRoot,'package-lock.json'),JSON.stringify(pkgLock,null,2)+'\n');
 // A shared package may add or update runtime dependencies. Reconcile those exact
 // edges in the customer lock before npm ci; no install scripts or audit service run.
@@ -155,5 +217,5 @@ for(const[name,info]of Object.entries(next.packages)){
  }
 }
 run(npm,['ci','--ignore-scripts'],repoRoot);
-console.log(`Upgraded to core ${next.release}. Customer-owned files were not modified.`);
+console.log(`Upgraded to core ${next.release}. Customer-owned pages and data were preserved.`);
 console.log('Next: npm run validate && npm run build, then deploy. Reverting the Worker version does not reverse a database migration.');

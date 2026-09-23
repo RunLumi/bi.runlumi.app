@@ -1,11 +1,13 @@
 {
-  "templateVersion": "0.1.0",
-  "description": "Minimal Lumi BI customer application. Files here are copied on generation; files marked generated are refreshed by core upgrades through three-way merge.",
+  "templateVersion": "0.1.1",
+  "description": "Minimal Lumi BI customer application. Files here are copied on generation; reviewed, versioned template migrations update generated configuration without replacing customer customizations.",
   "generatedFiles": [
     "apps/web/package.json",
     "apps/web/index.html",
+    "apps/web/components.json",
     "apps/web/tsconfig.json",
     "apps/web/vite.config.ts",
+    "tailwind.css",
     "apps/worker/wrangler.jsonc",
     "tsconfig.json",
     "lumi.lock.json",

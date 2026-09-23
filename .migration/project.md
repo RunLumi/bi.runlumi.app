@@ -11,6 +11,7 @@
 - Released coordinated core packages as 0.1.5 with Base UI as a direct UI-package dependency.
 - Updated starter customer package metadata, generated lock, package creation checks, and version-aware Worker checks.
 - Updated the starter upgrade tool to derive exact dependency metadata from the verified core tarballs and reconcile lockfiles before clean install.
+- Bumped the starter template to 0.1.1 and added an idempotent 0.1.0 -> 0.1.1 migration for legacy customer Tailwind, shadcn, Vite, TypeScript, and component configuration.
 
 ## Left alone
 
