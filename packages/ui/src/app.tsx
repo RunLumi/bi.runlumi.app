@@ -6,6 +6,10 @@ import {Empty,ErrorState,Loading} from './components/states.tsx';
 import {AppNavigation,type AppNavGroup} from './components/app-navigation.tsx';
 import {SetupScreen,SignInScreen} from './features/auth.tsx';
 
+declare const __LUMI_BUILD_VERSION__:string;
+declare const __LUMI_BUILD_TIME__:string;
+declare const __LUMI_GIT_HASH__:string;
+
 export interface NavContext {user:InstallationUser|null;platformOperator:boolean}
 export interface PageContext {user:InstallationUser|null;identity:string;demo:boolean;session:Session}
 export interface AppPage {
@@ -52,7 +56,7 @@ function Gate({identity,onIdentity,epoch,onEpoch,config}:{identity:string;onIden
  return <div className="app-shell"><a className="skip-link" href="#main-content">{config.labels.skipToContent}</a><aside className="sidebar"><a className="brand" href="/"><img src={config.brand.logoSrc} width="28" height="28" alt={config.brand.logoAlt}/><strong>{config.brand.name}</strong></a><p className="workspace-label">{config.brand.workspaceLabel}</p>
  <p className="user-label">{session.installation.name??user.name}</p>
  <AppNavigation pages={visible} groups={config.navGroups??[]} label={config.labels.navAriaLabel}/>
- <div className="sidebar-footer">{config.brand.footer}<p className="user-label">{user.displayName||user.name} · {user.role}</p><button type="button" className="link" onClick={signOut}>Đăng xuất</button></div></aside><div className="main-shell"><header className="topbar"><span>{`${user.displayName||user.name} / ${user.role}`}</span><div>{session.demo&&<label className="demo-switch"><span>DEMO</span><select aria-label={config.labels.demoIdentityAriaLabel} value={identity||(config.demoIdentities[0]??'')} onChange={e=>onIdentity(e.target.value)}>{config.demoIdentities.map(x=><option key={x}>{x}</option>)}</select></label>}</div></header>
+ <div className="sidebar-footer"><div className="installation-note">{config.brand.footer}</div><p className="user-label">{user.displayName||user.name} · {user.role}</p><button type="button" className="link" onClick={signOut}>Đăng xuất</button><div className="build-meta"><span>v{__LUMI_BUILD_VERSION__}</span><span>·</span><time dateTime={__LUMI_BUILD_TIME__}>Build {__LUMI_BUILD_TIME__.replace('T',' ').replace(/:\d{2}\.\d{3}Z$/,' UTC')}</time>{__LUMI_GIT_HASH__&&<><span>·</span><code>{__LUMI_GIT_HASH__}</code></>}<a href="https://runlumi.app" target="_blank" rel="noreferrer">Powered by Lumi</a></div></div></aside><div className="main-shell"><header className="topbar"><span>{`${user.displayName||user.name} / ${user.role}`}</span><div>{session.demo&&<label className="demo-switch"><span>DEMO</span><select aria-label={config.labels.demoIdentityAriaLabel} value={identity||(config.demoIdentities[0]??'')} onChange={e=>onIdentity(e.target.value)}>{config.demoIdentities.map(x=><option key={x}>{x}</option>)}</select></label>}</div></header>
  {session.demo&&<div className="demo-notice">{config.labels.demoNotice}</div>}
  <main id="main-content" key={`${epoch}:${identity}:${user.id}`}><Routes>{config.pages.map(p=><Route key={p.path} path={p.path} element={p.render({user,identity,demo:session.demo,session})}/>)}<Route path="*" element={<Empty>{config.labels.notFound}</Empty>}/></Routes></main></div></div>;
 }

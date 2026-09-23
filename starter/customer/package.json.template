@@ -1,6 +1,6 @@
 {
   "name": "__CUSTOMER_ID__-lumi-app",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": true,
   "description": "Lumi BI customer application for __CUSTOMER_ID__. Consumes exact released @runlumi core artifacts at build time.",
   "type": "module",

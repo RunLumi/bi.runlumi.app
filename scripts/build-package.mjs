@@ -1,5 +1,5 @@
 import {spawnSync} from 'node:child_process';
-import {readdir, readFile, writeFile, rm} from 'node:fs/promises';
+import {readdir, readFile, writeFile, rm, mkdir} from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import {fileURLToPath} from 'node:url';
@@ -20,6 +20,18 @@ async function rewrite(file) {
   const rewritten = source.replace(/\.ts(['"])/g, '.js$1');
   if (rewritten !== source) await writeFile(file, rewritten);
 }
+async function copyCss(from, relative = '') {
+  for (const entry of await readdir(path.join(from, relative), {withFileTypes: true})) {
+    const source = path.join(from, relative, entry.name);
+    const child = path.join(relative, entry.name);
+    if (entry.isDirectory()) await copyCss(from, child);
+    else if (entry.name.endsWith('.css')) {
+      const target = path.join(dist, child);
+      await mkdir(path.dirname(target), {recursive: true});
+      await writeFile(target, await readFile(source));
+    }
+  }
+}
 let pending = [dist];
 let emitted = 0;
 while (pending.length) {
@@ -29,4 +41,5 @@ while (pending.length) {
     else {if (entry.name.endsWith('.d.ts')) await rewrite(path.join(target, entry.name)); emitted++;}
   }
 }
+await copyCss(path.join(dir, 'src'));
 console.log(`Built @runlumi/${name} dist/ (${emitted} files)`);
