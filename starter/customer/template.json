@@ -1,5 +1,5 @@
 {
-  "templateVersion": "0.1.1",
+  "templateVersion": "0.1.2",
   "description": "Minimal Lumi BI customer application. Files here are copied on generation; reviewed, versioned template migrations update generated configuration without replacing customer customizations.",
   "generatedFiles": [
     "apps/web/package.json",
