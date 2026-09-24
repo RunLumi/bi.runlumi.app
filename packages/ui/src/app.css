@@ -181,6 +181,50 @@
   .sidebar, .sidebar-collapse, .sidebar nav a, .sidebar nav [data-slot="button"] { transition: none; }
 }
 
+.sidebar-controls { display: flex; align-items: center; gap: 6px; }
+.sidebar-mobile-toggle {
+  display: none;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #D9DEE8;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .64);
+  color: #102A43;
+}
+.sidebar-mobile-toggle svg { width: 21px; height: 21px; }
+.sidebar-mobile-toggle:hover { border-color: #C8D0DE; background: #FFFFFF; color: #006093; }
+.sidebar-mobile-toggle:focus-visible { outline: 2px solid #006093; outline-offset: 2px; }
+.sidebar-navigation { display: flex; min-width: 0; min-height: 0; flex: 1; flex-direction: column; }
+.sidebar-navigation nav { min-width: 0; min-height: 0; flex: 1; }
+
+@media (max-width: 760px) {
+  .sidebar-controls { margin-left: auto; }
+  .sidebar-collapse { display: none; }
+  .sidebar-mobile-toggle { display: inline-flex; }
+  .sidebar .workspace-label { display: none; }
+  .sidebar-navigation { display: block; flex: none; width: 100%; }
+  .sidebar-navigation[data-mobile-open="false"] { display: none; }
+  .sidebar-navigation[data-mobile-open="true"] {
+    max-height: calc(100dvh - 128px);
+    overflow-y: auto;
+    border-top: 1px solid #D9DEE8;
+    padding-top: 10px;
+    overscroll-behavior: contain;
+  }
+  .sidebar-navigation nav { display: grid; gap: 4px; }
+  .sidebar-navigation nav > a { min-height: 40px; }
+  .sidebar-navigation nav > ul { gap: 4px; }
+  .sidebar[data-collapsed="true"] .sidebar-heading { flex-direction: row; justify-content: space-between; }
+  .sidebar[data-collapsed="true"] .brand { justify-content: flex-start; padding: 0; }
+  .sidebar[data-collapsed="true"] .brand strong,
+  .sidebar[data-collapsed="true"] .nav-label,
+  .sidebar[data-collapsed="true"] .sidebar-group-chevron { display: initial; }
+  .sidebar[data-collapsed="true"] .sidebar-footer { display: none; }
+}
+
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .sidebar {
     background: color-mix(in oklch, var(--card, #FFFFFF) 92%, transparent);
