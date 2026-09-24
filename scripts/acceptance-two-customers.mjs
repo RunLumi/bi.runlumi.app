@@ -302,7 +302,7 @@ console.log('ISOLATION-OK');
    assert(out.stdout.includes(`${currentCoreVersion} -> ${nextCoreVersion}`),`upgrade plan must report ${currentCoreVersion} -> ${nextCoreVersion} for ${dir}`);
    const lock=JSON.parse(await customerFile(dir,'lumi.lock.json'));
    assert.equal(lock.core.version,nextCoreVersion,`${dir} lock must record N+1`);
-   assert.equal(lock.core.templateVersion,'0.1.1',`${dir} must record the current template baseline`);
+   assert.equal(lock.core.templateVersion,'0.1.2',`${dir} must record the current template baseline`);
    // Reinstall so the installed packages are the upgraded release, not the old one.
    run(npm,['ci','--ignore-scripts'],dir);
   }

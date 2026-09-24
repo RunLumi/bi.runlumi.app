@@ -1,6 +1,6 @@
 {
   "name": "@runlumi/cloudflare",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Cloudflare Access verification, deployment identity, cell/Worker assembly and local testing adapters for Lumi BI applications.",
   "license": "Elastic-2.0",
   "private": true,
@@ -21,7 +21,7 @@
     "build": "node ../../scripts/build-package.mjs cloudflare"
   },
   "dependencies": {
-    "@runlumi/core": "0.1.7"
+    "@runlumi/core": "0.1.8"
   },
   "devDependencies": {
     "typescript": "5.8.3"

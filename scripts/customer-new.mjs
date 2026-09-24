@@ -15,6 +15,16 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 const root=fileURLToPath(new URL('../',import.meta.url));
 const ident=v=>/^[a-z0-9][a-z0-9-]{0,62}$/.test(v)&&!/^0+$/.test(v.replaceAll('-',''));
 const uuid=()=>randomUUID();
+// These are Vite build-time defines, not customer-generation substitutions.
+// Preserve them verbatim so generated apps still stamp their compiled build.
+const BUILD_DEFINES=new Set(['__LUMI_BUILD_VERSION__','__LUMI_BUILD_TIME__','__LUMI_GIT_HASH__']);
+export function substituteCustomerTemplate(source,substitutions){
+ return source.replace(/__[A-Z][A-Z0-9_]*__/g,match=>{
+  if(match in substitutions)return substitutions[match];
+  if(BUILD_DEFINES.has(match))return match;
+  throw new Error(`Missing substitution ${match}`);
+ });
+}
 
 /** Deployment inventory for one customer/environment: logical customer identity
  * plus server-owned deployment identity and distinct resource names. Scaffold
@@ -104,7 +114,7 @@ export async function generateCustomer({customerId,displayName,envs=['production
   __DATABASE_ID__:production.database.databaseId,
   __SOURCES_BUCKET__:production.sourcesBucket
  };
- const substitute=source=>source.replace(/__[A-Z][A-Z0-9_]*__/g,match=>{if(!(match in substitutions))throw new Error(`Missing substitution ${match}`);return substitutions[match];});
+ const substitute=source=>substituteCustomerTemplate(source,substitutions);
  // Files copied from the starter, with templated files losing their .template suffix.
  const SKIP=new Set(['template.json','node_modules']);
  const KEEP_DOT=new Set(['.github','.gitignore.template']);
