@@ -8,7 +8,7 @@ import {Button} from './ui/button.tsx';
  * Visibility always comes from the page's existing nav predicate. */
 export interface AppNavGroup {id:string;label:string;paths:string[]}
 
-function NavigationGroup({group,pages}:{group:AppNavGroup;pages:AppPage[]}){
+function NavigationGroup({group,pages,onNavigate}:{group:AppNavGroup;pages:AppPage[];onNavigate:(()=>void)|undefined}){
  const {pathname}=useLocation();
  const active=pages.some(page=>pathname===page.path||page.path!=='/'&&pathname.startsWith(`${page.path}/`));
  const [open,setOpen]=useState(active);
@@ -20,15 +20,15 @@ function NavigationGroup({group,pages}:{group:AppNavGroup;pages:AppPage[]}){
   </Button>
   <div id={id} hidden={!open}>
    <ul className="sidebar-group-pages ml-3 grid list-none gap-1 border-l border-border pl-2">
-    {pages.map(page=><li key={page.path}><NavLink title={page.label} to={page.path} end={page.path==='/'}><span className="sidebar-nav-icon" aria-hidden="true">{page.glyph?<page.glyph/>:<IconFileText/>}</span><span className="nav-label">{page.label}</span></NavLink></li>)}
+    {pages.map(page=><li key={page.path}><NavLink title={page.label} to={page.path} end={page.path==='/'} onClick={onNavigate}><span className="sidebar-nav-icon" aria-hidden="true">{page.glyph?<page.glyph/>:<IconFileText/>}</span><span className="nav-label">{page.label}</span></NavLink></li>)}
    </ul>
   </div>
  </div>;
 }
 
-export function AppNavigation({pages,groups=[],label}:{pages:AppPage[];groups?:AppNavGroup[];label:string}){
+export function AppNavigation({pages,groups=[],label,onNavigate}:{pages:AppPage[];groups?:AppNavGroup[];label:string;onNavigate?:()=>void}){
  // Preserve the existing flat layout for installations without groups.
- if(groups.length===0)return <nav id="primary-navigation" aria-label={label}>{pages.map(page=><NavLink key={page.path} title={page.label} to={page.path} end={page.path==='/'}><span className="sidebar-nav-icon" aria-hidden="true">{page.glyph?<page.glyph/>:<IconFileText/>}</span><span className="nav-label">{page.label}</span></NavLink>)}</nav>;
+ if(groups.length===0)return <nav id="primary-navigation" aria-label={label}>{pages.map(page=><NavLink key={page.path} title={page.label} to={page.path} end={page.path==='/'} onClick={onNavigate}><span className="sidebar-nav-icon" aria-hidden="true">{page.glyph?<page.glyph/>:<IconFileText/>}</span><span className="nav-label">{page.label}</span></NavLink>)}</nav>;
  // First assignment wins; a page is never duplicated across groups.
  const assigned=new Set<string>();
  const sections=groups.map(group=>({group,pages:group.paths.flatMap(path=>{
@@ -38,8 +38,8 @@ export function AppNavigation({pages,groups=[],label}:{pages:AppPage[];groups?:A
  })})).filter(section=>section.pages.length>0);
  return <nav id="primary-navigation" aria-label={label} className="!block min-h-0 overflow-y-auto">
   <ul className="grid list-none gap-1">
-   {pages.filter(page=>!assigned.has(page.path)).map(page=><li key={page.path}><NavLink title={page.label} to={page.path} end={page.path==='/'}><span className="sidebar-nav-icon" aria-hidden="true">{page.glyph?<page.glyph/>:<IconFileText/>}</span><span className="nav-label">{page.label}</span></NavLink></li>)}
-   {sections.map(({group,pages})=><li key={group.id}><NavigationGroup group={group} pages={pages}/></li>)}
+   {pages.filter(page=>!assigned.has(page.path)).map(page=><li key={page.path}><NavLink title={page.label} to={page.path} end={page.path==='/'} onClick={onNavigate}><span className="sidebar-nav-icon" aria-hidden="true">{page.glyph?<page.glyph/>:<IconFileText/>}</span><span className="nav-label">{page.label}</span></NavLink></li>)}
+   {sections.map(({group,pages})=><li key={group.id}><NavigationGroup group={group} pages={pages} onNavigate={onNavigate}/></li>)}
   </ul>
  </nav>;
 }
