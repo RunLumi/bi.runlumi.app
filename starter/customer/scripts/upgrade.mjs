@@ -83,7 +83,10 @@ if(next.extensionApi!==lock.core.extensionApi)throw new Error(`Extension API ${l
 
 // Template migrations are forward-only and idempotent. A core rollback keeps
 // the customer's newer generated-file baseline rather than undoing UI config.
-const templateMigrationSteps={'0.1.0':{to:'0.1.1',label:'shadcn Base UI authoring setup'}};
+const templateMigrationSteps={
+ '0.1.0':{to:'0.1.1',label:'shadcn Base UI authoring setup'},
+ '0.1.1':{to:'0.1.2',label:'core UI release metadata; generated customer files unchanged'}
+};
 function planTemplateMigrations(from,to){
  const plan=[];let version=from;
  while(version!==to){
@@ -117,6 +120,7 @@ async function inspectTemplateMigration010To011(){
 let templateMigrationState=null;
 for(const migration of templateMigrations){
  if(migration.from==='0.1.0'&&migration.to==='0.1.1')templateMigrationState=await inspectTemplateMigration010To011();
+ else if(migration.from==='0.1.1'&&migration.to==='0.1.2')continue;
  else throw new Error(`Template migration ${migration.from} -> ${migration.to} has no implementation.`);
 }
 
