@@ -11,12 +11,13 @@ Honest scope statement, as of this writing:
 | Capability | Status |
 | --- | --- |
 | Authorized-export import (files exported from the Nhanh UI, mapped and uploaded) | **Supported** — the day-1 path |
-| Live Nhanh v3 API synchronization (https://apidocs.nhanh.vn/v3) | **Not implemented yet** — planned adapter; do not sell or promise it |
+| Live Nhanh v3 API synchronization (https://apidocs.nhanh.vn/v3) | **Baga-specific pilot implemented in its repository:** owner-triggered `orders`/`inventory` receipt pulls, scheduled incremental/reconciliation runs, and webhook handling. Production deployment and live-provider operation are unverified here; v3 settlements remain unavailable |
 | Independent reconciliation sign-off against the merchant's books | Manual procedure — required before go-live |
 
-Do not describe the current integration as a Nhanh API connection. The platform
-deliberately treats source files as immutable, checksummed evidence, and the
-authorized-export workflow keeps that guarantee while the live adapter is built.
+Keep the Nhanh integration positioned as a Baga-specific pilot. The
+authorized-export workflow remains the supported general path. The repository
+implementation does not establish production deployment or live-provider
+connectivity.
 
 ## 0. Operating model and billing
 
@@ -121,15 +122,25 @@ working correctly: they state what the source did not cover instead of
 inventing numbers. Work through them with the customer; they disappear only
 when the data genuinely covers the gap.
 
-## 4. Live Nhanh v3 adapter (planned — not shipped)
+## 4. Live Nhanh v3 adapter (Baga pilot implementation)
 
-The adapter will be a reviewed connector in `customer/data/connectors.ts`
-(first pilot, then reusable): credentials as local secrets, shop/warehouse
-scope selection, incremental pull with checkpoint state, reconciliation pass,
-dedupe — feeding the existing immutable receipt pipeline. Requirements to
-start: the customer's Nhanh API credentials (per https://apidocs.nhanh.vn/v3),
-written permission to pull their data, and the reconciled export baseline from
-step 3. Until that ships, keep selling the authorized-export workflow.
+The Baga customer repository contains a reviewed connector in
+`customer/data/connectors.ts` and an owner-triggered receipt path
+(`customer/data/nhanh-sync.ts`, `POST /api/customer/nhanh/pull`). These pulls
+feed the immutable receipt pipeline; normalization and publishing remain
+separate reviewed steps. The repository also contains a resumable mirror sync
+subsystem with scheduled incremental and reconciliation runs and webhook
+handling, documented in that repository's `docs/DEPLOYMENT.md` and
+`docs/nhanh-sync.md`.
+
+Those files establish implementation in the Baga repository; this playbook does
+not verify a production deployment, live credentials, or provider connectivity.
+The Nhanh v3 settlements endpoint remains unavailable, and unknown costs or
+fees must not be presented as known. Before treating this as a general product
+capability or onboarding another customer, promote the Baga-specific adapter
+to a reusable reviewed connector and verify that customer's authorization,
+deployment, and live sync. Continue to offer authorized exports as the supported
+general path.
 
 ## 5. Ongoing: updating this customer when core releases
 
