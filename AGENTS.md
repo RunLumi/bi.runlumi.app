@@ -45,3 +45,9 @@ Before completing a meaningful change, run the typecheck, focused installation
 tests, repository checks, and the relevant browser or Worker check. Report what
 was verified and what remains unknown. Never put secrets or real customer data in
 Git.
+
+## Maintaining AI engineering guidance
+
+At the first repository task each month (Asia/Ho_Chi_Minh), follow [the monthly practice review](docs/ai-engineering-practices.md#monthly-ai-engineering-practice-review), starting with claude.dev. Apply evidence-backed improvements to this contract and canonical docs; preserve existing ownership, security, product, and release rules. This runs on agent entry, not a background scheduler.
+
+Before long-task interruption/compaction, record a redacted checkpoint and revalidate actual state on resume using [the resume protocol](docs/ai-engineering-practices.md#resuming-agent-work). Claims of better prompt/skill/workflow outcomes require [independent evaluation](docs/ai-engineering-practices.md#evaluating-guidance-changes); source recommendations and green counts alone are not proof.
