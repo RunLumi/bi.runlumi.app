@@ -1274,6 +1274,39 @@ Meaning:
 * Evidence: document + annotation dot
 * Chat: speech bubble + L-corner
 
+## Development default: distinctive, useful icons
+
+Treat icon selection as design work. Icons should make an action immediately
+recognizable or give a service a concrete visual identity. Choose the most
+specific readable metaphor available; do not fill every section with the same
+checkmark, shield, globe, or generic AI sparkle. A consistent drawing language
+should still contain varied, purposeful silhouettes. Do not add icons to every
+heading merely to fill space.
+
+For BI development:
+
+- Follow the existing [Lumi Glyph System](ICON.md): familiar Tabler-derived utility glyphs, Lumi-native product glyphs, and semantic modifiers are separate layers. Preserve its geometry and color rules. Its `@lumi/glyphs` API is a target, not proof that the package is installed; inspect the actual owner before implementation.
+- Reuse the shared primitives and screens owned by `@runlumi/ui`; keep a glyph abstraction with that owner rather than scattering donor imports or forking components in installation apps. This documentation does not add a package, migrate icons, or change a core release.
+- Distinguish reports, data sources, comparisons, filters, and exports with concrete document, source, paired-column, funnel, and download metaphors. Product glyphs describe supported BI concepts, not companion-product screens assumed to exist from reference examples.
+- Object first, state second: preserve provenance/clarity modifiers without overcrowding small drawings. Missing, stale, denied, or unknown data needs explicit text. An upward arrow is not proof of growth, and a checkmark is not proof of freshness or verification; [data semantics](docs/semantic-contract.md) remain authoritative.
+- Use the existing navy/slate/blue semantic palette. Restrained L-corners, brackets, or rails may distinguish a prominent concept; leave dense data rows and controls quiet. Icons supplement readable labels and evidence, never replace chart legends, source names, units, or errors.
+
+Before shipping an icon change, review the glyphs together at their actual
+rendered sizes, including 16/20/24px where used. Check recognizable silhouettes,
+optical balance, consistent strokes, negative space, and contrast on every
+material and state. Remove framing or simplify the symbol if it crowds the glyph.
+Keep visible labels for unfamiliar actions; icon-only controls need an accessible
+name, visible keyboard focus, and a hit area independent of drawing size. Hide
+decorative SVGs from assistive technology when text or a named control supplies
+the meaning. Essential status also needs text, never color or a mark alone.
+
+Inspect supported locales at 320/375/768/1440px, including long Vietnamese labels
+and diacritics, touch and keyboard use, and forced colors. Keep glyphs from
+shrinking or colliding with text. Follow the existing motion rules; no decorative
+bounce, glow, or continuous spinning. Replace vague or repetitive metaphors;
+remove decoration that contributes no meaning. These are acceptance requirements
+for future implementation, not evidence that a UI change has shipped.
+
 ---
 
 # 10. UI Components
